@@ -1,0 +1,325 @@
+'use client'
+
+import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Progress } from '@/components/ui/progress'
+import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
+import { usePMISStore } from '@/lib/pmis-store'
+import { statusConfig, priorityConfig, workstreamConfig, teamConfig } from '@/lib/pmis-data'
+
+export function ContextInspector() {
+  const {
+    selectedTaskId,
+    inspectorOpen,
+    setInspectorOpen,
+    selectTask,
+    getTaskById,
+    getTaskDependencies,
+    getTaskDependents,
+  } = usePMISStore()
+
+  if (!inspectorOpen || !selectedTaskId) {
+    return null
+  }
+
+  const task = getTaskById(selectedTaskId)
+  if (!task) return null
+
+  const dependencies = getTaskDependencies(selectedTaskId)
+  const dependents = getTaskDependents(selectedTaskId)
+  const statusCfg = statusConfig[task.status]
+  const priorityCfg = priorityConfig[task.priority]
+  const groupCfg = workstreamConfig[task.groupName]
+  const teamCfg = teamConfig[task.teamName]
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  const daysBetween = (date1: Date, date2: Date) => {
+    const oneDay = 24 * 60 * 60 * 1000
+    return Math.round((date2.getTime() - date1.getTime()) / oneDay)
+  }
+
+  const duration = daysBetween(task.startDate, task.endDate)
+
+  return (
+    <div className="flex h-full w-80 flex-col border-l border-border bg-card">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h3 className="text-sm font-medium text-foreground">Task Details</h3>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7"
+          onClick={() => {
+            selectTask(null)
+            setInspectorOpen(false)
+          }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-6">
+          {/* Title and status */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
+              {task.isMilestone && (
+                <span className="text-amber-500 mt-0.5">◆</span>
+              )}
+              <h2 className="text-base font-semibold text-foreground leading-tight">
+                {task.name}
+              </h2>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className={cn(statusCfg.bgColor, statusCfg.color)}>
+                {statusCfg.label}
+              </Badge>
+              <Badge variant="secondary" className={cn('text-xs', groupCfg.color)}>
+                {groupCfg.label}
+              </Badge>
+              <Badge variant="secondary" className={cn('text-xs', teamCfg.color)}>
+                {teamCfg.label}
+              </Badge>
+              <Badge variant="outline" className={priorityCfg.color}>
+                {priorityCfg.label}
+              </Badge>
+              {task.isCriticalPath && (
+                <Badge variant="destructive" className="text-xs">
+                  Critical Path
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {task.description}
+            </p>
+          </div>
+
+          <Separator />
+
+          {/* Assignee */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <User className="h-3.5 w-3.5" />
+              <span>Assignee</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">
+                  {task.assignee.initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-foreground">{task.assignee.name}</span>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Timeline</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs">Start</span>
+                <p className="text-foreground">{formatDate(task.startDate)}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">End</span>
+                <p className="text-foreground">{formatDate(task.endDate)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Duration estimates */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Duration Estimates</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-emerald-500/10 p-2 text-center">
+                <span className="text-[10px] text-muted-foreground">Optimistic</span>
+                <p className="text-sm font-medium text-emerald-400">{task.optimisticDays}d</p>
+              </div>
+              <div className="rounded-lg bg-blue-500/10 p-2 text-center">
+                <span className="text-[10px] text-muted-foreground">Estimated</span>
+                <p className="text-sm font-medium text-blue-400">{task.estimatedDays}d</p>
+              </div>
+              <div className="rounded-lg bg-red-500/10 p-2 text-center">
+                <span className="text-[10px] text-muted-foreground">Pessimistic</span>
+                <p className="text-sm font-medium text-red-400">{task.pessimisticDays}d</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Progress</span>
+              <span className="text-xs font-medium text-foreground">{task.progress}%</span>
+            </div>
+            <Progress value={task.progress} className="h-2" />
+          </div>
+
+          <Separator />
+
+          {/* Dependencies */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <GitBranch className="h-3.5 w-3.5" />
+              <span>Dependencies</span>
+            </div>
+            
+            {dependencies.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase">Depends on</span>
+                {dependencies.map(dep => (
+                  <button
+                    key={dep.id}
+                    className="flex w-full items-center gap-2 rounded-md bg-secondary/50 px-2 py-1.5 text-left hover:bg-secondary transition-colors"
+                    onClick={() => selectTask(dep.id)}
+                  >
+                    <div className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      dep.status === 'done' && 'bg-emerald-500',
+                      dep.status === 'in-progress' && 'bg-blue-500',
+                      dep.status === 'blocked' && 'bg-red-500',
+                      dep.status === 'todo' && 'bg-muted-foreground'
+                    )} />
+                    <span className="text-xs text-foreground truncate">{dep.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {dependents.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase">Blocking</span>
+                {dependents.map(dep => (
+                  <button
+                    key={dep.id}
+                    className="flex w-full items-center gap-2 rounded-md bg-secondary/50 px-2 py-1.5 text-left hover:bg-secondary transition-colors"
+                    onClick={() => selectTask(dep.id)}
+                  >
+                    <div className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      dep.status === 'done' && 'bg-emerald-500',
+                      dep.status === 'in-progress' && 'bg-blue-500',
+                      dep.status === 'blocked' && 'bg-red-500',
+                      dep.status === 'todo' && 'bg-muted-foreground'
+                    )} />
+                    <span className="text-xs text-foreground truncate">{dep.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {dependencies.length === 0 && dependents.length === 0 && (
+              <p className="text-xs text-muted-foreground">No dependencies</p>
+            )}
+          </div>
+
+          {/* Blockers */}
+          {task.blockers.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-red-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>Blockers</span>
+                </div>
+                {task.blockers.map((blocker, i) => (
+                  <div 
+                    key={i}
+                    className="rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2"
+                  >
+                    <p className="text-xs text-red-400">{blocker}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Risk indicator */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span>Risk Level</span>
+            </div>
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                task.riskLevel === 'high' && 'bg-red-500/20 text-red-400',
+                task.riskLevel === 'medium' && 'bg-amber-500/20 text-amber-400',
+                task.riskLevel === 'low' && 'bg-emerald-500/20 text-emerald-400'
+              )}
+            >
+              {task.riskLevel.charAt(0).toUpperCase() + task.riskLevel.slice(1)} Risk
+            </Badge>
+          </div>
+
+          {/* Linked Change Requests */}
+          {task.linkedChangeRequests.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Link className="h-3.5 w-3.5" />
+                  <span>Change Requests</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {task.linkedChangeRequests.map(cr => (
+                    <Badge key={cr} variant="outline" className="text-xs">
+                      {cr}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Comments */}
+          {task.comments.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Comments ({task.comments.length})</span>
+                </div>
+                {task.comments.map(comment => (
+                  <div key={comment.id} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="bg-secondary text-[8px]">
+                          {comment.author.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs font-medium text-foreground">{comment.author}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatDate(comment.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground pl-7">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}

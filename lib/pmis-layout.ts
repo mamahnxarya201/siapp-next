@@ -1,0 +1,3 @@
+export const GROUP_HEADER_HEIGHT = 40
+export const TASK_ROW_HEIGHT = 36
+export const GANTT_TIMELINE_HEADER_HEIGHT = 60

@@ -111,6 +111,9 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
             </span>
           )}
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          {project.delayedMilestones} delayed · {project.pendingApprovals} pending · {project.riskScore > 60 ? 'critical blocker risk' : 'tracked risk'}
+        </p>
       </CardContent>
     </Card>
   )
@@ -217,21 +220,21 @@ export function DashboardView() {
           <KPICard
             title="Delayed Projects"
             value={delayedProjects}
-            subtitle="Need attention"
+            subtitle={`${delayedProjects} delayed · ${totalPendingApprovals} pending`}
             icon={AlertTriangle}
             color={delayedProjects > 0 ? 'danger' : 'default'}
           />
           <KPICard
             title="Pending Approvals"
             value={totalPendingApprovals}
-            subtitle="Across all projects"
+            subtitle={`${criticalPathTasks} critical path tasks exposed`}
             icon={Clock}
             color={totalPendingApprovals > 3 ? 'warning' : 'default'}
           />
           <KPICard
             title="Avg Health Score"
             value={`${avgHealthScore}%`}
-            subtitle="Portfolio health"
+            subtitle="Driven by blockers, approvals, and delay risk"
             icon={TrendingUp}
             color={avgHealthScore >= 70 ? 'success' : avgHealthScore >= 40 ? 'warning' : 'danger'}
           />

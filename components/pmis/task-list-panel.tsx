@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { ChevronRight, ChevronDown, GitBranch, PanelLeftClose } from 'lucide-react'
+import { ChevronRight, ChevronDown, GitBranch } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, teamConfig, workstreamConfig, type Task } from '@/lib/pmis-data'
-import { GANTT_TIMELINE_HEADER_HEIGHT, GROUP_HEADER_HEIGHT, TASK_ROW_HEIGHT } from '@/lib/pmis-layout'
+import { GANTT_PANEL_HEADER_HEIGHT, GANTT_TIMELINE_HEADER_HEIGHT, GROUP_HEADER_HEIGHT, TASK_ROW_HEIGHT } from '@/lib/pmis-layout'
 
 function TaskRow({ task }: { task: Task }) {
   const { 
@@ -48,7 +47,7 @@ function TaskRow({ task }: { task: Task }) {
           'text-sm truncate',
           task.status === 'done' && 'text-muted-foreground line-through',
           task.isMilestone && 'font-medium'
-        )}>
+        )} title={task.name}>
           {task.isMilestone && '◆ '}
           {task.name}
         </span>
@@ -120,10 +119,10 @@ function GroupHeaderRow({ group, taskCount }: { group: keyof typeof workstreamCo
       <Badge variant="secondary" className={cn('text-xs', config.color)}>
         {config.label}
       </Badge>
-      <span className="text-xs text-muted-foreground">
+      <span className="text-xs text-muted-foreground whitespace-nowrap">
         {taskCount} tasks · {activeCount} active · {completedCount} done
       </span>
-      {teamSummary && <span className="text-[10px] text-muted-foreground truncate max-w-44">{teamSummary}</span>}
+      {teamSummary && <span className="text-[10px] text-muted-foreground truncate max-w-44 whitespace-nowrap">{teamSummary}</span>}
       <div className="ml-auto flex items-center gap-1">
         {blockedCount > 0 && <span className="text-[10px] text-red-400">{blockedCount} blocked</span>}
         {inProgressCount > 0 && <span className="text-[10px] text-blue-400">{inProgressCount} active</span>}
@@ -133,51 +132,22 @@ function GroupHeaderRow({ group, taskCount }: { group: keyof typeof workstreamCo
   )
 }
 
-export function TaskListPanel({
-  scrollTop,
-  onVerticalScroll,
-  onHide,
-}: {
-  scrollTop: number
-  onVerticalScroll: (next: number) => void
-  onHide: () => void
-}) {
-  const listRef = useRef<HTMLDivElement>(null)
+export function TaskListPanel() {
   const { tasks, getVisibleRows } = usePMISStore()
   const visibleRows = getVisibleRows()
 
-  useEffect(() => {
-    const el = listRef.current
-    if (!el) return
-    if (Math.abs(el.scrollTop - scrollTop) > 1) {
-      el.scrollTop = scrollTop
-    }
-  }, [scrollTop])
-
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card">
+    <div className="flex min-h-full flex-col border-r border-border bg-card">
       {/* Panel header */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+      <div
+        className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-border bg-card px-3"
+        style={{ height: GANTT_PANEL_HEADER_HEIGHT }}
+      >
         <h2 className="text-sm font-medium text-foreground">Tasks</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{tasks.length} total</span>
-          <button
-            type="button"
-            onClick={onHide}
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            aria-label="Hide task list"
-            title="Hide task list"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
-        </div>
+        <span className="text-xs text-muted-foreground">{tasks.length} total</span>
       </div>
 
-      <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto"
-        onScroll={(e) => onVerticalScroll(e.currentTarget.scrollTop)}
-      >
+      <div>
         <div style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }} className="border-b border-border/60 bg-card/50" />
         {visibleRows.map((row) =>
           row.type === 'group-header' ? (

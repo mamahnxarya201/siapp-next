@@ -1,6 +1,9 @@
 'use client'
 
-import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Sun, Moon, Monitor } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,14 +18,21 @@ import { usePMISStore } from '@/lib/pmis-store'
 import { cn } from '@/lib/utils'
 
 export function TopNav() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const { 
     currentView, 
     currentProjectId, 
     projects,
     setCurrentProject,
     setSearchQuery,
-    searchQuery
+    searchQuery,
+    dataMode
   } = usePMISStore()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const currentProject = projects.find(p => p.id === currentProjectId)
 
@@ -95,6 +105,12 @@ export function TopNav() {
           <span className="hidden sm:inline">New Task</span>
         </Button>
 
+        <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs" asChild>
+          <Link href={dataMode === 'stress' ? '/' : '/stress'}>
+            {dataMode === 'stress' ? 'Default Data' : 'Stress Data'}
+          </Link>
+        </Button>
+
         {/* View Mode */}
         <div className="flex items-center rounded-lg border border-border bg-secondary p-0.5">
           <Button
@@ -133,6 +149,35 @@ export function TopNav() {
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <Settings className="h-4 w-4" />
         </Button>
+
+        {/* Theme */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Toggle theme">
+              {!mounted || theme === 'system' ? (
+                <Monitor className="h-4 w-4" />
+              ) : theme === 'dark' ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={() => setTheme('light')}>
+              <Sun className="mr-2 h-4 w-4" />
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('dark')}>
+              <Moon className="mr-2 h-4 w-4" />
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('system')}>
+              <Monitor className="mr-2 h-4 w-4" />
+              System
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* User */}
         <DropdownMenu>

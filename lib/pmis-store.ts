@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { tasks as initialTasks, projects as initialProjects, type Task, type Project, type WorkstreamGroup } from './pmis-data'
+import { tasks as defaultTasks, stressTasks, projects as initialProjects, type Task, type Project, type WorkstreamGroup } from './pmis-data'
 
 const GROUP_ORDER: WorkstreamGroup[] = ['foundation', 'core-platform', 'execution-ui', 'validation', 'release']
 
@@ -17,6 +17,7 @@ interface PMISState {
   // Data
   tasks: Task[]
   projects: Project[]
+  dataMode: 'default' | 'stress'
   
   // Selection state
   selectedTaskId: string | null
@@ -45,6 +46,7 @@ interface PMISState {
   toggleGroup: (group: WorkstreamGroup) => void
   setInspectorOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
+  setDataMode: (mode: 'default' | 'stress') => void
   updateTaskDates: (taskId: string, startDate: Date, endDate: Date) => void
   updateTaskStatus: (taskId: string, status: Task['status']) => void
   
@@ -63,8 +65,9 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   // Initial state
   currentView: 'dashboard',
   currentProjectId: null,
-  tasks: initialTasks,
+  tasks: defaultTasks,
   projects: initialProjects,
+  dataMode: 'default',
   selectedTaskId: null,
   hoveredTaskId: null,
   timelineScale: 'week',
@@ -86,10 +89,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
     hoveredTaskId: null
   }),
   
-  selectTask: (taskId) => set({ 
-    selectedTaskId: taskId,
-    inspectorOpen: taskId !== null 
-  }),
+  selectTask: (taskId) => set({ selectedTaskId: taskId }),
   
   hoverTask: (taskId) => set({ hoveredTaskId: taskId }),
   
@@ -112,6 +112,17 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   setInspectorOpen: (open) => set({ inspectorOpen: open }),
   
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  setDataMode: (mode) => set((state) => {
+    if (state.dataMode === mode) return state
+
+    return {
+      dataMode: mode,
+      tasks: mode === 'stress' ? stressTasks : defaultTasks,
+      selectedTaskId: null,
+      hoveredTaskId: null,
+    }
+  }),
   
   updateTaskDates: (taskId, startDate, endDate) => set((state) => ({
     tasks: state.tasks.map(task => 

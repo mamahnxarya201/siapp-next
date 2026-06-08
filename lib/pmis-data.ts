@@ -550,15 +550,154 @@ const WORKSTREAM_BY_TASK_ID: Record<string, WorkstreamGroup> = {
   t19: 'release',
 }
 
-export const tasks: Task[] = rawTasks.map((task, index) => ({
-  ...task,
-  groupName: WORKSTREAM_BY_TASK_ID[task.id] ?? 'core-platform',
-  teamName: task.group,
-  plannedStart: task.startDate,
-  plannedEnd: task.endDate,
-  earliestStart: task.startDate,
-  createdAt: addDays(-30 + index),
-}))
+const WORKSTREAM_SEQUENCE: WorkstreamGroup[] = ['foundation', 'core-platform', 'execution-ui', 'validation', 'release']
+const TEAMS_BY_WORKSTREAM: Record<WorkstreamGroup, TaskTeam[]> = {
+  foundation: ['infrastructure', 'backend', 'design'],
+  'core-platform': ['backend', 'infrastructure', 'qa'],
+  'execution-ui': ['frontend', 'design', 'backend'],
+  validation: ['qa', 'backend', 'frontend'],
+  release: ['deployment', 'management', 'infrastructure'],
+}
+
+const TASK_NAMES_BY_WORKSTREAM: Record<WorkstreamGroup, string[]> = {
+  foundation: [
+    'Environment Provisioning',
+    'Access Policy Review',
+    'Data Model Hardening',
+    'Audit Trail Baseline',
+    'Repository Governance',
+    'Build Cache Optimization',
+  ],
+  'core-platform': [
+    'Portfolio Metrics API',
+    'Dependency Engine Service',
+    'Approval Workflow API',
+    'Project Health Aggregator',
+    'Notification Dispatcher',
+    'Resource Capacity Endpoint',
+  ],
+  'execution-ui': [
+    'Portfolio Summary Widget',
+    'Execution Timeline Layer',
+    'Dependency Focus Mode',
+    'Approval Drawer Experience',
+    'Risk Indicator Polish',
+    'Inspector Activity Stream',
+  ],
+  validation: [
+    'Regression Coverage Pass',
+    'Cross-Browser Verification',
+    'Performance Scenario Run',
+    'Dependency Logic QA',
+    'UAT Feedback Triage',
+    'Security Scenario Review',
+  ],
+  release: [
+    'Release Candidate Packaging',
+    'Stakeholder Demo Prep',
+    'Production Checklist Review',
+    'Rollback Drill',
+    'Launch Readiness Gate',
+    'Post-Launch Monitoring Plan',
+  ],
+}
+
+const createGeneratedTasks = (count: number, prefix: 'm' | 's', label: string): Omit<Task, 'groupName' | 'teamName' | 'plannedStart' | 'plannedEnd' | 'earliestStart' | 'createdAt'>[] =>
+  Array.from({ length: count }, (_, index) => {
+    const id = `${prefix}${index + 1}`
+    const workstream = WORKSTREAM_SEQUENCE[index % WORKSTREAM_SEQUENCE.length]
+    const teams = TEAMS_BY_WORKSTREAM[workstream]
+    const group = teams[index % teams.length]
+    const names = TASK_NAMES_BY_WORKSTREAM[workstream]
+    const wave = Math.floor(index / WORKSTREAM_SEQUENCE.length)
+    const startOffset = -8 + wave * 2 + (index % 4)
+    const duration = 2 + (index % 7)
+    const dependencies = [
+      index > 0 && index % 3 === 0 ? `${prefix}${index}` : null,
+      index > 5 && index % 5 === 0 ? `${prefix}${index - 4}` : null,
+      index > 12 && index % 11 === 0 ? `${prefix}${index - 10}` : null,
+      index % 37 === 0 ? 't12' : null,
+      index % 53 === 0 ? 't17' : null,
+    ].filter((dependency): dependency is string => Boolean(dependency))
+    const status: TaskStatus =
+      index % 23 === 0
+        ? 'blocked'
+        : startOffset + duration < 0
+          ? 'done'
+          : startOffset <= 4
+            ? 'in-progress'
+            : 'todo'
+
+    return {
+      id,
+      name: `${names[index % names.length]} ${String(wave + 1).padStart(2, '0')}`,
+      description: `${label} task ${index + 1} for ${workstream} planning density, row alignment, dependency rendering, and long-scroll behavior.`,
+      group,
+      status,
+      priority: index % 19 === 0 ? 'critical' : index % 7 === 0 ? 'high' : index % 5 === 0 ? 'medium' : 'low',
+      assignee: teamMembers[index % teamMembers.length],
+      startDate: addDays(startOffset),
+      endDate: addDays(startOffset + duration),
+      estimatedDays: duration,
+      optimisticDays: Math.max(1, duration - 1),
+      pessimisticDays: duration + 2 + (index % 3),
+      dependencies,
+      dependents: [],
+      blockers: status === 'blocked' ? ['Synthetic blocker for scroll/performance validation'] : [],
+      progress: status === 'done' ? 100 : status === 'in-progress' ? 20 + (index % 7) * 10 : 0,
+      isMilestone: index % 20 === 0,
+      isCriticalPath: index % 9 === 0 || index % 37 === 0,
+      linkedChangeRequests: index % 13 === 0 ? [`CR-${prefix.toUpperCase()}-${String(index + 1).padStart(3, '0')}`] : [],
+      comments:
+        index % 16 === 0
+          ? [
+              {
+                id: `${prefix}c${index + 1}`,
+                author: teamMembers[index % teamMembers.length].name,
+                text: 'Generated task included for dense Gantt scrolling validation.',
+                timestamp: addDays(startOffset),
+              },
+            ]
+          : [],
+      riskLevel: status === 'blocked' || index % 19 === 0 ? 'high' : index % 7 === 0 ? 'medium' : 'low',
+    }
+  })
+
+const moderateGeneratedTasks = createGeneratedTasks(40, 'm', 'Default scroll-test')
+const stressGeneratedTasks = createGeneratedTasks(240, 's', 'Stress-test')
+
+const hydrateTasks = (
+  sourceTasks: Omit<Task, 'groupName' | 'teamName' | 'plannedStart' | 'plannedEnd' | 'earliestStart' | 'createdAt'>[],
+  generatedTasks: Omit<Task, 'groupName' | 'teamName' | 'plannedStart' | 'plannedEnd' | 'earliestStart' | 'createdAt'>[]
+): Task[] => {
+  const generatedTaskGroupById = new Map(
+    generatedTasks.map((task, index) => [task.id, WORKSTREAM_SEQUENCE[index % WORKSTREAM_SEQUENCE.length]])
+  )
+  const dependentIdsByTaskId = sourceTasks.reduce<Record<string, string[]>>((acc, task) => {
+    acc[task.id] ??= []
+    task.dependencies.forEach((dependencyId) => {
+      acc[dependencyId] ??= []
+      if (!acc[dependencyId].includes(task.id)) {
+        acc[dependencyId].push(task.id)
+      }
+    })
+    return acc
+  }, {})
+
+  return sourceTasks.map((task, index) => ({
+    ...task,
+    dependents: dependentIdsByTaskId[task.id] ?? [],
+    groupName: WORKSTREAM_BY_TASK_ID[task.id] ?? generatedTaskGroupById.get(task.id) ?? 'core-platform',
+    teamName: task.group,
+    plannedStart: task.startDate,
+    plannedEnd: task.endDate,
+    earliestStart: task.startDate,
+    createdAt: addDays(-30 + index),
+  }))
+}
+
+export const tasks: Task[] = hydrateTasks([...rawTasks, ...moderateGeneratedTasks], moderateGeneratedTasks)
+export const stressTasks: Task[] = hydrateTasks([...rawTasks, ...stressGeneratedTasks], stressGeneratedTasks)
 
 // Projects for dashboard view
 export const projects: Project[] = [

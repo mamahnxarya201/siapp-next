@@ -46,6 +46,7 @@ interface PMISState {
   setInspectorOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
   updateTaskDates: (taskId: string, startDate: Date, endDate: Date) => void
+  updateTaskDatesBatch: (updates: { taskId: string; startDate: Date; endDate: Date }[]) => void
   updateTaskStatus: (taskId: string, status: Task['status']) => void
   
   // Computed
@@ -120,6 +121,19 @@ export const usePMISStore = create<PMISState>((set, get) => ({
         : task
     )
   })),
+
+  updateTaskDatesBatch: (updates) => set((state) => {
+    const updatesByTaskId = new Map(updates.map((update) => [update.taskId, update]))
+
+    return {
+      tasks: state.tasks.map((task) => {
+        const update = updatesByTaskId.get(task.id)
+        return update
+          ? { ...task, startDate: update.startDate, endDate: update.endDate }
+          : task
+      }),
+    }
+  }),
   
   updateTaskStatus: (taskId, status) => set((state) => ({
     tasks: state.tasks.map(task =>

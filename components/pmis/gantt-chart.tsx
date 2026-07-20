@@ -21,10 +21,35 @@ const HEADER_HEIGHT = GANTT_TIMELINE_HEADER_HEIGHT
 const BAR_HEIGHT = 24
 const BAR_PADDING = (TASK_ROW_HEIGHT - BAR_HEIGHT) / 2
 
+type GanttInteractionMode = 'move' | 'resize-start' | 'resize-end'
+
+interface TaskDateUpdate {
+  taskId: string
+  startDate: Date
+  endDate: Date
+}
+
+interface DragState {
+  taskId: string
+  mode: GanttInteractionMode
+  startClientX: number
+  startClientY: number
+  initialStartDate: Date
+  initialEndDate: Date
+  lastDayDelta: number
+  warnedVerticalMove: boolean
+}
+
 // Helper to get days between dates
 function daysBetween(date1: Date, date2: Date): number {
   const oneDay = 24 * 60 * 60 * 1000
   return Math.round((date2.getTime() - date1.getTime()) / oneDay)
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
 }
 
 // Format date for header
@@ -56,9 +81,14 @@ function DependencyLine({ fromTask, toTask, taskPositions, isCritical, opacity =
   const toX = toPos.x
   const toY = toPos.y + BAR_HEIGHT / 2
 
-  // Create a curved path
-  const midX = (fromX + toX) / 2
-  const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`
+  const elbowGap = 18
+  const midX = fromX <= toX
+    ? Math.max(fromX + elbowGap, Math.min(toX - elbowGap, (fromX + toX) / 2))
+    : fromX + elbowGap
+  const endX = fromX <= toX ? toX : toX - elbowGap
+  const path = fromX <= toX
+    ? `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`
+    : `M ${fromX} ${fromY} H ${midX} V ${toY} H ${endX} H ${toX}`
 
   return (
     <g style={{ opacity }}>
@@ -85,7 +115,7 @@ function GanttBar({
   showCritical,
   onSelect,
   onHover,
-  onDragStart,
+  onInteractionStart,
 }: { 
   task: Task
   x: number
@@ -97,7 +127,7 @@ function GanttBar({
   showCritical: boolean
   onSelect: () => void
   onHover: (hover: boolean) => void
-  onDragStart: (e: React.MouseEvent) => void
+  onInteractionStart: (mode: GanttInteractionMode, e: React.MouseEvent) => void
 }) {
   const barColor = useMemo(() => {
     if (showCritical && isCriticalPath) return 'fill-red-500/80'
@@ -111,8 +141,9 @@ function GanttBar({
 
   return (
     <g
-      className="cursor-pointer"
+      className="cursor-grab active:cursor-grabbing"
       onClick={onSelect}
+      onMouseDown={(e) => onInteractionStart('move', e)}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
     >
@@ -181,10 +212,7 @@ function GanttBar({
             width={6}
             height={BAR_HEIGHT}
             className="fill-transparent cursor-ew-resize"
-            onMouseDown={(e) => {
-              e.stopPropagation()
-              onDragStart(e)
-            }}
+            onMouseDown={(e) => onInteractionStart('resize-start', e)}
           />
           <rect
             x={x + width - 6}
@@ -192,6 +220,7 @@ function GanttBar({
             width={6}
             height={BAR_HEIGHT}
             className="fill-transparent cursor-ew-resize"
+            onMouseDown={(e) => onInteractionStart('resize-end', e)}
           />
         </>
       )}
@@ -207,8 +236,11 @@ export function GanttChart({
   onVerticalScroll: (next: number) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const dragStateRef = useRef<DragState | null>(null)
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [scrollLeft, setScrollLeft] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [dragNotice, setDragNotice] = useState<string | null>(null)
   
   const {
     tasks,
@@ -222,6 +254,7 @@ export function GanttChart({
     toggleCriticalPath,
     selectTask,
     hoverTask,
+    updateTaskDatesBatch,
     getTaskDependencies,
     getTaskDependents,
     getUpstreamChain,
@@ -418,6 +451,142 @@ export function GanttChart({
     }
   }
 
+  const showVerticalMoveNotice = useCallback(() => {
+    setDragNotice('Bars only move horizontally by date. Move tasks between groups from the task details/workstream controls.')
+    if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current)
+    noticeTimeoutRef.current = setTimeout(() => setDragNotice(null), 3200)
+  }, [])
+
+  const beginBarInteraction = useCallback((task: Task, mode: GanttInteractionMode, event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    selectTask(task.id)
+
+    dragStateRef.current = {
+      taskId: task.id,
+      mode,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      initialStartDate: new Date(task.startDate),
+      initialEndDate: new Date(task.endDate),
+      lastDayDelta: 0,
+      warnedVerticalMove: false,
+    }
+    setIsDragging(true)
+  }, [selectTask])
+
+  const applyForwardSchedulePropagation = useCallback((initialUpdates: TaskDateUpdate[]) => {
+    const tasksById = new Map(tasks.map((task) => [task.id, task]))
+    const updatesById = new Map(initialUpdates.map((update) => [update.taskId, update]))
+    const queue = initialUpdates.map((update) => update.taskId)
+    let safetyCounter = 0
+    const maxIterations = Math.max(1, tasks.length * tasks.length)
+
+    const getTaskDates = (taskId: string) => {
+      const update = updatesById.get(taskId)
+      if (update) return update
+
+      const task = tasksById.get(taskId)
+      return task
+        ? { taskId, startDate: task.startDate, endDate: task.endDate }
+        : null
+    }
+
+    while (queue.length > 0 && safetyCounter < maxIterations) {
+      safetyCounter += 1
+      const predecessorId = queue.shift()
+      if (!predecessorId) continue
+
+      const predecessorTask = tasksById.get(predecessorId)
+      const predecessorDates = getTaskDates(predecessorId)
+      if (!predecessorTask || !predecessorDates) continue
+
+      predecessorTask.dependents.forEach((dependentId) => {
+        const dependentDates = getTaskDates(dependentId)
+        if (!dependentDates) return
+
+        if (predecessorDates.endDate.getTime() <= dependentDates.startDate.getTime()) {
+          return
+        }
+
+        const dependentDuration = Math.max(1, daysBetween(dependentDates.startDate, dependentDates.endDate))
+        const nextStartDate = new Date(predecessorDates.endDate)
+        const nextEndDate = addDays(nextStartDate, dependentDuration)
+
+        updatesById.set(dependentId, {
+          taskId: dependentId,
+          startDate: nextStartDate,
+          endDate: nextEndDate,
+        })
+        queue.push(dependentId)
+      })
+    }
+
+    return Array.from(updatesById.values())
+  }, [tasks])
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handlePointerMove = (event: MouseEvent) => {
+      const drag = dragStateRef.current
+      if (!drag) return
+
+      const deltaY = Math.abs(event.clientY - drag.startClientY)
+      if (deltaY > TASK_ROW_HEIGHT && !drag.warnedVerticalMove) {
+        drag.warnedVerticalMove = true
+        showVerticalMoveNotice()
+      }
+
+      const dayDelta = Math.round((event.clientX - drag.startClientX) / scale.dayWidth)
+      if (dayDelta === drag.lastDayDelta) return
+      drag.lastDayDelta = dayDelta
+
+      const initialDuration = Math.max(1, daysBetween(drag.initialStartDate, drag.initialEndDate))
+      let nextStart = new Date(drag.initialStartDate)
+      let nextEnd = new Date(drag.initialEndDate)
+
+      if (drag.mode === 'move') {
+        nextStart = addDays(drag.initialStartDate, dayDelta)
+        nextEnd = addDays(drag.initialEndDate, dayDelta)
+      }
+
+      if (drag.mode === 'resize-start') {
+        const maxDelta = initialDuration - 1
+        nextStart = addDays(drag.initialStartDate, Math.min(dayDelta, maxDelta))
+      }
+
+      if (drag.mode === 'resize-end') {
+        const minDelta = 1 - initialDuration
+        nextEnd = addDays(drag.initialEndDate, Math.max(dayDelta, minDelta))
+      }
+
+      const updates = applyForwardSchedulePropagation([
+        { taskId: drag.taskId, startDate: nextStart, endDate: nextEnd },
+      ])
+
+      updateTaskDatesBatch(updates)
+    }
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null
+      setIsDragging(false)
+    }
+
+    window.addEventListener('mousemove', handlePointerMove)
+    window.addEventListener('mouseup', handlePointerUp)
+    return () => {
+      window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('mouseup', handlePointerUp)
+    }
+  }, [applyForwardSchedulePropagation, isDragging, scale.dayWidth, showVerticalMoveNotice, updateTaskDatesBatch])
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current)
+    }
+  }, [])
+
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Toolbar */}
@@ -490,11 +659,17 @@ export function GanttChart({
       </div>
 
       {/* Chart */}
-      <div 
-        ref={containerRef}
-        className="flex-1 overflow-auto"
-        onScroll={handleScroll}
-      >
+      <div className="relative flex-1 overflow-hidden">
+        {dragNotice && (
+          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-md border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-xs text-amber-100 shadow-lg backdrop-blur">
+            {dragNotice}
+          </div>
+        )}
+        <div 
+          ref={containerRef}
+          className={cn('h-full overflow-auto', isDragging && 'cursor-ew-resize')}
+          onScroll={handleScroll}
+        >
         <svg
           width={timelineData.totalWidth}
           height={totalHeight}
@@ -639,11 +814,12 @@ export function GanttChart({
                 showCritical={showCriticalPath}
                 onSelect={() => selectTask(task.id)}
                 onHover={(hover) => hoverTask(hover ? task.id : null)}
-                onDragStart={() => setIsDragging(true)}
+                onInteractionStart={(mode, event) => beginBarInteraction(task, mode, event)}
               />
             )
           })}
-        </svg>
+          </svg>
+        </div>
       </div>
     </div>
   )

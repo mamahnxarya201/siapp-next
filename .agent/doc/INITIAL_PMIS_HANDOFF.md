@@ -252,6 +252,21 @@ const taskPositions = useMemo(() => {
 - `todo` → muted gray
 - Critical path (when toggled) → red
 
+### Forward-Only Schedule Propagation
+
+This is a core product behavior. Do not change it without explicit user permission.
+
+When a predecessor/parent task is moved or resized in the Gantt chart, dependent tasks are treated as having a minimum start-date constraint:
+
+1. If the predecessor ends before the dependent starts, the dependent stays unchanged.
+2. If the predecessor's new end date overlaps or passes the dependent's start date, push the dependent forward so it starts at the predecessor's end date.
+3. Preserve the dependent task's original duration when pushing it.
+4. Moving a predecessor left must never pull dependents backward.
+5. Apply the same rule recursively down the dependency chain.
+6. Unrelated tasks must remain unchanged.
+
+Important: this is not fixed-offset dragging. Children/dependents only move forward when the dependency constraint is violated.
+
 ### Milestones
 
 Rendered as diamonds (`◆`) after the task bar end position.
@@ -358,6 +373,7 @@ Color palette: Deep blue-gray backgrounds, blue primary accent, red for critical
 5. **Critical Path Mode**: Visual emphasis without cluttering normal view
 6. **Dark Mode**: This is the default and only mode
 7. **No Spreadsheet Feel**: Rounded bars, subtle grids, soft separators
+8. **Forward-Only Propagation**: Moving/resizing predecessors may push dependents forward, but must never pull them backward
 
 ---
 

@@ -195,6 +195,31 @@ QA task depending on backend task remains grouped under QA.
 
 Do NOT force dependency tree structure.
 
+FORWARD-ONLY SCHEDULE PROPAGATION IS A CORE FEATURE.
+
+This behavior must NOT be removed, weakened, redesigned, or replaced without explicit user permission.
+
+When a parent/predecessor task is dragged or resized in the Gantt chart:
+
+1. If the parent ends before the child/dependent starts:
+   - Do NOT move the child.
+
+2. If the parent is moved/resized right and its new end overlaps or passes the child start:
+   - Push the child forward.
+   - Set the child start to the parent end.
+   - Preserve the child duration.
+
+3. If the parent is moved left:
+   - Do NOT pull children backward.
+   - Dependencies are minimum start-date constraints, not fixed offsets.
+
+4. Propagation is recursive:
+   - If a pushed child overlaps its own dependent task, push that dependent forward too.
+
+5. Unrelated tasks must remain unchanged.
+
+This is intentionally NOT fixed-offset dragging. Children only move when the dependency constraint is violated.
+
 ====================================================
 ACADEMIC FEATURES
 ====================================================

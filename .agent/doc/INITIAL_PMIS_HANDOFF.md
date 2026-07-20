@@ -193,10 +193,14 @@ const visibleDependencies = useMemo(() => {
 ```
 
 **Dependency line rendering**:
-- Curved bezier paths from task end to task start
+- Orthogonal paths from predecessor end to dependent start
 - Arrow markers at destination
 - Critical path deps are red/thicker
 - Normal deps are blue/thinner
+- With sufficient clearance, arrows enter the dependent's left-center edge
+- With insufficient clearance, arrows approach from above near the dependent's upper-left edge
+- Cramped routing must never produce a backward-looking arrowhead
+- Parent exit length, elbow clearance, top inset, and top gap are independently adjustable constants
 
 ---
 
@@ -266,6 +270,19 @@ When a predecessor/parent task is moved or resized in the Gantt chart, dependent
 6. Unrelated tasks must remain unchanged.
 
 Important: this is not fixed-offset dragging. Children/dependents only move forward when the dependency constraint is violated.
+
+### Direct Dependent Movement Constraint
+
+Dependency dates are also enforced when users directly edit a child/dependent task:
+
+1. Determine the latest end date among all direct predecessors.
+2. Treat that date as the dependent's minimum start date.
+3. Clamp horizontal movement so the dependent cannot start earlier than that boundary.
+4. Clamp left-edge resizing to the same boundary.
+5. Preserve task duration when a whole-bar movement is clamped.
+6. If a task has multiple predecessors, the latest predecessor end date is authoritative.
+
+Together with forward-only propagation, this prevents dependents from crossing backward through their predecessors while still allowing valid schedule gaps.
 
 ### Milestones
 
@@ -374,6 +391,8 @@ Color palette: Deep blue-gray backgrounds, blue primary accent, red for critical
 6. **Dark Mode**: This is the default and only mode
 7. **No Spreadsheet Feel**: Rounded bars, subtle grids, soft separators
 8. **Forward-Only Propagation**: Moving/resizing predecessors may push dependents forward, but must never pull them backward
+9. **Dependent Start Boundary**: Directly moving/resizing a dependent must not place it before the latest predecessor end date
+10. **Adaptive Connector Routing**: Cramped dependency arrows enter from above near the dependent's upper-left edge instead of reversing direction
 
 ---
 
@@ -420,3 +439,7 @@ Color palette: Deep blue-gray backgrounds, blue primary accent, red for critical
 - [ ] Clicking dependency in inspector navigates to that task
 - [ ] Today line is positioned correctly
 - [ ] Milestones render as diamonds
+- [ ] Moving a dependent left stops at the latest predecessor end date
+- [ ] Left-resizing a dependent stops at the latest predecessor end date
+- [ ] Clamped dependent moves preserve duration
+- [ ] Cramped dependency connectors use top-entry routing without backward arrowheads

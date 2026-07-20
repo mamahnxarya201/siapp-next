@@ -39,9 +39,9 @@ function TaskRow({ task }: { task: Task }) {
       <div className="flex flex-1 items-center gap-2 min-w-0">
         <div className={cn(
           'h-1.5 w-1.5 rounded-full flex-shrink-0',
-          task.status === 'done' && 'bg-emerald-500',
-          task.status === 'in-progress' && 'bg-blue-500',
-          task.status === 'blocked' && 'bg-red-500',
+          task.status === 'done' && 'bg-success',
+          task.status === 'in-progress' && 'bg-info',
+          task.status === 'blocked' && 'bg-destructive',
           task.status === 'todo' && 'bg-muted-foreground'
         )} />
         <span className={cn(
@@ -125,9 +125,9 @@ function GroupHeaderRow({ group, taskCount }: { group: keyof typeof workstreamCo
       </span>
       {teamSummary && <span className="text-[10px] text-muted-foreground truncate max-w-44">{teamSummary}</span>}
       <div className="ml-auto flex items-center gap-1">
-        {blockedCount > 0 && <span className="text-[10px] text-red-400">{blockedCount} blocked</span>}
-        {inProgressCount > 0 && <span className="text-[10px] text-blue-400">{inProgressCount} active</span>}
-        {completedCount > 0 && <span className="text-[10px] text-emerald-400">{completedCount} done</span>}
+        {blockedCount > 0 && <span className="text-[10px] text-destructive">{blockedCount} blocked</span>}
+        {inProgressCount > 0 && <span className="text-[10px] text-info">{inProgressCount} active</span>}
+        {completedCount > 0 && <span className="text-[10px] text-success">{completedCount} done</span>}
       </div>
     </button>
   )

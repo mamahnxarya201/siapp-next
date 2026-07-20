@@ -622,36 +622,36 @@ export const projects: Project[] = [
 
 // Workstream labels and colors (delivery lanes)
 export const workstreamConfig: Record<WorkstreamGroup, { label: string; color: string }> = {
-  foundation: { label: 'Foundation', color: 'bg-cyan-500/20 text-cyan-300' },
-  'core-platform': { label: 'Core Platform', color: 'bg-blue-500/20 text-blue-300' },
-  'execution-ui': { label: 'Execution UI', color: 'bg-emerald-500/20 text-emerald-300' },
-  validation: { label: 'Validation', color: 'bg-amber-500/20 text-amber-300' },
-  release: { label: 'Release', color: 'bg-purple-500/20 text-purple-300' },
+  foundation: { label: 'Foundation', color: 'bg-chart-1/15 text-chart-1' },
+  'core-platform': { label: 'Core Platform', color: 'bg-primary/15 text-primary' },
+  'execution-ui': { label: 'Execution UI', color: 'bg-chart-2/15 text-chart-2' },
+  validation: { label: 'Validation', color: 'bg-chart-3/15 text-chart-3' },
+  release: { label: 'Release', color: 'bg-chart-5/15 text-chart-5' },
 }
 
 // Team labels and colors (ownership metadata)
 export const teamConfig: Record<TaskTeam, { label: string; color: string; dot: string }> = {
-  backend: { label: 'Backend', color: 'bg-blue-500/20 text-blue-300', dot: 'bg-blue-400' },
-  frontend: { label: 'Frontend', color: 'bg-emerald-500/20 text-emerald-300', dot: 'bg-emerald-400' },
-  qa: { label: 'QA', color: 'bg-amber-500/20 text-amber-300', dot: 'bg-amber-400' },
-  deployment: { label: 'Deployment', color: 'bg-purple-500/20 text-purple-300', dot: 'bg-purple-400' },
-  design: { label: 'Design', color: 'bg-pink-500/20 text-pink-300', dot: 'bg-pink-400' },
-  infrastructure: { label: 'Infra', color: 'bg-cyan-500/20 text-cyan-300', dot: 'bg-cyan-400' },
-  management: { label: 'Management', color: 'bg-rose-500/20 text-rose-300', dot: 'bg-rose-400' },
+  backend: { label: 'Backend', color: 'bg-chart-1/15 text-chart-1', dot: 'bg-chart-1' },
+  frontend: { label: 'Frontend', color: 'bg-chart-2/15 text-chart-2', dot: 'bg-chart-2' },
+  qa: { label: 'QA', color: 'bg-chart-3/15 text-chart-3', dot: 'bg-chart-3' },
+  deployment: { label: 'Deployment', color: 'bg-chart-5/15 text-chart-5', dot: 'bg-chart-5' },
+  design: { label: 'Design', color: 'bg-milestone/15 text-milestone', dot: 'bg-milestone' },
+  infrastructure: { label: 'Infra', color: 'bg-info/15 text-info', dot: 'bg-info' },
+  management: { label: 'Management', color: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
 }
 
 // Status config
 export const statusConfig: Record<TaskStatus, { label: string; color: string; bgColor: string }> = {
   todo: { label: 'To Do', color: 'text-muted-foreground', bgColor: 'bg-muted' },
-  'in-progress': { label: 'In Progress', color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
-  blocked: { label: 'Blocked', color: 'text-red-400', bgColor: 'bg-red-500/20' },
-  done: { label: 'Done', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+  'in-progress': { label: 'In Progress', color: 'text-info', bgColor: 'bg-info/15' },
+  blocked: { label: 'Blocked', color: 'text-destructive', bgColor: 'bg-destructive/15' },
+  done: { label: 'Done', color: 'text-success', bgColor: 'bg-success/15' },
 }
 
 // Priority config
 export const priorityConfig: Record<Priority, { label: string; color: string }> = {
   low: { label: 'Low', color: 'text-muted-foreground' },
-  medium: { label: 'Medium', color: 'text-blue-400' },
-  high: { label: 'High', color: 'text-amber-400' },
-  critical: { label: 'Critical', color: 'text-red-400' },
+  medium: { label: 'Medium', color: 'text-info' },
+  high: { label: 'High', color: 'text-warning' },
+  critical: { label: 'Critical', color: 'text-destructive' },
 }

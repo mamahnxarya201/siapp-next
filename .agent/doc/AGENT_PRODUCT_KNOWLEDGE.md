@@ -220,6 +220,24 @@ When a parent/predecessor task is dragged or resized in the Gantt chart:
 
 This is intentionally NOT fixed-offset dragging. Children only move when the dependency constraint is violated.
 
+DIRECT CHILD EDITING MUST ALSO RESPECT THE DEPENDENCY CONSTRAINT.
+
+When a child/dependent task is dragged or its left edge is resized:
+
+1. Its minimum start date is the latest end date among all direct parents/predecessors.
+2. The child must not be moved or resized earlier than that minimum start date.
+3. A clamped move must preserve the child's duration.
+4. With multiple predecessors, the latest predecessor end date wins.
+5. This complements forward-only propagation: parents push children forward when necessary, while children cannot be manually moved backward through their parents.
+
+ADAPTIVE DEPENDENCY CONNECTOR ROUTING IS A CORE GANTT FEATURE.
+
+1. When enough horizontal clearance exists, the connector enters the child's left-center edge.
+2. When clearance is too short, the connector must not create a backward-looking arrow.
+3. Cramped connectors approach from above and terminate near the child's upper-left edge with a slight visual gap.
+4. Connector geometry must remain adjustable through named top-level configuration constants.
+5. The parent exit length, normal elbow clearance, child top inset, and child top gap must be independently tunable.
+
 ====================================================
 ACADEMIC FEATURES
 ====================================================

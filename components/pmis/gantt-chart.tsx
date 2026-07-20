@@ -20,6 +20,12 @@ const SCALES = {
 const HEADER_HEIGHT = GANTT_TIMELINE_HEADER_HEIGHT
 const BAR_HEIGHT = 24
 const BAR_PADDING = (TASK_ROW_HEIGHT - BAR_HEIGHT) / 2
+const DEPENDENCY_ELBOW_GAP = 18
+// Adjust this to control the short horizontal line leaving a parent bar.
+const DEPENDENCY_PARENT_EXIT_GAP = 4
+// A 4px inset aligns the 8px arrowhead's left edge with the child bar.
+const DEPENDENCY_TOP_INSET = 4
+const DEPENDENCY_TOP_GAP = 3
 
 type GanttInteractionMode = 'move' | 'resize-start' | 'resize-end'
 
@@ -81,42 +87,57 @@ function DependencyLine({ fromTask, toTask, taskPositions, isCritical, opacity =
   const toX = toPos.x
   const toY = toPos.y + BAR_HEIGHT / 2
 
-  const elbowGap = 18
-  const midX = fromX <= toX
-    ? Math.max(fromX + elbowGap, Math.min(toX - elbowGap, (fromX + toX) / 2))
-    : fromX + elbowGap
-  const endX = fromX <= toX ? toX : toX - elbowGap
-  const path = fromX <= toX
-    ? `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`
-    : `M ${fromX} ${fromY} H ${midX} V ${toY} H ${endX} H ${toX}`
+  const horizontalClearance = toX - fromX
+  const canEnterFromLeft = horizontalClearance >= DEPENDENCY_ELBOW_GAP * 2
+
+  // A short final horizontal run makes the SVG marker look as though it points
+  // backwards. In cramped cases, approach the child vertically and place the
+  // arrow just above its upper-left edge instead.
+  const path = canEnterFromLeft
+    ? (() => {
+        const midX = Math.max(
+          fromX + DEPENDENCY_ELBOW_GAP,
+          Math.min(toX - DEPENDENCY_ELBOW_GAP, (fromX + toX) / 2)
+        )
+        return `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`
+      })()
+    : (() => {
+        const routeX = fromX + DEPENDENCY_PARENT_EXIT_GAP
+        const entryX = toX + DEPENDENCY_TOP_INSET
+        const approachY = toPos.y - DEPENDENCY_ELBOW_GAP
+        const endY = toPos.y - DEPENDENCY_TOP_GAP
+        return `M ${fromX} ${fromY} H ${routeX} V ${approachY} H ${entryX} V ${endY}`
+      })()
 
   return (
     <g style={{ opacity }}>
       <path
         d={path}
         fill="none"
-        stroke={isCritical ? 'oklch(0.55 0.22 25)' : 'oklch(0.65 0.2 250)'}
         strokeWidth={isCritical ? 2 : 1.5}
-        className="dependency-line"
+        className={cn(
+          'dependency-line',
+          isCritical ? 'stroke-destructive' : 'stroke-primary'
+        )}
         markerEnd={`url(#arrow-${isCritical ? 'critical' : 'normal'})`}
       />
     </g>
   )
 }
 
-function GanttBar({ 
-  task, 
-  x, 
-  y, 
-  width, 
-  isSelected, 
+function GanttBar({
+  task,
+  x,
+  y,
+  width,
+  isSelected,
   isHovered,
   isCriticalPath,
   showCritical,
   onSelect,
   onHover,
   onInteractionStart,
-}: { 
+}: {
   task: Task
   x: number
   y: number
@@ -130,11 +151,16 @@ function GanttBar({
   onInteractionStart: (mode: GanttInteractionMode, e: React.MouseEvent) => void
 }) {
   const barColor = useMemo(() => {
-    if (showCritical && isCriticalPath) return 'fill-red-500/80'
-    if (task.status === 'done') return 'fill-emerald-500/70'
-    if (task.status === 'blocked') return 'fill-red-500/70'
-    if (task.status === 'in-progress') return 'fill-blue-500/80'
+    if (showCritical && isCriticalPath) return 'fill-destructive'
+    if (task.status === 'done') return 'fill-success'
+    if (task.status === 'blocked') return 'fill-destructive'
+    if (task.status === 'in-progress') return 'fill-info'
     return 'fill-muted-foreground/40'
+  }, [task.status, isCriticalPath, showCritical])
+
+  const labelColor = useMemo(() => {
+    const hasColoredBar = (showCritical && isCriticalPath) || task.status !== 'todo'
+    return hasColoredBar ? 'fill-background' : 'fill-foreground'
   }, [task.status, isCriticalPath, showCritical])
 
   const progressWidth = (width * task.progress) / 100
@@ -158,7 +184,7 @@ function GanttBar({
           className="fill-primary/20"
         />
       )}
-      
+
       {/* Background bar */}
       <rect
         x={x}
@@ -169,16 +195,16 @@ function GanttBar({
         className={cn('gantt-bar', barColor)}
         style={{ filter: isHovered ? 'brightness(1.15)' : undefined }}
       />
-      
-      {/* Progress fill */}
+
+      {/* Slim progress indicator; keeping it short avoids obscuring the label. */}
       {task.progress > 0 && task.progress < 100 && (
         <rect
           x={x}
-          y={y}
+          y={y + BAR_HEIGHT - 3}
           width={progressWidth}
-          height={BAR_HEIGHT}
-          rx={4}
-          className="fill-primary/60"
+          height={3}
+          rx={1.5}
+          className="fill-background/65 pointer-events-none"
         />
       )}
 
@@ -187,9 +213,12 @@ function GanttBar({
         <text
           x={x + 8}
           y={y + BAR_HEIGHT / 2 + 4}
-          className="fill-foreground text-[11px] font-medium pointer-events-none"
+          className={cn(
+            'pointer-events-none text-[11px] font-semibold',
+            labelColor
+          )}
         >
-          {task.name.length > Math.floor(width / 8) 
+          {task.name.length > Math.floor(width / 8)
             ? task.name.slice(0, Math.floor(width / 8)) + '...'
             : task.name}
         </text>
@@ -199,7 +228,7 @@ function GanttBar({
       {task.isMilestone && (
         <polygon
           points={`${x + width + 8},${y + BAR_HEIGHT / 2} ${x + width + 14},${y + BAR_HEIGHT / 2 - 6} ${x + width + 20},${y + BAR_HEIGHT / 2} ${x + width + 14},${y + BAR_HEIGHT / 2 + 6}`}
-          className="fill-amber-500"
+          className="fill-milestone"
         />
       )}
 
@@ -241,7 +270,7 @@ export function GanttChart({
   const [scrollLeft, setScrollLeft] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [dragNotice, setDragNotice] = useState<string | null>(null)
-  
+
   const {
     tasks,
     selectedTaskId,
@@ -269,21 +298,21 @@ export function GanttChart({
     const allDates = tasks.flatMap(t => [t.startDate, t.endDate])
     const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
     const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
-    
+
     // Add padding
     minDate.setDate(minDate.getDate() - 7)
     maxDate.setDate(maxDate.getDate() + 14)
-    
+
     const totalDays = daysBetween(minDate, maxDate)
     const totalWidth = totalDays * scale.dayWidth
-    
+
     // Generate date markers
     const markers: { date: Date; x: number }[] = []
     const currentDate = new Date(minDate)
     let step = 1
     if (timelineScale === 'week') step = 7
     if (timelineScale === 'month') step = 30
-    
+
     while (currentDate <= maxDate) {
       const dayOffset = daysBetween(minDate, currentDate)
       markers.push({
@@ -311,7 +340,7 @@ export function GanttChart({
   // Calculate task positions
   const taskPositions = useMemo(() => {
     const positions = new Map<string, { x: number; y: number; width: number }>()
-    
+
     let yOffset = 0
 
     visibleRows.forEach((row) => {
@@ -323,7 +352,7 @@ export function GanttChart({
       const task = row.task
       const startOffset = daysBetween(timelineData.minDate, task.startDate)
       const duration = daysBetween(task.startDate, task.endDate)
-      
+
       positions.set(task.id, {
         x: startOffset * scale.dayWidth,
         y: yOffset + BAR_PADDING,
@@ -331,14 +360,14 @@ export function GanttChart({
       })
       yOffset += TASK_ROW_HEIGHT
     })
-    
+
     return positions
   }, [visibleRows, timelineData.minDate, scale.dayWidth])
 
   // Get visible dependency lines
   const visibleDependencies = useMemo(() => {
     const deps: { from: Task; to: Task; isCritical: boolean }[] = []
-    
+
     if (showAllDependencies) {
       // Show all
       tasks.forEach(task => {
@@ -360,7 +389,7 @@ export function GanttChart({
         const upstream = getUpstreamChain(selectedTaskId)
         const downstream = getDownstreamChain(selectedTaskId)
         const relevantTasks = new Set([selectedTaskId, ...upstream.map(t => t.id), ...downstream.map(t => t.id)])
-        
+
         tasks.forEach(task => {
           if (relevantTasks.has(task.id)) {
             task.dependencies.forEach(depId => {
@@ -417,7 +446,7 @@ export function GanttChart({
         })
       })
     }
-    
+
     return deps
   }, [tasks, selectedTaskId, hoveredTaskId, showAllDependencies, showCriticalPath, getUpstreamChain, getDownstreamChain, visibleTaskIds])
 
@@ -543,17 +572,32 @@ export function GanttChart({
       drag.lastDayDelta = dayDelta
 
       const initialDuration = Math.max(1, daysBetween(drag.initialStartDate, drag.initialEndDate))
+      const draggedTask = tasks.find((task) => task.id === drag.taskId)
+      const earliestStart = draggedTask?.dependencies.reduce<Date | null>((latest, dependencyId) => {
+        const dependency = tasks.find((task) => task.id === dependencyId)
+        if (!dependency) return latest
+        return !latest || dependency.endDate.getTime() > latest.getTime()
+          ? dependency.endDate
+          : latest
+      }, null)
       let nextStart = new Date(drag.initialStartDate)
       let nextEnd = new Date(drag.initialEndDate)
 
       if (drag.mode === 'move') {
         nextStart = addDays(drag.initialStartDate, dayDelta)
+        if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
+          nextStart = new Date(earliestStart)
+        }
         nextEnd = addDays(drag.initialEndDate, dayDelta)
+        nextEnd = addDays(nextStart, initialDuration)
       }
 
       if (drag.mode === 'resize-start') {
         const maxDelta = initialDuration - 1
         nextStart = addDays(drag.initialStartDate, Math.min(dayDelta, maxDelta))
+        if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
+          nextStart = new Date(earliestStart)
+        }
       }
 
       if (drag.mode === 'resize-end') {
@@ -579,7 +623,7 @@ export function GanttChart({
       window.removeEventListener('mousemove', handlePointerMove)
       window.removeEventListener('mouseup', handlePointerUp)
     }
-  }, [applyForwardSchedulePropagation, isDragging, scale.dayWidth, showVerticalMoveNotice, updateTaskDatesBatch])
+  }, [applyForwardSchedulePropagation, isDragging, scale.dayWidth, showVerticalMoveNotice, tasks, updateTaskDatesBatch])
 
   useEffect(() => {
     return () => {
@@ -646,7 +690,7 @@ export function GanttChart({
                   size="sm"
                   pressed={showCriticalPath}
                   onPressedChange={toggleCriticalPath}
-                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-red-500/20 data-[state=on]:text-red-400"
+                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive"
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />
                   <span className="text-xs">Critical Path</span>
@@ -661,11 +705,11 @@ export function GanttChart({
       {/* Chart */}
       <div className="relative flex-1 overflow-hidden">
         {dragNotice && (
-          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-md border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-xs text-amber-100 shadow-lg backdrop-blur">
+          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-md border border-warning/30 bg-card/95 px-3 py-2 text-xs text-warning shadow-lg backdrop-blur">
             {dragNotice}
           </div>
         )}
-        <div 
+        <div
           ref={containerRef}
           className={cn('h-full overflow-auto', isDragging && 'cursor-ew-resize')}
           onScroll={handleScroll}
@@ -685,7 +729,7 @@ export function GanttChart({
               refY="4"
               orient="auto"
             >
-              <path d="M0,0 L8,4 L0,8 Z" fill="oklch(0.65 0.2 250)" />
+              <path d="M0,0 L8,4 L0,8 Z" className="fill-primary" />
             </marker>
             <marker
               id="arrow-critical"
@@ -695,7 +739,7 @@ export function GanttChart({
               refY="4"
               orient="auto"
             >
-              <path d="M0,0 L8,4 L0,8 Z" fill="oklch(0.55 0.22 25)" />
+              <path d="M0,0 L8,4 L0,8 Z" className="fill-destructive" />
             </marker>
           </defs>
 
@@ -738,14 +782,14 @@ export function GanttChart({
             y1={HEADER_HEIGHT}
             x2={timelineData.todayX}
             y2={totalHeight}
-            stroke="oklch(0.7 0.18 165)"
+            className="stroke-chart-2"
             strokeWidth={2}
             strokeDasharray="4 2"
           />
           <text
             x={timelineData.todayX + 4}
             y={HEADER_HEIGHT - 26}
-            className="fill-emerald-400 text-[10px] font-medium"
+            className="fill-success text-[10px] font-medium"
           >
             Today
           </text>

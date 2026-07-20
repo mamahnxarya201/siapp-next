@@ -1,100 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '../styles/themes.css';
 
 @custom-variant dark (&:is(.dark *));
-
-:root {
-  /* Light mode - keeping for completeness but app uses dark mode */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  /* PMIS Dark Theme - Modern observability aesthetic */
-  --background: oklch(0.12 0 0);
-  --foreground: oklch(0.93 0 0);
-  --card: oklch(0.16 0 0);
-  --card-foreground: oklch(0.93 0 0);
-  --popover: oklch(0.14 0 0);
-  --popover-foreground: oklch(0.93 0 0);
-  --primary: oklch(0.65 0.2 250);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.85 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.25 0 0);
-  --accent-foreground: oklch(0.93 0 0);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.2 0 0);
-  --ring: oklch(0.65 0.2 250);
-  
-  /* Chart colors for data visualization */
-  --chart-1: oklch(0.65 0.2 250);
-  --chart-2: oklch(0.7 0.18 165);
-  --chart-3: oklch(0.75 0.2 85);
-  --chart-4: oklch(0.55 0.22 25);
-  --chart-5: oklch(0.6 0.15 300);
-  
-  /* Sidebar specific */
-  --sidebar: oklch(0.1 0 0);
-  --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-primary: oklch(0.65 0.2 250);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.18 0 0);
-  --sidebar-accent-foreground: oklch(0.93 0 0);
-  --sidebar-border: oklch(0.22 0 0);
-  --sidebar-ring: oklch(0.65 0.2 250);
-  
-  /* PMIS specific tokens */
-  --gantt-bar: oklch(0.65 0.2 250);
-  --gantt-bar-hover: oklch(0.7 0.22 250);
-  --gantt-milestone: oklch(0.75 0.2 85);
-  --gantt-critical: oklch(0.55 0.22 25);
-  --gantt-grid: oklch(0.2 0 0);
-  --gantt-today: oklch(0.7 0.18 165);
-  
-  --status-done: oklch(0.7 0.18 165);
-  --status-progress: oklch(0.65 0.2 250);
-  --status-blocked: oklch(0.55 0.22 25);
-  --status-todo: oklch(0.5 0 0);
-  
-  --dependency-line: oklch(0.65 0.2 250);
-  --dependency-critical: oklch(0.55 0.22 25);
-}
 
 @theme inline {
   --font-sans: 'Geist', 'Geist Fallback', system-ui, sans-serif;
@@ -115,6 +23,14 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-milestone: var(--milestone);
+  --color-milestone-foreground: var(--milestone-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -146,23 +62,23 @@
   }
 }
 
-/* Custom scrollbar for dark mode */
-.dark ::-webkit-scrollbar {
+/* Theme-aware scrollbars */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: oklch(0.14 0 0);
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: oklch(0.3 0 0);
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.4 0 0);
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Gantt specific styles */
@@ -172,7 +88,8 @@
 }
 
 .gantt-bar {
-  transition: all 0.15s ease;
+  /* Never animate SVG geometry: the bar and progress indicator must move together. */
+  transition: filter 0.12s ease, fill 0.12s ease;
 }
 
 .gantt-bar:hover {
@@ -199,7 +116,7 @@
 
 /* Selection states */
 .task-selected {
-  background-color: oklch(0.25 0.05 250 / 0.3);
+  background-color: color-mix(in oklch, var(--primary) 14%, transparent);
 }
 
 /* Panel resize handle */
@@ -208,5 +125,5 @@
 }
 
 .resize-handle:hover {
-  background-color: oklch(0.65 0.2 250 / 0.5);
+  background-color: color-mix(in oklch, var(--primary) 50%, transparent);
 }

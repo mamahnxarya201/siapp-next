@@ -22,10 +22,10 @@ import type { Project } from '@/lib/pmis-data'
 function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
-      case 'active': return 'bg-emerald-500'
-      case 'delayed': return 'bg-red-500'
-      case 'on-hold': return 'bg-amber-500'
-      case 'completed': return 'bg-blue-500'
+      case 'active': return 'bg-success'
+      case 'delayed': return 'bg-destructive'
+      case 'on-hold': return 'bg-warning'
+      case 'completed': return 'bg-info'
     }
   }
 
@@ -57,10 +57,10 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
             variant="secondary" 
             className={cn(
               'text-[10px]',
-              project.status === 'active' && 'bg-emerald-500/20 text-emerald-400',
-              project.status === 'delayed' && 'bg-red-500/20 text-red-400',
-              project.status === 'on-hold' && 'bg-amber-500/20 text-amber-400',
-              project.status === 'completed' && 'bg-blue-500/20 text-blue-400'
+              project.status === 'active' && 'bg-success/15 text-success',
+              project.status === 'delayed' && 'bg-destructive/15 text-destructive',
+              project.status === 'on-hold' && 'bg-warning/15 text-warning',
+              project.status === 'completed' && 'bg-info/15 text-info'
             )}
           >
             {getStatusText(project.status)}
@@ -94,19 +94,19 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
           <div className="flex items-center gap-1">
             <div className={cn(
               'h-2 w-2 rounded-full',
-              project.healthScore >= 70 && 'bg-emerald-500',
-              project.healthScore >= 40 && project.healthScore < 70 && 'bg-amber-500',
-              project.healthScore < 40 && 'bg-red-500'
+              project.healthScore >= 70 && 'bg-success',
+              project.healthScore >= 40 && project.healthScore < 70 && 'bg-warning',
+              project.healthScore < 40 && 'bg-destructive'
             )} />
             <span className="text-[10px] text-muted-foreground">Health {project.healthScore}%</span>
           </div>
           {project.delayedMilestones > 0 && (
-            <span className="text-[10px] text-red-400">
+            <span className="text-[10px] text-destructive">
               {project.delayedMilestones} delayed
             </span>
           )}
           {project.pendingApprovals > 0 && (
-            <span className="text-[10px] text-amber-400">
+            <span className="text-[10px] text-warning">
               {project.pendingApprovals} pending
             </span>
           )}
@@ -135,9 +135,9 @@ function KPICard({
 }) {
   const iconColors = {
     default: 'text-primary bg-primary/10',
-    success: 'text-emerald-400 bg-emerald-500/10',
-    warning: 'text-amber-400 bg-amber-500/10',
-    danger: 'text-red-400 bg-red-500/10',
+    success: 'text-success bg-success/10',
+    warning: 'text-warning bg-warning/10',
+    danger: 'text-destructive bg-destructive/10',
   }
 
   return (
@@ -159,11 +159,11 @@ function KPICard({
           <div className="mt-2 flex items-center gap-1">
             <TrendingUp className={cn(
               'h-3 w-3',
-              trend === 'up' ? 'text-emerald-400' : 'text-red-400 rotate-180'
+              trend === 'up' ? 'text-success' : 'rotate-180 text-destructive'
             )} />
             <span className={cn(
               'text-xs',
-              trend === 'up' ? 'text-emerald-400' : 'text-red-400'
+              trend === 'up' ? 'text-success' : 'text-destructive'
             )}>
               {trendValue}
             </span>
@@ -241,8 +241,8 @@ export function DashboardView() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Card className="border-border">
             <CardContent className="flex items-center gap-3 pt-4">
-              <div className="rounded-lg bg-blue-500/10 p-2">
-                <Zap className="h-4 w-4 text-blue-400" />
+              <div className="rounded-lg bg-info/10 p-2">
+                <Zap className="h-4 w-4 text-info" />
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{tasksInProgress}</p>
@@ -252,8 +252,8 @@ export function DashboardView() {
           </Card>
           <Card className="border-border">
             <CardContent className="flex items-center gap-3 pt-4">
-              <div className="rounded-lg bg-red-500/10 p-2">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
+              <div className="rounded-lg bg-destructive/10 p-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{blockedTasks}</p>
@@ -263,8 +263,8 @@ export function DashboardView() {
           </Card>
           <Card className="border-border">
             <CardContent className="flex items-center gap-3 pt-4">
-              <div className="rounded-lg bg-amber-500/10 p-2">
-                <Activity className="h-4 w-4 text-amber-400" />
+              <div className="rounded-lg bg-warning/10 p-2">
+                <Activity className="h-4 w-4 text-warning" />
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{criticalPathTasks}</p>
@@ -274,8 +274,8 @@ export function DashboardView() {
           </Card>
           <Card className="border-border">
             <CardContent className="flex items-center gap-3 pt-4">
-              <div className="rounded-lg bg-purple-500/10 p-2">
-                <CheckCircle2 className="h-4 w-4 text-purple-400" />
+              <div className="rounded-lg bg-milestone/10 p-2">
+                <CheckCircle2 className="h-4 w-4 text-milestone" />
               </div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{milestonesUpcoming}</p>
@@ -311,7 +311,7 @@ export function DashboardView() {
           <Card className="border-border">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <AlertTriangle className="h-4 w-4 text-destructive" />
                 High Risk Items
               </CardTitle>
             </CardHeader>
@@ -323,13 +323,13 @@ export function DashboardView() {
                   {highRiskProjects.map(project => (
                     <div 
                       key={project.id}
-                      className="flex items-center justify-between rounded-lg bg-red-500/5 border border-red-500/10 px-3 py-2"
+                      className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-red-500" />
+                        <div className="h-2 w-2 rounded-full bg-destructive" />
                         <span className="text-sm text-foreground">{project.name}</span>
                       </div>
-                      <Badge variant="outline" className="text-red-400 border-red-500/30">
+                      <Badge variant="outline" className="border-destructive/35 text-destructive">
                         Risk: {project.riskScore}%
                       </Badge>
                     </div>
@@ -337,13 +337,13 @@ export function DashboardView() {
                   {blockedTasksList.slice(0, 3).map(task => (
                     <div 
                       key={task.id}
-                      className="flex items-center justify-between rounded-lg bg-amber-500/5 border border-amber-500/10 px-3 py-2"
+                      className="flex items-center justify-between rounded-lg border border-warning/20 bg-warning/5 px-3 py-2"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-amber-500" />
+                        <div className="h-2 w-2 rounded-full bg-warning" />
                         <span className="text-sm text-foreground">{task.name}</span>
                       </div>
-                      <Badge variant="outline" className="text-amber-400 border-amber-500/30">
+                      <Badge variant="outline" className="border-warning/35 text-warning">
                         Blocked
                       </Badge>
                     </div>
@@ -368,7 +368,7 @@ export function DashboardView() {
                   className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-500">◆</span>
+                    <span className="text-milestone">◆</span>
                     <div>
                       <span className="text-sm text-foreground">{task.name}</span>
                       <p className="text-xs text-muted-foreground">
@@ -380,7 +380,7 @@ export function DashboardView() {
                     variant="secondary" 
                     className={cn(
                       'text-[10px]',
-                      task.status === 'in-progress' && 'bg-blue-500/20 text-blue-400',
+                      task.status === 'in-progress' && 'bg-info/15 text-info',
                       task.status === 'todo' && 'bg-muted text-muted-foreground'
                     )}
                   >

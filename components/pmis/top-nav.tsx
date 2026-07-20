@@ -1,6 +1,8 @@
 'use client'
 
-import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart } from 'lucide-react'
+import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,6 +17,11 @@ import { usePMISStore } from '@/lib/pmis-store'
 import { cn } from '@/lib/utils'
 
 export function TopNav() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [themeReady, setThemeReady] = useState(false)
+
+  useEffect(() => setThemeReady(true), [])
+
   const { 
     currentView, 
     currentProjectId, 
@@ -60,10 +67,10 @@ export function TopNav() {
                 <div className="flex items-center gap-2">
                   <div className={cn(
                     'h-2 w-2 rounded-full',
-                    project.status === 'active' && 'bg-emerald-500',
-                    project.status === 'delayed' && 'bg-red-500',
-                    project.status === 'on-hold' && 'bg-amber-500',
-                    project.status === 'completed' && 'bg-blue-500'
+                    project.status === 'active' && 'bg-success',
+                    project.status === 'delayed' && 'bg-destructive',
+                    project.status === 'on-hold' && 'bg-warning',
+                    project.status === 'completed' && 'bg-info'
                   )} />
                   <span className="truncate">{project.name}</span>
                 </div>
@@ -89,6 +96,22 @@ export function TopNav() {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          aria-label={themeReady && resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={themeReady && resolvedTheme === 'dark' ? 'Light theme' : 'Dark theme'}
+          disabled={!themeReady}
+        >
+          {themeReady && resolvedTheme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+
         {/* Quick Add */}
         <Button size="sm" className="h-8 gap-1.5">
           <Plus className="h-3.5 w-3.5" />

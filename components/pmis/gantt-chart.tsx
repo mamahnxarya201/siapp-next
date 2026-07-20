@@ -115,6 +115,10 @@ function DependencyLine({ fromTask, toTask, taskPositions, isCritical, opacity =
         d={path}
         fill="none"
         strokeWidth={isCritical ? 2 : 1.5}
+        style={{
+          strokeDasharray: 'none',
+          strokeDashoffset: 0,
+        }}
         className={cn(
           'dependency-line',
           isCritical ? 'stroke-destructive' : 'stroke-primary'

@@ -1,7 +1,21 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { ChevronRight, ChevronDown, GitBranch, PanelLeftClose } from 'lucide-react'
+import {
+  Activity,
+  Blocks,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  GitBranch,
+  ListTodo,
+  PanelLeftClose,
+  PanelsTopLeft,
+  Rocket,
+  ServerCog,
+  ShieldCheck,
+} from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -9,7 +23,7 @@ import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, teamConfig, workstreamConfig, type Task } from '@/lib/pmis-data'
 import { GANTT_TIMELINE_HEADER_HEIGHT, GROUP_HEADER_HEIGHT, TASK_ROW_HEIGHT } from '@/lib/pmis-layout'
 
-function TaskRow({ task }: { task: Task }) {
+function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
   const { 
     selectedTaskId, 
     hoveredTaskId, 
@@ -26,7 +40,8 @@ function TaskRow({ task }: { task: Task }) {
   return (
     <div
       className={cn(
-        'task-row h-full flex items-center gap-3 px-3 cursor-pointer border-b border-border/50',
+        'task-row flex h-full cursor-pointer items-center border-b border-border/50',
+        compact ? 'gap-2 px-2' : 'gap-3 px-3',
         'hover:bg-accent/50',
         isSelected && 'task-selected bg-primary/10',
         isHovered && !isSelected && 'bg-accent/30'
@@ -55,7 +70,7 @@ function TaskRow({ task }: { task: Task }) {
       </div>
 
       {/* Assignee avatar */}
-      <Avatar className="h-6 w-6 flex-shrink-0">
+      <Avatar className={cn('h-6 w-6 flex-shrink-0', compact && 'h-5 w-5')}>
         <AvatarFallback className="bg-secondary text-[10px] text-muted-foreground">
           {task.assignee.initials}
         </AvatarFallback>
@@ -66,6 +81,7 @@ function TaskRow({ task }: { task: Task }) {
         variant="secondary" 
         className={cn(
           'text-[10px] px-1.5 py-0 h-5 flex-shrink-0',
+          compact && 'hidden',
           statusCfg.bgColor,
           statusCfg.color
         )}
@@ -73,7 +89,7 @@ function TaskRow({ task }: { task: Task }) {
         {statusCfg.label}
       </Badge>
 
-      <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5 flex-shrink-0', teamCfg.color)}>
+      <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-5 flex-shrink-0', compact && 'hidden', teamCfg.color)}>
         {teamCfg.label}
       </Badge>
 
@@ -88,14 +104,32 @@ function TaskRow({ task }: { task: Task }) {
   )
 }
 
-function GroupHeaderRow({ group, taskCount }: { group: keyof typeof workstreamConfig; taskCount: number }) {
+const workstreamIcons = {
+  foundation: Blocks,
+  'core-platform': ServerCog,
+  'execution-ui': PanelsTopLeft,
+  validation: ShieldCheck,
+  release: Rocket,
+} satisfies Record<keyof typeof workstreamConfig, typeof Blocks>
+
+function GroupHeaderRow({
+  group,
+  taskCount,
+  compact,
+  showTeamSummary,
+}: {
+  group: keyof typeof workstreamConfig
+  taskCount: number
+  compact: boolean
+  showTeamSummary: boolean
+}) {
   const { expandedGroups, toggleGroup, tasks } = usePMISStore()
   const isExpanded = expandedGroups.includes(group)
   const config = workstreamConfig[group]
+  const WorkstreamIcon = workstreamIcons[group]
   const groupTasks = tasks.filter((t) => t.groupName === group)
   const completedCount = groupTasks.filter((t) => t.status === 'done').length
   const inProgressCount = groupTasks.filter((t) => t.status === 'in-progress').length
-  const activeCount = groupTasks.filter((t) => t.status === 'in-progress' || t.status === 'blocked').length
   const blockedCount = groupTasks.filter((t) => t.status === 'blocked').length
   const teamCounts = groupTasks.reduce<Record<string, number>>((acc, task) => {
     acc[task.teamName] = (acc[task.teamName] ?? 0) + 1
@@ -108,26 +142,59 @@ function GroupHeaderRow({ group, taskCount }: { group: keyof typeof workstreamCo
 
   return (
     <button
-      className="flex w-full items-center gap-2 px-3 hover:bg-accent/30 transition-colors border-b border-border"
+      className={cn(
+        'flex w-full items-center border-b border-border transition-colors hover:bg-accent/30',
+        compact ? 'gap-1.5 px-2' : 'gap-2 px-3'
+      )}
       style={{ height: GROUP_HEADER_HEIGHT }}
       onClick={() => toggleGroup(group)}
     >
       {isExpanded ? (
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       ) : (
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       )}
-      <Badge variant="secondary" className={cn('text-xs', config.color)}>
-        {config.label}
-      </Badge>
-      <span className="text-xs text-muted-foreground">
-        {taskCount} tasks · {activeCount} active · {completedCount} done
+      {compact ? (
+        <span
+          className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', config.color)}
+          title={config.label}
+          aria-label={config.label}
+        >
+          <WorkstreamIcon className="h-3.5 w-3.5" />
+        </span>
+      ) : (
+        <Badge variant="secondary" className={cn('shrink-0 text-xs', config.color)}>
+          {config.label}
+        </Badge>
+      )}
+      <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground" title={`${taskCount} tasks`}>
+        <ListTodo className="h-3 w-3" />
+        {taskCount}
       </span>
-      {teamSummary && <span className="text-[10px] text-muted-foreground truncate max-w-44">{teamSummary}</span>}
-      <div className="ml-auto flex items-center gap-1">
-        {blockedCount > 0 && <span className="text-[10px] text-destructive">{blockedCount} blocked</span>}
-        {inProgressCount > 0 && <span className="text-[10px] text-info">{inProgressCount} active</span>}
-        {completedCount > 0 && <span className="text-[10px] text-success">{completedCount} done</span>}
+      {showTeamSummary && teamSummary && (
+        <span className="min-w-0 max-w-44 truncate text-[10px] text-muted-foreground" title={teamSummary}>
+          {teamSummary}
+        </span>
+      )}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        {blockedCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive" title={`${blockedCount} blocked`} aria-label={`${blockedCount} blocked`}>
+            <CircleAlert className="h-3 w-3" />
+            {blockedCount}
+          </span>
+        )}
+        {inProgressCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-info" title={`${inProgressCount} active`} aria-label={`${inProgressCount} active`}>
+            <Activity className="h-3 w-3" />
+            {inProgressCount}
+          </span>
+        )}
+        {completedCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-success" title={`${completedCount} done`} aria-label={`${completedCount} done`}>
+            <CheckCircle2 className="h-3 w-3" />
+            {completedCount}
+          </span>
+        )}
       </div>
     </button>
   )
@@ -137,14 +204,18 @@ export function TaskListPanel({
   scrollTop,
   onVerticalScroll,
   onHide,
+  panelWidth,
 }: {
   scrollTop: number
   onVerticalScroll: (next: number) => void
   onHide: () => void
+  panelWidth: number
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const { tasks, getVisibleRows } = usePMISStore()
   const visibleRows = getVisibleRows()
+  const compact = panelWidth < 360
+  const showTeamSummary = panelWidth >= 440
 
   useEffect(() => {
     const el = listRef.current
@@ -181,10 +252,16 @@ export function TaskListPanel({
         <div style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }} className="border-b border-border/60 bg-card/50" />
         {visibleRows.map((row) =>
           row.type === 'group-header' ? (
-            <GroupHeaderRow key={`group-${row.group}`} group={row.group} taskCount={row.taskCount} />
+            <GroupHeaderRow
+              key={`group-${row.group}`}
+              group={row.group}
+              taskCount={row.taskCount}
+              compact={compact}
+              showTeamSummary={showTeamSummary}
+            />
           ) : (
             <div key={row.task.id} style={{ height: TASK_ROW_HEIGHT }}>
-              <TaskRow task={row.task} />
+              <TaskRow task={row.task} compact={compact} />
             </div>
           )
         )}

@@ -59,6 +59,7 @@ export function ProjectView() {
               scrollTop={verticalScrollTop}
               onVerticalScroll={setVerticalScrollTop}
               onHide={() => setLeftPanelHidden(true)}
+              panelWidth={leftPanelWidth}
             />
           </div>
           <div

@@ -163,6 +163,8 @@ type RowType =
 
 ## Dependency Visualization (CRITICAL UX)
 
+Detailed rendering geometry, layering, continuity, and performance behavior are documented in `GANTT_DEPENDENCY_RENDERING.md`.
+
 **DO NOT always show all dependency lines.** This creates visual clutter.
 
 ### Visibility Rules

@@ -17,6 +17,7 @@ export function ProjectView() {
   const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH)
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+  const [timelineScrollbarHeight, setTimelineScrollbarHeight] = useState(0)
   const resizeStartX = useRef(0)
   const resizeStartWidth = useRef(LEFT_PANEL_DEFAULT_WIDTH)
 
@@ -60,6 +61,7 @@ export function ProjectView() {
               onVerticalScroll={setVerticalScrollTop}
               onHide={() => setLeftPanelHidden(true)}
               panelWidth={leftPanelWidth}
+              bottomScrollPadding={timelineScrollbarHeight}
             />
           </div>
           <div
@@ -87,6 +89,7 @@ export function ProjectView() {
         <GanttChart
           scrollTop={verticalScrollTop}
           onVerticalScroll={setVerticalScrollTop}
+          onHorizontalScrollbarHeightChange={setTimelineScrollbarHeight}
         />
       </div>
 

@@ -21,7 +21,12 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, teamConfig, workstreamConfig, type Task } from '@/lib/pmis-data'
-import { GANTT_TIMELINE_HEADER_HEIGHT, GROUP_HEADER_HEIGHT, TASK_ROW_HEIGHT } from '@/lib/pmis-layout'
+import {
+  GANTT_TIMELINE_HEADER_HEIGHT,
+  GROUP_HEADER_HEIGHT,
+  PROJECT_PANEL_TOOLBAR_HEIGHT,
+  TASK_ROW_HEIGHT,
+} from '@/lib/pmis-layout'
 
 function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
   const { 
@@ -39,6 +44,7 @@ function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
 
   return (
     <div
+      data-row-key={`task-${task.id}`}
       className={cn(
         'task-row flex h-full cursor-pointer items-center border-b border-border/50',
         compact ? 'gap-2 px-2' : 'gap-3 px-3',
@@ -142,6 +148,7 @@ function GroupHeaderRow({
 
   return (
     <button
+      data-row-key={`group-${group}`}
       className={cn(
         'flex w-full items-center border-b border-border transition-colors hover:bg-accent/30',
         compact ? 'gap-1.5 px-2' : 'gap-2 px-3'
@@ -205,11 +212,13 @@ export function TaskListPanel({
   onVerticalScroll,
   onHide,
   panelWidth,
+  bottomScrollPadding,
 }: {
   scrollTop: number
   onVerticalScroll: (next: number) => void
   onHide: () => void
   panelWidth: number
+  bottomScrollPadding: number
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const { tasks, getVisibleRows } = usePMISStore()
@@ -228,7 +237,10 @@ export function TaskListPanel({
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
       {/* Panel header */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+      <div
+        className="flex shrink-0 items-center justify-between border-b border-border px-3"
+        style={{ height: PROJECT_PANEL_TOOLBAR_HEIGHT }}
+      >
         <h2 className="text-sm font-medium text-foreground">Tasks</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{tasks.length} total</span>
@@ -265,6 +277,7 @@ export function TaskListPanel({
             </div>
           )
         )}
+        {bottomScrollPadding > 0 && <div aria-hidden="true" style={{ height: bottomScrollPadding }} />}
       </div>
     </div>
   )

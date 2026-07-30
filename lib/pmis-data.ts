@@ -550,13 +550,61 @@ const WORKSTREAM_BY_TASK_ID: Record<string, WorkstreamGroup> = {
   t19: 'release',
 }
 
-export const tasks: Task[] = rawTasks.map((task, index) => ({
+function applyFinishToStartConstraints(
+  sourceTasks: typeof rawTasks
+): typeof rawTasks {
+  const taskById = new Map(sourceTasks.map((task) => [task.id, task]))
+  const scheduled = new Map<string, (typeof sourceTasks)[number]>()
+  const visiting = new Set<string>()
+
+  const schedule = (taskId: string): (typeof sourceTasks)[number] => {
+    const existing = scheduled.get(taskId)
+    if (existing) return existing
+
+    const task = taskById.get(taskId)
+    if (!task) throw new Error(`Unknown mock task dependency: ${taskId}`)
+    if (visiting.has(taskId)) throw new Error(`Circular mock task dependency involving: ${taskId}`)
+
+    visiting.add(taskId)
+    const dependencies = task.dependencies.map(schedule)
+    visiting.delete(taskId)
+
+    const earliestStart = dependencies.reduce(
+      (latest, dependency) => dependency.endDate.getTime() > latest.getTime() ? dependency.endDate : latest,
+      task.startDate
+    )
+    const durationDays = Math.max(0, Math.round(
+      (task.endDate.getTime() - task.startDate.getTime()) / (24 * 60 * 60 * 1000)
+    ))
+    const constrainedTask = earliestStart.getTime() > task.startDate.getTime()
+      ? { ...task, startDate: new Date(earliestStart), endDate: addDaysFrom(earliestStart, durationDays) }
+      : task
+
+    scheduled.set(taskId, constrainedTask)
+    return constrainedTask
+  }
+
+  return sourceTasks.map((task) => schedule(task.id))
+}
+
+const addDaysFrom = (date: Date, days: number) => {
+  const result = new Date(date)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
+const scheduledTasks = applyFinishToStartConstraints(rawTasks)
+
+export const tasks: Task[] = scheduledTasks.map((task, index) => ({
   ...task,
   groupName: WORKSTREAM_BY_TASK_ID[task.id] ?? 'core-platform',
   teamName: task.group,
   plannedStart: task.startDate,
   plannedEnd: task.endDate,
-  earliestStart: task.startDate,
+  earliestStart: task.dependencies.reduce<Date>((latest, dependencyId) => {
+    const dependency = scheduledTasks.find((candidate) => candidate.id === dependencyId)
+    return dependency && dependency.endDate.getTime() > latest.getTime() ? dependency.endDate : latest
+  }, task.startDate),
   createdAt: addDays(-30 + index),
 }))
 

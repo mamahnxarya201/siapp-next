@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PanelLeftOpen } from 'lucide-react'
 import { usePMISStore } from '@/lib/pmis-store'
 import { TaskListPanel } from './task-list-panel'
@@ -13,13 +13,37 @@ const LEFT_PANEL_MAX_WIDTH = 520
 
 export function ProjectView() {
   const { inspectorOpen, selectedTaskId } = usePMISStore()
-  const [verticalScrollTop, setVerticalScrollTop] = useState(0)
   const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH)
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [timelineScrollbarHeight, setTimelineScrollbarHeight] = useState(0)
   const resizeStartX = useRef(0)
   const resizeStartWidth = useRef(LEFT_PANEL_DEFAULT_WIDTH)
+  const taskListScrollerRef = useRef<HTMLDivElement>(null)
+  const ganttScrollerRef = useRef<HTMLDivElement>(null)
+  const verticalScrollTopRef = useRef(0)
+
+  const syncFromTaskList = useCallback((scrollTop: number) => {
+    verticalScrollTopRef.current = scrollTop
+    const ganttScroller = ganttScrollerRef.current
+    if (ganttScroller && Math.abs(ganttScroller.scrollTop - scrollTop) > 0.5) {
+      ganttScroller.scrollTop = scrollTop
+    }
+  }, [])
+
+  const syncFromGantt = useCallback((scrollTop: number) => {
+    verticalScrollTopRef.current = scrollTop
+    const taskListScroller = taskListScrollerRef.current
+    if (taskListScroller && Math.abs(taskListScroller.scrollTop - scrollTop) > 0.5) {
+      taskListScroller.scrollTop = scrollTop
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!leftPanelHidden && taskListScrollerRef.current) {
+      taskListScrollerRef.current.scrollTop = verticalScrollTopRef.current
+    }
+  }, [leftPanelHidden])
 
   const beginResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -57,8 +81,8 @@ export function ProjectView() {
             style={{ width: leftPanelWidth, minWidth: LEFT_PANEL_MIN_WIDTH }}
           >
             <TaskListPanel
-              scrollTop={verticalScrollTop}
-              onVerticalScroll={setVerticalScrollTop}
+              scrollRef={taskListScrollerRef}
+              onVerticalScroll={syncFromTaskList}
               onHide={() => setLeftPanelHidden(true)}
               panelWidth={leftPanelWidth}
               bottomScrollPadding={timelineScrollbarHeight}
@@ -87,8 +111,8 @@ export function ProjectView() {
           </button>
         )}
         <GanttChart
-          scrollTop={verticalScrollTop}
-          onVerticalScroll={setVerticalScrollTop}
+          scrollRef={ganttScrollerRef}
+          onVerticalScroll={syncFromGantt}
           onHorizontalScrollbarHeightChange={setTimelineScrollbarHeight}
         />
       </div>

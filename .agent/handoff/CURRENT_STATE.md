@@ -4,9 +4,9 @@ Last updated: 2026-08-08
 
 ## Current Objective
 
-Implement the first local-prototype task authoring workflow without committing to a
-database design: reusable task creation, dependency-aware scheduling, optional
-Gantt-context defaults, and safe workstream CRUD.
+Provide isolated, deterministic mock workspaces for each dashboard project so the
+prototype can exercise empty-state authoring, long-content layout, dense Gantt
+dependencies, and schedule/rendering boundaries without a database.
 
 ## Thesis Source Materials
 
@@ -58,6 +58,31 @@ Gantt-context defaults, and safe workstream CRUD.
 - Schedule state and project data are prototype mock data. No API routes,
   database schema/ORM, PostgreSQL integration, authentication, or persistence
   layer were found.
+- Dashboard project selection now swaps isolated in-memory workspaces instead of
+  reusing one global task array. Runtime task/workstream changes are retained when
+  switching away from a project and back during the same browser session.
+- `PMIS Platform v1.0` is intentionally empty and renders explicit task-list and
+  Gantt authoring states. `Mobile App Redesign` contains seven long-content layout
+  fixtures; `API Gateway Migration` contains a generated 240-task, 487-edge
+  performance graph; `Security Compliance Audit` contains eight schedule-boundary
+  fixtures with ten edges, one cramped top-entry route, multi-predecessor tasks,
+  blocked work, long gaps, and three milestones.
+- Portfolio task KPIs now aggregate all project workspaces instead of reflecting
+  only the most recently selected project.
+- Left-list and Gantt vertical scrolling now synchronize imperatively before
+  paint instead of round-tripping through React state and post-render effects.
+  Both panes share the same maximum scroll range, including horizontal-scrollbar
+  compensation.
+- The 72px calendar header and matching left-list spacer remain sticky during
+  deep vertical scrolling. Header rendering stays on the browser's sticky-layout
+  path and does not introduce scroll-driven React renders.
+- The dashboard/Gantt view-mode switcher was removed from the top navigation.
+  Timeline settings now sit beside All Dependencies and Critical Path, are labeled
+  `Project timeline`, identify the active project in the dialog, and persist under
+  a project-specific browser key.
+- The task-list and Gantt vertical scrollbar tracks are visually hidden while
+  wheel/touch scrolling, frame-synchronous vertical movement, and the Gantt's
+  horizontal scrollbar remain available.
 - PERT input fields are stored and displayed. Critical-path membership is
   currently static mock-data metadata; no CPM/PERT calculation engine for
   earliest/latest dates, slack, or computed critical path was found.
@@ -76,6 +101,20 @@ Gantt-context defaults, and safe workstream CRUD.
   new left-list row and Gantt state, workstream create/rename/delete, populated
   workstream deletion protection, Gantt context creation, and dependent-task
   defaults. No browser console warnings or errors were reported.
+- Per-project fixture verification (2026-08-08): switching through all four
+  dashboard projects produced task counts of 0, 7, 240, and 8 respectively;
+  enabling all dependencies rendered 487 connectors in the performance fixture
+  and 10 in the boundary fixture; switching back to PMIS restored the empty state.
+  The browser reported no console warnings or errors.
+- Deep-scroll verification (2026-08-08): both panes reported matching positions
+  at 4,200px, 2,500px in the reverse direction, and their shared 8,304px bottom
+  boundary. The sticky calendar header remained at the same viewport coordinate.
+  Project-specific settings were verified by changing API Gateway, switching to
+  Mobile App Redesign, and confirming its independent default before switching
+  back and restoring API Gateway's saved value.
+- Production build (2026-08-08): `npm.cmd run build` passed after network access
+  was allowed for the existing Google Geist font download. A separate strict
+  `tsc --noEmit --incremental false` check also passed.
 
 ## Completed Work
 
@@ -87,17 +126,24 @@ Gantt-context defaults, and safe workstream CRUD.
   implementation or accepted product behavior.
 - Implemented local task creation and workstream management while preserving
   group/dependency independence and forward-only schedule propagation.
+- Implemented per-project mock workspaces, deterministic focused fixtures,
+  portfolio aggregation, project-switch state reset, and an empty Gantt/task-list
+  authoring state.
+- Expanded the performance fixture, removed scroll synchronization from React's
+  render path, added the sticky calendar architecture, simplified the top bar,
+  and made timeline preferences explicitly project-scoped.
 
 ## Files Changed in Latest Work
 
 - `.agent/handoff/CURRENT_STATE.md`
-- `components/pmis/context-inspector.tsx`
+- `app/globals.css`
+- `components/pmis/dashboard-view.tsx`
 - `components/pmis/gantt-chart.tsx`
 - `components/pmis/pmis-app.tsx`
-- `components/pmis/task-create-dialog.tsx`
+- `components/pmis/project-view.tsx`
 - `components/pmis/task-list-panel.tsx`
 - `components/pmis/top-nav.tsx`
-- `lib/pmis-data.ts`
+- `lib/pmis-project-fixtures.ts`
 - `lib/pmis-store.ts`
 
 ## Confirmed Decisions Awaiting Implementation
@@ -133,6 +179,7 @@ Gantt-context defaults, and safe workstream CRUD.
 
 ## Next Action
 
-Discuss and confirm the persistence/domain model before wiring these client actions
-to PostgreSQL. A smaller independent next step is task editing/reassignment so
-populated workstreams can be safely deleted or consolidated.
+Use the focused project fixtures as the manual regression matrix for future Gantt
+and layout changes. Persistence still requires a confirmed domain model before
+these isolated client workspaces are wired to PostgreSQL; task editing/reassignment
+remains the smallest independent product step.

@@ -2,9 +2,7 @@
 
 import { create } from 'zustand'
 import {
-  tasks as initialTasks,
   projects as initialProjects,
-  initialWorkstreams,
   teamMembers,
   type Task,
   type Project,
@@ -12,6 +10,17 @@ import {
   type Workstream,
   type WorkstreamGroup,
 } from './pmis-data'
+import {
+  cloneProjectWorkspace,
+  createProjectWorkspaces,
+  type ProjectWorkspace,
+} from './pmis-project-fixtures'
+
+const initialProjectWorkspaces = createProjectWorkspaces()
+const defaultProjectId = initialProjects[0]?.id ?? ''
+const initialWorkspace = cloneProjectWorkspace(
+  initialProjectWorkspaces[defaultProjectId] ?? { tasks: [], workstreams: [] },
+)
 
 const WORKSTREAM_COLORS = [
   'bg-chart-1/15 text-chart-1',
@@ -138,6 +147,7 @@ interface PMISState {
   tasks: Task[]
   projects: Project[]
   workstreams: Workstream[]
+  projectWorkspaces: Record<string, ProjectWorkspace>
   
   // Selection state
   selectedTaskId: string | null
@@ -186,6 +196,7 @@ interface PMISState {
   getDownstreamChain: (taskId: string) => Task[]
   getTasksByGroup: (group: WorkstreamGroup) => Task[]
   getCriticalPathTasks: () => Task[]
+  getPortfolioTasks: () => Task[]
   getVisibleRows: () => VisibleRow[]
 }
 
@@ -193,9 +204,10 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   // Initial state
   currentView: 'dashboard',
   currentProjectId: null,
-  tasks: initialTasks,
+  tasks: initialWorkspace.tasks,
   projects: initialProjects,
-  workstreams: initialWorkstreams.map((workstream) => ({ ...workstream })),
+  workstreams: initialWorkspace.workstreams,
+  projectWorkspaces: initialProjectWorkspaces,
   selectedTaskId: null,
   hoveredTaskId: null,
   timelineScale: 'week',
@@ -212,11 +224,34 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   // Actions
   setCurrentView: (view) => set({ currentView: view }),
   
-  setCurrentProject: (projectId) => set({ 
-    currentProjectId: projectId, 
-    currentView: projectId ? 'project' : 'dashboard',
-    selectedTaskId: null,
-    hoveredTaskId: null
+  setCurrentProject: (projectId) => set((state) => {
+    const projectWorkspaces = state.currentProjectId
+      ? {
+          ...state.projectWorkspaces,
+          [state.currentProjectId]: {
+            tasks: state.tasks,
+            workstreams: state.workstreams,
+          },
+        }
+      : state.projectWorkspaces
+    const workspaceId = projectId ?? defaultProjectId
+    const workspace = projectWorkspaces[workspaceId] ?? { tasks: [], workstreams: [] }
+
+    return {
+      projectWorkspaces,
+      currentProjectId: projectId,
+      currentView: projectId ? 'project' : 'dashboard',
+      tasks: workspace.tasks,
+      workstreams: workspace.workstreams,
+      expandedGroups: workspace.workstreams.map((workstream) => workstream.id),
+      selectedTaskId: null,
+      hoveredTaskId: null,
+      showAllDependencies: false,
+      showCriticalPath: false,
+      searchQuery: '',
+      taskCreateOpen: false,
+      taskCreateDefaults: {},
+    }
   }),
   
   selectTask: (taskId) => set({ 
@@ -490,6 +525,13 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   getTasksByGroup: (group) => get().tasks.filter(t => t.groupName === group),
   
   getCriticalPathTasks: () => get().tasks.filter(t => t.isCriticalPath),
+
+  getPortfolioTasks: () => {
+    const { projectWorkspaces, currentProjectId, tasks } = get()
+    return Object.entries(projectWorkspaces).flatMap(([projectId, workspace]) => (
+      projectId === currentProjectId ? tasks : workspace.tasks
+    ))
+  },
 
   getVisibleRows: () => {
     const { tasks, workstreams, expandedGroups, searchQuery } = get()

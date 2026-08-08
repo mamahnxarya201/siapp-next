@@ -175,7 +175,8 @@ function KPICard({
 }
 
 export function DashboardView() {
-  const { projects, tasks, setCurrentProject } = usePMISStore()
+  const { projects, getPortfolioTasks, setCurrentProject } = usePMISStore()
+  const tasks = getPortfolioTasks()
 
   // Calculate KPIs
   const activeProjects = projects.filter(p => p.status === 'active').length

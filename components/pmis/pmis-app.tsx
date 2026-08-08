@@ -7,7 +7,7 @@ import { ProjectView } from './project-view'
 import { TaskCreateDialog } from './task-create-dialog'
 
 export function PMISApp() {
-  const { currentView } = usePMISStore()
+  const { currentView, currentProjectId } = usePMISStore()
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -15,7 +15,7 @@ export function PMISApp() {
       {currentView === 'dashboard' ? (
         <DashboardView />
       ) : (
-        <ProjectView />
+        <ProjectView key={currentProjectId ?? 'no-project'} />
       )}
       <TaskCreateDialog />
     </div>

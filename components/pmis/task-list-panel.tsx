@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   Activity,
   Blocks,
@@ -23,6 +23,14 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import {
   Dialog,
   DialogContent,
@@ -259,25 +267,25 @@ function GroupHeaderRow({
 }
 
 export function TaskListPanel({
-  scrollTop,
+  scrollRef,
   onVerticalScroll,
   onHide,
   panelWidth,
   bottomScrollPadding,
 }: {
-  scrollTop: number
+  scrollRef: React.RefObject<HTMLDivElement | null>
   onVerticalScroll: (next: number) => void
   onHide: () => void
   panelWidth: number
   bottomScrollPadding: number
 }) {
-  const listRef = useRef<HTMLDivElement>(null)
   const {
     tasks,
     getVisibleRows,
     createWorkstream,
     renameWorkstream,
     deleteWorkstream,
+    openTaskCreate,
   } = usePMISStore()
   const [workstreamDialogMode, setWorkstreamDialogMode] = useState<'create' | 'rename' | null>(null)
   const [workstreamTarget, setWorkstreamTarget] = useState<Workstream | null>(null)
@@ -290,14 +298,6 @@ export function TaskListPanel({
   const deleteTargetTaskCount = deleteTarget
     ? tasks.filter((task) => task.groupName === deleteTarget.id).length
     : 0
-
-  useEffect(() => {
-    const el = listRef.current
-    if (!el) return
-    if (Math.abs(el.scrollTop - scrollTop) > 1) {
-      el.scrollTop = scrollTop
-    }
-  }, [scrollTop])
 
   const openCreateWorkstream = () => {
     setWorkstreamTarget(null)
@@ -362,26 +362,48 @@ export function TaskListPanel({
       </div>
 
       <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto"
+        ref={scrollRef}
+        data-testid="task-list-scroll"
+        className="pmis-hidden-vertical-scrollbar flex-1 overflow-y-auto"
         onScroll={(e) => onVerticalScroll(e.currentTarget.scrollTop)}
       >
-        <div style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }} className="border-b border-border/60 bg-card/50" />
-        {visibleRows.map((row) =>
-          row.type === 'group-header' ? (
-            <GroupHeaderRow
-              key={`group-${row.group}`}
-              workstream={row.workstream}
-              taskCount={row.taskCount}
-              compact={compact}
-              showTeamSummary={showTeamSummary}
-              onRename={openRenameWorkstream}
-              onDelete={setDeleteTarget}
-            />
-          ) : (
-            <div key={row.task.id} style={{ height: TASK_ROW_HEIGHT }}>
-              <TaskRow task={row.task} compact={compact} />
-            </div>
+        <div
+          style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }}
+          className="sticky top-0 z-20 border-b border-border/60 bg-card"
+        />
+        {tasks.length === 0 ? (
+          <Empty className="min-h-[280px] gap-4 border-0 px-5">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ListTodo /></EmptyMedia>
+              <EmptyTitle className="text-base">No tasks yet</EmptyTitle>
+              <EmptyDescription>
+                This project is intentionally empty. Add its first task when you are ready to plan.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button size="sm" onClick={() => openTaskCreate()}>
+                <Plus className="h-4 w-4" />
+                New task
+              </Button>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          visibleRows.map((row) =>
+            row.type === 'group-header' ? (
+              <GroupHeaderRow
+                key={`group-${row.group}`}
+                workstream={row.workstream}
+                taskCount={row.taskCount}
+                compact={compact}
+                showTeamSummary={showTeamSummary}
+                onRename={openRenameWorkstream}
+                onDelete={setDeleteTarget}
+              />
+            ) : (
+              <div key={row.task.id} style={{ height: TASK_ROW_HEIGHT }}>
+                <TaskRow task={row.task} compact={compact} />
+              </div>
+            )
           )
         )}
         {bottomScrollPadding > 0 && <div aria-hidden="true" style={{ height: bottomScrollPadding }} />}

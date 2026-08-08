@@ -1,9 +1,17 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -302,15 +310,15 @@ function GanttBar({
 }
 
 export function GanttChart({
-  scrollTop,
+  scrollRef,
   onVerticalScroll,
   onHorizontalScrollbarHeightChange,
 }: {
-  scrollTop: number
+  scrollRef: React.RefObject<HTMLDivElement | null>
   onVerticalScroll: (next: number) => void
   onHorizontalScrollbarHeightChange: (height: number) => void
 }) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = scrollRef
   const dragStateRef = useRef<DragState | null>(null)
   const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shrinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -328,6 +336,8 @@ export function GanttChart({
 
   const {
     tasks,
+    projects,
+    currentProjectId,
     selectedTaskId,
     hoveredTaskId,
     timelineScale,
@@ -349,8 +359,16 @@ export function GanttChart({
   } = usePMISStore()
 
   const scale = SCALES[timelineScale]
+  const currentProject = projects.find((project) => project.id === currentProjectId)
+  const projectTimelineSettingsKey = currentProjectId
+    ? `${GANTT_DISPLAY_SETTINGS_KEY}:${currentProjectId}`
+    : GANTT_DISPLAY_SETTINGS_KEY
 
   const taskExtent = useMemo(() => {
+    if (tasks.length === 0) {
+      const today = startOfCalendarDay(new Date())
+      return { minDate: today, maxDate: today }
+    }
     const allDates = tasks.flatMap((task) => [task.startDate, task.endDate])
     return {
       minDate: startOfCalendarDay(new Date(Math.min(...allDates.map((date) => date.getTime())))),
@@ -359,14 +377,14 @@ export function GanttChart({
   }, [tasks])
 
   useEffect(() => {
-    setDisplaySettings(parseGanttDisplaySettings(window.localStorage.getItem(GANTT_DISPLAY_SETTINGS_KEY)))
+    setDisplaySettings(parseGanttDisplaySettings(window.localStorage.getItem(projectTimelineSettingsKey)))
     setSettingsHydrated(true)
-  }, [])
+  }, [projectTimelineSettingsKey])
 
   useEffect(() => {
     if (!settingsHydrated) return
-    window.localStorage.setItem(GANTT_DISPLAY_SETTINGS_KEY, JSON.stringify(displaySettings))
-  }, [displaySettings, settingsHydrated])
+    window.localStorage.setItem(projectTimelineSettingsKey, JSON.stringify(displaySettings))
+  }, [displaySettings, projectTimelineSettingsKey, settingsHydrated])
 
   useEffect(() => {
     const minimumStart = addCalendarDays(taskExtent.minDate, -INITIAL_PAST_DAYS)
@@ -444,6 +462,12 @@ export function GanttChart({
   const visibleTaskIds = useMemo(() => new Set(visibleTasks.map((task) => task.id)), [visibleTasks])
 
   const prepareCreateContext = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const containerBounds = event.currentTarget.getBoundingClientRect()
+    if (event.clientY - containerBounds.top < HEADER_HEIGHT) {
+      setCreateContext(null)
+      return
+    }
+
     const svg = event.currentTarget.querySelector<SVGSVGElement>('[data-testid="gantt-timeline"]')
     if (!svg) {
       setCreateContext(null)
@@ -652,14 +676,6 @@ export function GanttChart({
       }, TIMELINE_SHRINK_DELAY_MS)
     }
   }, [isDragging, onVerticalScroll, taskExtent.maxDate])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    if (Math.abs(el.scrollTop - scrollTop) > 1) {
-      el.scrollTop = scrollTop
-    }
-  }, [scrollTop])
 
   useEffect(() => {
     const element = containerRef.current
@@ -886,23 +902,62 @@ export function GanttChart({
             <ChevronRight className="h-4 w-4" />
           </Button>
 
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Toggle all dependencies */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  size="sm"
+                  pressed={showAllDependencies}
+                  onPressedChange={toggleAllDependencies}
+                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-primary/20"
+                >
+                  <GitBranch className="h-3.5 w-3.5" />
+                  <span className="text-xs">All Deps</span>
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>Show all dependency lines</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Toggle critical path */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  size="sm"
+                  pressed={showCriticalPath}
+                  onPressedChange={toggleCriticalPath}
+                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="text-xs">Critical Path</span>
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>Highlight critical path</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Dialog>
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 px-2.5"
-                aria-label="Timeline settings"
+                aria-label="Project timeline settings"
               >
                 <Settings2 className="h-3.5 w-3.5" />
-                <span className="text-xs">Timeline</span>
+                <span className="text-xs">Project timeline</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[min(680px,calc(100vh-2rem))] overflow-y-auto sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Timeline settings</DialogTitle>
+                <DialogTitle>Project timeline settings</DialogTitle>
                 <DialogDescription>
-                  Customize the timeline display without changing stored task dates.
+                  These display preferences apply only to {currentProject?.name ?? 'this project'} and do not change stored task dates.
                 </DialogDescription>
               </DialogHeader>
 
@@ -1000,44 +1055,6 @@ export function GanttChart({
             </DialogContent>
           </Dialog>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Toggle all dependencies */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  size="sm"
-                  pressed={showAllDependencies}
-                  onPressedChange={toggleAllDependencies}
-                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-primary/20"
-                >
-                  <GitBranch className="h-3.5 w-3.5" />
-                  <span className="text-xs">All Deps</span>
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>Show all dependency lines</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Toggle critical path */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  size="sm"
-                  pressed={showCriticalPath}
-                  onPressedChange={toggleCriticalPath}
-                  className="h-8 gap-1.5 px-3 data-[state=on]:bg-destructive/15 data-[state=on]:text-destructive"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  <span className="text-xs">Critical Path</span>
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>Highlight critical path</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
       </div>
 
       {/* Chart */}
@@ -1047,19 +1064,121 @@ export function GanttChart({
             {dragNotice}
           </div>
         )}
+        {tasks.length === 0 ? (
+          <Empty className="h-full gap-4 rounded-none border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ListTodo /></EmptyMedia>
+              <EmptyTitle>No schedule yet</EmptyTitle>
+              <EmptyDescription>
+                PMIS Platform v1.0 starts as a clean project. Create its first task to begin the plan.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button size="sm" onClick={() => openTaskCreate()}>
+                <Plus className="h-4 w-4" />
+                Create first task
+              </Button>
+            </EmptyContent>
+          </Empty>
+        ) : (
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
               ref={containerRef}
-              className={cn('h-full overflow-auto', isDragging && 'cursor-ew-resize')}
+              data-testid="gantt-scroll"
+              className={cn('pmis-hidden-vertical-scrollbar h-full overflow-auto', isDragging && 'cursor-ew-resize')}
               onScroll={handleScroll}
               onContextMenu={prepareCreateContext}
             >
+            <div
+              className="relative"
+              style={{ width: timelineData.totalWidth, height: renderHeight }}
+            >
+              <div
+                data-testid="timeline-sticky-header"
+                className="sticky top-0 z-20 bg-card"
+                style={{ width: timelineData.totalWidth, height: HEADER_HEIGHT }}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
+              >
+                <svg width={timelineData.totalWidth} height={HEADER_HEIGHT} className="block select-none">
+                  <rect x={0} y={0} width={timelineData.totalWidth} height={HEADER_HEIGHT} className="fill-card" />
+
+                  <g data-timeline-tier="month">
+                    {timelineData.monthSegments.map((segment) => (
+                      <g key={segment.key}>
+                        <line x1={segment.x} y1={0} x2={segment.x} y2={24} className="stroke-border" opacity={0.8} />
+                        <text
+                          x={segment.x + segment.width / 2}
+                          y={16}
+                          textAnchor="middle"
+                          className="fill-foreground text-[11px] font-medium"
+                        >
+                          {segment.label}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
+                  <line x1={0} y1={24} x2={timelineData.totalWidth} y2={24} className="stroke-border" opacity={0.7} />
+
+                  <g data-timeline-tier="weekday">
+                    {timelineData.visibleDates.map((date, index) => {
+                      const x = index * scale.dayWidth
+                      const weekday = date.toLocaleDateString('en-US', {
+                        weekday: scale.dayWidth >= 32 ? 'short' : 'narrow',
+                      })
+                      return (
+                        <g key={`weekday-${date.toISOString()}`}>
+                          <line x1={x} y1={24} x2={x} y2={HEADER_HEIGHT} className="stroke-border" opacity={0.35} />
+                          <text
+                            x={x + scale.dayWidth / 2}
+                            y={40}
+                            textAnchor="middle"
+                            className="fill-muted-foreground text-[10px] uppercase"
+                          >
+                            {weekday}
+                          </text>
+                        </g>
+                      )
+                    })}
+                  </g>
+                  <line x1={0} y1={48} x2={timelineData.totalWidth} y2={48} className="stroke-border" opacity={0.55} />
+
+                  <g data-timeline-tier="date">
+                    {timelineData.visibleDates.map((date, index) => (
+                      <text
+                        key={`date-${date.toISOString()}`}
+                        x={index * scale.dayWidth + scale.dayWidth / 2}
+                        y={65}
+                        textAnchor="middle"
+                        className="fill-muted-foreground text-[10px]"
+                      >
+                        {date.getDate()}
+                      </text>
+                    ))}
+                  </g>
+
+                  {displaySettings.showWeekSeparators && timelineData.weekSeparators.map((separator) => (
+                    <line
+                      key={`header-week-separator-${calendarWeekKey(separator.date, displaySettings.weekStart)}`}
+                      x1={separator.x}
+                      y1={0}
+                      x2={separator.x}
+                      y2={HEADER_HEIGHT}
+                      className="stroke-border"
+                      strokeWidth={1.5}
+                      opacity={0.9}
+                    />
+                  ))}
+                </svg>
+              </div>
             <svg
           data-testid="gantt-timeline"
           width={timelineData.totalWidth}
           height={renderHeight}
-          className="select-none"
+          className="absolute inset-0 select-none"
         >
           <defs>
             {/* Arrow markers */}
@@ -1084,70 +1203,6 @@ export function GanttChart({
               <path d="M0,0 L8,4 L0,8 Z" className="fill-destructive" />
             </marker>
           </defs>
-
-          {/* Timeline header background */}
-          <rect
-            x={0}
-            y={0}
-            width={timelineData.totalWidth}
-            height={HEADER_HEIGHT}
-            className="fill-card"
-          />
-
-          {/* Three-tier calendar header: month/year, weekday, date. */}
-          <g data-timeline-tier="month">
-            {timelineData.monthSegments.map((segment) => (
-              <g key={segment.key}>
-                <line x1={segment.x} y1={0} x2={segment.x} y2={24} className="stroke-border" opacity={0.8} />
-                <text
-                  x={segment.x + segment.width / 2}
-                  y={16}
-                  textAnchor="middle"
-                  className="fill-foreground text-[11px] font-medium"
-                >
-                  {segment.label}
-                </text>
-              </g>
-            ))}
-          </g>
-          <line x1={0} y1={24} x2={timelineData.totalWidth} y2={24} className="stroke-border" opacity={0.7} />
-
-          <g data-timeline-tier="weekday">
-            {timelineData.visibleDates.map((date, index) => {
-              const x = index * scale.dayWidth
-              const weekday = date.toLocaleDateString('en-US', {
-                weekday: scale.dayWidth >= 32 ? 'short' : 'narrow',
-              })
-              return (
-                <g key={`weekday-${date.toISOString()}`}>
-                  <line x1={x} y1={24} x2={x} y2={HEADER_HEIGHT} className="stroke-border" opacity={0.35} />
-                  <text
-                    x={x + scale.dayWidth / 2}
-                    y={40}
-                    textAnchor="middle"
-                    className="fill-muted-foreground text-[10px] uppercase"
-                  >
-                    {weekday}
-                  </text>
-                </g>
-              )
-            })}
-          </g>
-          <line x1={0} y1={48} x2={timelineData.totalWidth} y2={48} className="stroke-border" opacity={0.55} />
-
-          <g data-timeline-tier="date">
-            {timelineData.visibleDates.map((date, index) => (
-              <text
-                key={`date-${date.toISOString()}`}
-                x={index * scale.dayWidth + scale.dayWidth / 2}
-                y={65}
-                textAnchor="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {date.getDate()}
-              </text>
-            ))}
-          </g>
 
           {/* Row backgrounds */}
           {(() => {
@@ -1194,15 +1249,6 @@ export function GanttChart({
 
           {displaySettings.showWeekSeparators && timelineData.weekSeparators.map((separator) => (
             <g key={`week-separator-${calendarWeekKey(separator.date, displaySettings.weekStart)}`}>
-              <line
-                x1={separator.x}
-                y1={0}
-                x2={separator.x}
-                y2={HEADER_HEIGHT}
-                className="stroke-border"
-                strokeWidth={1.5}
-                opacity={0.9}
-              />
               {displaySettings.showGrid && (
                 <line
                   x1={separator.x}
@@ -1300,6 +1346,7 @@ export function GanttChart({
           })}
             </svg>
             </div>
+            </div>
           </ContextMenuTrigger>
           <ContextMenuContent className="w-64">
             <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
@@ -1353,6 +1400,7 @@ export function GanttChart({
             )}
           </ContextMenuContent>
         </ContextMenu>
+        )}
       </div>
     </div>
   )

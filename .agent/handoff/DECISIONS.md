@@ -44,5 +44,141 @@ The baseline product rules already documented in `.agent/doc/AGENT_PRODUCT_KNOWL
 
 ## Decisions
 
-No additional cross-agent decisions have been recorded yet.
+### DEC-001 -- Canvas-first project-manager workspace
 
+- Status: CONFIRMED
+- Date: 2026-08-08
+- Confirmed by: user
+- Scope: product | UX
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+The project timeline is the primary project-manager workspace. Task information
+remains connected to it, complexity is progressively disclosed, and a separate
+task-oriented view serves inventory and operational triage rather than replacing
+the timeline.
+
+Rationale:
+Project managers need substantial viewing and planning capability without the
+simultaneous menu and navigation burden associated with heavier project tools.
+
+Consequences:
+- Keep the project representation visually and interactively primary.
+- Match feedback and disclosed complexity to the user's current action and its
+  significance.
+- Do not turn the product into either a generic multi-module dashboard or an
+  oversimplified single-purpose utility.
+
+Evidence:
+- User confirmation in the 2026-08-08 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- Exact navigation labels, secondary views, density controls, and role-specific
+  experiences remain unconfirmed.
+
+### DEC-002 -- Stable semantics with flexible viewing perspectives
+
+- Status: CONFIRMED
+- Date: 2026-08-08
+- Confirmed by: user
+- Scope: product | UX | domain
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+Shared project meanings remain stable while users may create flexible viewing
+perspectives. Presentation customization must not silently redefine operational
+meanings such as completed, blocked, critical, or dependent.
+
+Rationale:
+Unbounded drawing flexibility damages shared understanding, while one rigid view
+cannot represent every legitimate managerial question.
+
+Consequences:
+- Preserve system-owned operational semantics across views.
+- Allow alternative grouping, filtering, emphasis, and saved perspectives within
+  that shared semantic grammar.
+- Do not assign conflicting personal and operational meanings to the same visual
+  channel without a clear distinction.
+
+Evidence:
+- User confirmation in the 2026-08-08 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- The exact boundary between system-owned and user-controlled visual semantics
+  remains unconfirmed.
+
+### DEC-003 -- Layered project state and update authority
+
+- Status: CONFIRMED
+- Date: 2026-08-08
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+PMIS distinguishes baseline, current plan, actual state, forecast, history, and
+scenario. Assignee reports may update actual state and inform forecasts, but
+automatic or assignee-originated updates must not silently rewrite accepted
+baselines or organizational commitments.
+
+Rationale:
+Observed events, inferred outcomes, intended plans, and accepted commitments have
+different meanings and require different update rules.
+
+Consequences:
+- Keep observation, inference, intention, and commitment distinguishable.
+- Allow current operational facts and derived forecasts to update without
+  pretending they are approved plan revisions.
+- Require deliberate action to change accepted planning commitments.
+- Do not represent an unfinished task as continuously active merely by extending
+  its actual bar to the present.
+
+Evidence:
+- User confirmation in the 2026-08-08 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- Exact permissions, verification policy, forecast-confidence treatment, and
+  approval workflow remain unconfirmed.
+
+### DEC-004 -- Linear official history with bounded scenarios
+
+- Status: CONFIRMED
+- Date: 2026-08-08
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+The project has one official current planning line with meaningful immutable
+checkpoints. Historical checkpoints are read-only; continuing from one creates a
+bounded scenario. Adopting or restoring a scenario creates a new official
+checkpoint without erasing later history or actual events.
+
+Rationale:
+Preserved history and safe alternative planning are valuable, but a full branching
+graph, rebasing, and technical merge model would add unnecessary cognitive and
+governance complexity.
+
+Consequences:
+- Separate detailed activity history from user-facing planning checkpoints.
+- Keep scenarios shallow, limited, and visibly non-operational until adopted.
+- Compare consequences before a scenario becomes the current plan.
+- Record adoption, restoration, authorship, and rationale as new history rather
+  than rewriting existing history.
+- Do not expose deep branching, rebasing, or literal version-control merging as
+  ordinary PMIS operations.
+
+Evidence:
+- User confirmation in the 2026-08-08 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- Exact checkpoint triggers, active-scenario limits, scenario refresh behaviour,
+  and adoption controls remain unconfirmed.

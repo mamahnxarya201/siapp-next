@@ -23,7 +23,6 @@ export function TopNav() {
   useEffect(() => setThemeReady(true), [])
 
   const { 
-    currentView, 
     currentProjectId, 
     projects,
     setCurrentProject,
@@ -118,32 +117,6 @@ export function TopNav() {
           <Plus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">New Task</span>
         </Button>
-
-        {/* View Mode */}
-        <div className="flex items-center rounded-lg border border-border bg-secondary p-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-7 px-2.5',
-              currentView === 'dashboard' && 'bg-card shadow-sm'
-            )}
-            onClick={() => setCurrentProject(null)}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-7 px-2.5',
-              currentView === 'project' && 'bg-card shadow-sm'
-            )}
-            onClick={() => !currentProjectId && setCurrentProject(projects[0]?.id || null)}
-          >
-            <GanttChart className="h-3.5 w-3.5" />
-          </Button>
-        </div>
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="h-8 w-8 relative">

@@ -81,6 +81,12 @@
   background: var(--scrollbar-thumb-hover);
 }
 
+/* Keep pane scrolling but remove the two redundant vertical scrollbar tracks. */
+.pmis-hidden-vertical-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 8px;
+}
+
 /* Gantt specific styles */
 .gantt-grid-line {
   stroke: var(--gantt-grid);

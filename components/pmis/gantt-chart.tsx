@@ -1,11 +1,19 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import {
   Dialog,
   DialogContent,
@@ -78,6 +86,13 @@ interface DragState {
   initialEndDate: Date
   lastUnitDelta: number
   warnedVerticalMove: boolean
+}
+
+interface GanttCreateContext {
+  date: Date
+  workstreamId: string
+  workstreamLabel: string
+  taskId: string | null
 }
 
 const WEEKDAY_OPTIONS = [
@@ -195,6 +210,7 @@ function GanttBar({
 
   return (
     <g
+      data-task-id={task.id}
       className="cursor-grab active:cursor-grabbing"
       onClick={onSelect}
       onMouseDown={(e) => onInteractionStart('move', e)}
@@ -308,6 +324,7 @@ export function GanttChart({
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [displaySettings, setDisplaySettings] = useState<GanttDisplaySettings>(DEFAULT_GANTT_DISPLAY_SETTINGS)
   const [settingsHydrated, setSettingsHydrated] = useState(false)
+  const [createContext, setCreateContext] = useState<GanttCreateContext | null>(null)
 
   const {
     tasks,
@@ -327,6 +344,8 @@ export function GanttChart({
     getUpstreamChain,
     getDownstreamChain,
     getVisibleRows,
+    workstreams,
+    openTaskCreate,
   } = usePMISStore()
 
   const scale = SCALES[timelineScale]
@@ -423,6 +442,49 @@ export function GanttChart({
     [visibleRows]
   )
   const visibleTaskIds = useMemo(() => new Set(visibleTasks.map((task) => task.id)), [visibleTasks])
+
+  const prepareCreateContext = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const svg = event.currentTarget.querySelector<SVGSVGElement>('[data-testid="gantt-timeline"]')
+    if (!svg) {
+      setCreateContext(null)
+      return
+    }
+
+    const bounds = svg.getBoundingClientRect()
+    const timelineX = event.clientX - bounds.left
+    const timelineY = event.clientY - bounds.top
+    const dateIndex = Math.floor(timelineX / scale.dayWidth)
+    const date = timelineData.visibleDates[dateIndex]
+
+    if (!date || timelineY < HEADER_HEIGHT) {
+      setCreateContext(null)
+      return
+    }
+
+    let rowOffset = HEADER_HEIGHT
+    const row = visibleRows.find((candidate) => {
+      const height = candidate.type === 'group-header' ? GROUP_HEADER_HEIGHT : TASK_ROW_HEIGHT
+      const containsPoint = timelineY >= rowOffset && timelineY < rowOffset + height
+      rowOffset += height
+      return containsPoint
+    })
+
+    if (!row) {
+      setCreateContext(null)
+      return
+    }
+
+    const workstreamId = row.type === 'group-header' ? row.group : row.task.groupName
+    const workstreamLabel = workstreams.find((workstream) => workstream.id === workstreamId)?.label ?? workstreamId
+    const taskElement = (event.target as Element).closest<SVGGElement>('[data-task-id]')
+
+    setCreateContext({
+      date: new Date(date),
+      workstreamId,
+      workstreamLabel,
+      taskId: taskElement?.dataset.taskId ?? null,
+    })
+  }, [scale.dayWidth, timelineData.visibleDates, visibleRows, workstreams])
 
   // Calculate task positions
   const taskPositions = useMemo(() => {
@@ -626,6 +688,7 @@ export function GanttChart({
   }, [])
 
   const beginBarInteraction = useCallback((task: Task, mode: GanttInteractionMode, event: React.MouseEvent) => {
+    if (event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
     selectTask(task.id)
@@ -984,12 +1047,15 @@ export function GanttChart({
             {dragNotice}
           </div>
         )}
-        <div
-          ref={containerRef}
-          className={cn('h-full overflow-auto', isDragging && 'cursor-ew-resize')}
-          onScroll={handleScroll}
-        >
-        <svg
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div
+              ref={containerRef}
+              className={cn('h-full overflow-auto', isDragging && 'cursor-ew-resize')}
+              onScroll={handleScroll}
+              onContextMenu={prepareCreateContext}
+            >
+            <svg
           data-testid="gantt-timeline"
           width={timelineData.totalWidth}
           height={renderHeight}
@@ -1232,8 +1298,61 @@ export function GanttChart({
               />
             )
           })}
-          </svg>
-        </div>
+            </svg>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-64">
+            <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
+              {createContext
+                ? `${createContext.workstreamLabel} · ${createContext.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : 'Right-click a task row to create'}
+            </ContextMenuLabel>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              disabled={!createContext}
+              onSelect={() => createContext && openTaskCreate({
+                startDate: createContext.date,
+                endDate: addCalendarDays(createContext.date, 2),
+                workstreamId: createContext.workstreamId,
+              })}
+            >
+              <Plus className="h-4 w-4" />
+              New task here
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={!createContext}
+              onSelect={() => createContext && openTaskCreate({
+                startDate: createContext.date,
+                endDate: addCalendarDays(createContext.date, 1),
+                workstreamId: createContext.workstreamId,
+                isMilestone: true,
+              })}
+            >
+              <Milestone className="h-4 w-4" />
+              New milestone here
+            </ContextMenuItem>
+            {createContext?.taskId && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onSelect={() => {
+                    const predecessor = tasks.find((task) => task.id === createContext.taskId)
+                    if (!predecessor) return
+                    openTaskCreate({
+                      startDate: predecessor.endDate,
+                      endDate: addCalendarDays(predecessor.endDate, 2),
+                      workstreamId: predecessor.groupName,
+                      predecessorIds: [predecessor.id],
+                    })
+                  }}
+                >
+                  <GitBranch className="h-4 w-4" />
+                  Add dependent task
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
     </div>
   )

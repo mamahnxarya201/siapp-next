@@ -28,7 +28,8 @@ export function TopNav() {
     projects,
     setCurrentProject,
     setSearchQuery,
-    searchQuery
+    searchQuery,
+    openTaskCreate,
   } = usePMISStore()
 
   const currentProject = projects.find(p => p.id === currentProjectId)
@@ -113,7 +114,7 @@ export function TopNav() {
         </Button>
 
         {/* Quick Add */}
-        <Button size="sm" className="h-8 gap-1.5">
+        <Button size="sm" className="h-8 gap-1.5" onClick={() => openTaskCreate()}>
           <Plus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">New Task</span>
         </Button>

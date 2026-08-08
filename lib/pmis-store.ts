@@ -1,13 +1,133 @@
 'use client'
 
 import { create } from 'zustand'
-import { tasks as initialTasks, projects as initialProjects, type Task, type Project, type WorkstreamGroup } from './pmis-data'
+import {
+  tasks as initialTasks,
+  projects as initialProjects,
+  initialWorkstreams,
+  teamMembers,
+  type Task,
+  type Project,
+  type TaskTeam,
+  type Workstream,
+  type WorkstreamGroup,
+} from './pmis-data'
 
-const GROUP_ORDER: WorkstreamGroup[] = ['foundation', 'core-platform', 'execution-ui', 'validation', 'release']
+const WORKSTREAM_COLORS = [
+  'bg-chart-1/15 text-chart-1',
+  'bg-primary/15 text-primary',
+  'bg-chart-2/15 text-chart-2',
+  'bg-chart-3/15 text-chart-3',
+  'bg-chart-5/15 text-chart-5',
+  'bg-info/15 text-info',
+]
+
+export interface TaskCreationDefaults {
+  startDate?: Date
+  endDate?: Date
+  workstreamId?: WorkstreamGroup
+  predecessorIds?: string[]
+  dependentIds?: string[]
+  isMilestone?: boolean
+}
+
+export interface CreateTaskInput {
+  name: string
+  description: string
+  startDate: Date
+  endDate: Date
+  workstreamId: WorkstreamGroup
+  teamName: TaskTeam
+  assigneeId: string
+  predecessorIds: string[]
+  dependentIds: string[]
+  isMilestone: boolean
+}
+
+export type PMISMutationResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
 
 export type VisibleRow =
-  | { type: 'group-header'; group: WorkstreamGroup; taskCount: number }
+  | { type: 'group-header'; group: WorkstreamGroup; workstream: Workstream; taskCount: number }
   | { type: 'task'; task: Task }
+
+function createClientId(prefix: string): string {
+  const randomId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${randomId}`
+}
+
+function addCalendarDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function createsDependencyCycle(tasks: Task[], predecessorIds: string[], dependentIds: string[]): boolean {
+  if (predecessorIds.some((id) => dependentIds.includes(id))) return true
+
+  const taskById = new Map(tasks.map((task) => [task.id, task]))
+  const predecessorSet = new Set(predecessorIds)
+
+  for (const dependentId of dependentIds) {
+    const visited = new Set<string>()
+    const pending = [dependentId]
+
+    while (pending.length > 0) {
+      const currentId = pending.pop()!
+      if (visited.has(currentId)) continue
+      visited.add(currentId)
+      if (predecessorSet.has(currentId)) return true
+      taskById.get(currentId)?.dependents.forEach((id) => pending.push(id))
+    }
+  }
+
+  return false
+}
+
+function propagateScheduleForward(tasks: Task[], predecessorIds: string[]): Task[] {
+  const taskById = new Map(tasks.map((task) => [task.id, { ...task }]))
+  const pending = [...predecessorIds]
+  const queued = new Set(pending)
+
+  while (pending.length > 0) {
+    const predecessorId = pending.shift()!
+    queued.delete(predecessorId)
+    const predecessor = taskById.get(predecessorId)
+    if (!predecessor) continue
+
+    for (const dependentId of predecessor.dependents) {
+      const dependent = taskById.get(dependentId)
+      if (!dependent) continue
+
+      const minimumStart = dependent.dependencies.reduce<Date | null>((latest, dependencyId) => {
+        const dependency = taskById.get(dependencyId)
+        if (!dependency) return latest
+        return !latest || dependency.endDate.getTime() > latest.getTime()
+          ? dependency.endDate
+          : latest
+      }, null)
+
+      if (!minimumStart || dependent.startDate.getTime() >= minimumStart.getTime()) continue
+
+      const duration = Math.max(24 * 60 * 60 * 1000, dependent.endDate.getTime() - dependent.startDate.getTime())
+      const shifted = {
+        ...dependent,
+        startDate: new Date(minimumStart),
+        endDate: new Date(minimumStart.getTime() + duration),
+        earliestStart: new Date(minimumStart),
+      }
+      taskById.set(dependentId, shifted)
+
+      if (!queued.has(dependentId)) {
+        pending.push(dependentId)
+        queued.add(dependentId)
+      }
+    }
+  }
+
+  return tasks.map((task) => taskById.get(task.id) ?? task)
+}
 
 interface PMISState {
   // View state
@@ -17,6 +137,7 @@ interface PMISState {
   // Data
   tasks: Task[]
   projects: Project[]
+  workstreams: Workstream[]
   
   // Selection state
   selectedTaskId: string | null
@@ -28,6 +149,8 @@ interface PMISState {
   showCriticalPath: boolean
   expandedGroups: WorkstreamGroup[]
   inspectorOpen: boolean
+  taskCreateOpen: boolean
+  taskCreateDefaults: TaskCreationDefaults
   
   // Filter state
   searchQuery: string
@@ -45,6 +168,12 @@ interface PMISState {
   toggleGroup: (group: WorkstreamGroup) => void
   setInspectorOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
+  openTaskCreate: (defaults?: TaskCreationDefaults) => void
+  closeTaskCreate: () => void
+  createTask: (input: CreateTaskInput) => PMISMutationResult
+  createWorkstream: (label: string) => PMISMutationResult
+  renameWorkstream: (id: WorkstreamGroup, label: string) => PMISMutationResult
+  deleteWorkstream: (id: WorkstreamGroup) => PMISMutationResult
   updateTaskDates: (taskId: string, startDate: Date, endDate: Date) => void
   updateTaskDatesBatch: (updates: { taskId: string; startDate: Date; endDate: Date }[]) => void
   updateTaskStatus: (taskId: string, status: Task['status']) => void
@@ -66,6 +195,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   currentProjectId: null,
   tasks: initialTasks,
   projects: initialProjects,
+  workstreams: initialWorkstreams.map((workstream) => ({ ...workstream })),
   selectedTaskId: null,
   hoveredTaskId: null,
   timelineScale: 'week',
@@ -73,6 +203,8 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   showCriticalPath: false,
   expandedGroups: ['foundation', 'core-platform', 'execution-ui', 'validation', 'release'],
   inspectorOpen: true,
+  taskCreateOpen: false,
+  taskCreateDefaults: {},
   searchQuery: '',
   statusFilter: [],
   assigneeFilter: [],
@@ -113,6 +245,155 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   setInspectorOpen: (open) => set({ inspectorOpen: open }),
   
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  openTaskCreate: (defaults = {}) => set({
+    taskCreateOpen: true,
+    taskCreateDefaults: defaults,
+  }),
+
+  closeTaskCreate: () => set({ taskCreateOpen: false, taskCreateDefaults: {} }),
+
+  createTask: (input) => {
+    const state = get()
+    const name = input.name.trim()
+    const description = input.description.trim()
+    const predecessorIds = Array.from(new Set(input.predecessorIds)).filter((id) => state.tasks.some((task) => task.id === id))
+    const dependentIds = Array.from(new Set(input.dependentIds)).filter((id) => state.tasks.some((task) => task.id === id))
+
+    if (!name) return { ok: false, error: 'Task title is required.' }
+    if (!state.workstreams.some((workstream) => workstream.id === input.workstreamId)) {
+      return { ok: false, error: 'Choose an existing workstream.' }
+    }
+    if (input.endDate.getTime() <= input.startDate.getTime()) {
+      return { ok: false, error: 'End date must be after start date.' }
+    }
+    if (createsDependencyCycle(state.tasks, predecessorIds, dependentIds)) {
+      return { ok: false, error: 'Those predecessor and dependent choices would create a dependency cycle.' }
+    }
+
+    const assignee = teamMembers.find((member) => member.id === input.assigneeId) ?? teamMembers[0]
+    const duration = input.endDate.getTime() - input.startDate.getTime()
+    const minimumStart = predecessorIds.reduce<Date | null>((latest, predecessorId) => {
+      const predecessor = state.tasks.find((task) => task.id === predecessorId)
+      if (!predecessor) return latest
+      return !latest || predecessor.endDate.getTime() > latest.getTime() ? predecessor.endDate : latest
+    }, null)
+    const startDate = minimumStart && input.startDate.getTime() < minimumStart.getTime()
+      ? new Date(minimumStart)
+      : new Date(input.startDate)
+    const endDate = new Date(startDate.getTime() + duration)
+    const durationDays = Math.max(1, Math.round(duration / (24 * 60 * 60 * 1000)))
+    const taskId = createClientId('task')
+    const task: Task = {
+      id: taskId,
+      name,
+      description,
+      group: input.teamName,
+      groupName: input.workstreamId,
+      teamName: input.teamName,
+      status: 'todo',
+      priority: 'medium',
+      assignee,
+      startDate,
+      endDate,
+      plannedStart: new Date(startDate),
+      plannedEnd: new Date(endDate),
+      earliestStart: minimumStart ? new Date(minimumStart) : new Date(startDate),
+      createdAt: new Date(),
+      estimatedDays: durationDays,
+      optimisticDays: Math.max(1, durationDays - 1),
+      pessimisticDays: durationDays + 1,
+      dependencies: predecessorIds,
+      dependents: dependentIds,
+      blockers: [],
+      progress: 0,
+      isMilestone: input.isMilestone,
+      isCriticalPath: false,
+      linkedChangeRequests: [],
+      comments: [],
+      riskLevel: 'low',
+    }
+
+    let nextTasks = state.tasks.map((existingTask) => {
+      if (predecessorIds.includes(existingTask.id)) {
+        return { ...existingTask, dependents: Array.from(new Set([...existingTask.dependents, taskId])) }
+      }
+      if (dependentIds.includes(existingTask.id)) {
+        return { ...existingTask, dependencies: Array.from(new Set([...existingTask.dependencies, taskId])) }
+      }
+      return existingTask
+    })
+    nextTasks.push(task)
+    nextTasks = propagateScheduleForward(nextTasks, [taskId])
+
+    set({
+      tasks: nextTasks,
+      selectedTaskId: taskId,
+      inspectorOpen: true,
+      taskCreateOpen: false,
+      taskCreateDefaults: {},
+      expandedGroups: state.expandedGroups.includes(input.workstreamId)
+        ? state.expandedGroups
+        : [...state.expandedGroups, input.workstreamId],
+      currentProjectId: state.currentProjectId ?? state.projects[0]?.id ?? null,
+      currentView: 'project',
+    })
+
+    return { ok: true, id: taskId }
+  },
+
+  createWorkstream: (label) => {
+    const normalizedLabel = label.trim()
+    if (!normalizedLabel) return { ok: false, error: 'Workstream name is required.' }
+    const state = get()
+    if (state.workstreams.some((workstream) => workstream.label.toLowerCase() === normalizedLabel.toLowerCase())) {
+      return { ok: false, error: 'A workstream with that name already exists.' }
+    }
+    const id = createClientId('workstream')
+    const workstream: Workstream = {
+      id,
+      label: normalizedLabel,
+      color: WORKSTREAM_COLORS[state.workstreams.length % WORKSTREAM_COLORS.length],
+    }
+    set({
+      workstreams: [...state.workstreams, workstream],
+      expandedGroups: [...state.expandedGroups, id],
+    })
+    return { ok: true, id }
+  },
+
+  renameWorkstream: (id, label) => {
+    const normalizedLabel = label.trim()
+    if (!normalizedLabel) return { ok: false, error: 'Workstream name is required.' }
+    const state = get()
+    if (state.workstreams.some((workstream) => workstream.id !== id && workstream.label.toLowerCase() === normalizedLabel.toLowerCase())) {
+      return { ok: false, error: 'A workstream with that name already exists.' }
+    }
+    if (!state.workstreams.some((workstream) => workstream.id === id)) {
+      return { ok: false, error: 'Workstream not found.' }
+    }
+    set({
+      workstreams: state.workstreams.map((workstream) => workstream.id === id
+        ? { ...workstream, label: normalizedLabel }
+        : workstream),
+    })
+    return { ok: true, id }
+  },
+
+  deleteWorkstream: (id) => {
+    const state = get()
+    if (state.tasks.some((task) => task.groupName === id)) {
+      return { ok: false, error: 'Move this workstream\'s tasks before deleting it.' }
+    }
+    if (!state.workstreams.some((workstream) => workstream.id === id)) {
+      return { ok: false, error: 'Workstream not found.' }
+    }
+    set({
+      workstreams: state.workstreams.filter((workstream) => workstream.id !== id),
+      expandedGroups: state.expandedGroups.filter((group) => group !== id),
+    })
+    return { ok: true, id }
+  },
   
   updateTaskDates: (taskId, startDate, endDate) => set((state) => ({
     tasks: state.tasks.map(task => 
@@ -211,29 +492,18 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   getCriticalPathTasks: () => get().tasks.filter(t => t.isCriticalPath),
 
   getVisibleRows: () => {
-    const { tasks, expandedGroups, searchQuery } = get()
+    const { tasks, workstreams, expandedGroups, searchQuery } = get()
     const query = searchQuery.trim().toLowerCase()
     const rows: VisibleRow[] = []
 
-    const allGroups = Array.from(new Set(tasks.map((task) => task.groupName)))
-    const orderedGroups = [
-      ...GROUP_ORDER.filter((group) => allGroups.includes(group)),
-      ...allGroups
-        .filter((group) => !GROUP_ORDER.includes(group))
-        .sort((a, b) => {
-          const aFirst = tasks
-            .filter((task) => task.groupName === a)
-            .map((task) => task.earliestStart ?? task.plannedStart ?? task.startDate)
-            .sort((x, y) => x.getTime() - y.getTime())[0]
-          const bFirst = tasks
-            .filter((task) => task.groupName === b)
-            .map((task) => task.earliestStart ?? task.plannedStart ?? task.startDate)
-            .sort((x, y) => x.getTime() - y.getTime())[0]
-          return (aFirst?.getTime() ?? 0) - (bFirst?.getTime() ?? 0)
-        }),
-    ]
+    const knownWorkstreamIds = new Set(workstreams.map((workstream) => workstream.id))
+    const fallbackWorkstreams = Array.from(new Set(tasks.map((task) => task.groupName)))
+      .filter((id) => !knownWorkstreamIds.has(id))
+      .map((id) => ({ id, label: id, color: 'bg-muted text-muted-foreground' }))
+    const orderedWorkstreams = [...workstreams, ...fallbackWorkstreams]
 
-    orderedGroups.forEach((group) => {
+    orderedWorkstreams.forEach((workstream) => {
+      const group = workstream.id
       let groupTasks = tasks.filter((task) => task.groupName === group)
       groupTasks = groupTasks.sort((a, b) => {
         const aStart = a.earliestStart ?? a.plannedStart ?? a.startDate
@@ -264,7 +534,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
         return
       }
 
-      rows.push({ type: 'group-header', group, taskCount: groupTasks.length })
+      rows.push({ type: 'group-header', group, workstream, taskCount: groupTasks.length })
 
       if (expandedGroups.includes(group)) {
         groupTasks.forEach((task) => rows.push({ type: 'task', task }))

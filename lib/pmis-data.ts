@@ -3,7 +3,13 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'blocked' | 'done'
 export type Priority = 'low' | 'medium' | 'high' | 'critical'
 export type TaskTeam = 'backend' | 'frontend' | 'qa' | 'deployment' | 'design' | 'infrastructure' | 'management'
-export type WorkstreamGroup = 'foundation' | 'core-platform' | 'execution-ui' | 'validation' | 'release'
+export type WorkstreamGroup = string
+
+export interface Workstream {
+  id: WorkstreamGroup
+  label: string
+  color: string
+}
 
 export interface Task {
   id: string
@@ -668,14 +674,18 @@ export const projects: Project[] = [
   },
 ]
 
-// Workstream labels and colors (delivery lanes)
-export const workstreamConfig: Record<WorkstreamGroup, { label: string; color: string }> = {
-  foundation: { label: 'Foundation', color: 'bg-chart-1/15 text-chart-1' },
-  'core-platform': { label: 'Core Platform', color: 'bg-primary/15 text-primary' },
-  'execution-ui': { label: 'Execution UI', color: 'bg-chart-2/15 text-chart-2' },
-  validation: { label: 'Validation', color: 'bg-chart-3/15 text-chart-3' },
-  release: { label: 'Release', color: 'bg-chart-5/15 text-chart-5' },
-}
+// Workstreams are delivery lanes. Their IDs stay stable when labels are renamed.
+export const initialWorkstreams: Workstream[] = [
+  { id: 'foundation', label: 'Foundation', color: 'bg-chart-1/15 text-chart-1' },
+  { id: 'core-platform', label: 'Core Platform', color: 'bg-primary/15 text-primary' },
+  { id: 'execution-ui', label: 'Execution UI', color: 'bg-chart-2/15 text-chart-2' },
+  { id: 'validation', label: 'Validation', color: 'bg-chart-3/15 text-chart-3' },
+  { id: 'release', label: 'Release', color: 'bg-chart-5/15 text-chart-5' },
+]
+
+// Compatibility lookup for read-only consumers. Runtime CRUD uses store.workstreams.
+export const workstreamConfig: Record<WorkstreamGroup, { label: string; color: string }> =
+  Object.fromEntries(initialWorkstreams.map(({ id, label, color }) => [id, { label, color }]))
 
 // Team labels and colors (ownership metadata)
 export const teamConfig: Record<TaskTeam, { label: string; color: string; dot: string }> = {

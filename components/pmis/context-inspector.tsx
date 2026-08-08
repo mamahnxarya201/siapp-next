@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
-import { statusConfig, priorityConfig, workstreamConfig, teamConfig } from '@/lib/pmis-data'
+import { statusConfig, priorityConfig, teamConfig } from '@/lib/pmis-data'
 
 export function ContextInspector() {
   const {
@@ -20,6 +20,7 @@ export function ContextInspector() {
     getTaskById,
     getTaskDependencies,
     getTaskDependents,
+    workstreams,
   } = usePMISStore()
 
   if (!inspectorOpen || !selectedTaskId) {
@@ -33,7 +34,8 @@ export function ContextInspector() {
   const dependents = getTaskDependents(selectedTaskId)
   const statusCfg = statusConfig[task.status]
   const priorityCfg = priorityConfig[task.priority]
-  const groupCfg = workstreamConfig[task.groupName]
+  const groupCfg = workstreams.find((workstream) => workstream.id === task.groupName)
+    ?? { label: task.groupName, color: 'bg-muted text-muted-foreground' }
   const teamCfg = teamConfig[task.teamName]
 
   const formatDate = (date: Date) => {

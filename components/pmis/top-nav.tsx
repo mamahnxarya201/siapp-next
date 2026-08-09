@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun } from 'lucide-react'
+import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun, Undo2, Redo2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -29,9 +29,40 @@ export function TopNav() {
     setSearchQuery,
     searchQuery,
     openTaskCreate,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = usePMISStore()
 
   const currentProject = projects.find(p => p.id === currentProjectId)
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isEditableTarget = target?.closest('input, textarea, select, [contenteditable="true"]')
+      if (isEditableTarget || !(event.ctrlKey || event.metaKey)) return
+
+      const key = event.key.toLowerCase()
+      if (key === 'z' && event.shiftKey && canRedo) {
+        event.preventDefault()
+        redo()
+        return
+      }
+      if (key === 'z' && canUndo) {
+        event.preventDefault()
+        undo()
+        return
+      }
+      if (key === 'y' && canRedo) {
+        event.preventDefault()
+        redo()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canRedo, canUndo, redo, undo])
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
@@ -96,6 +127,31 @@ export function TopNav() {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 border-r border-border pr-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={undo}
+            disabled={!canUndo}
+            aria-label="Undo last workspace change"
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={redo}
+            disabled={!canRedo}
+            aria-label="Redo last workspace change"
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+        </div>
+
         <Button
           variant="ghost"
           size="icon"

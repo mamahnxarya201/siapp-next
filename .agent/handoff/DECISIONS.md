@@ -182,3 +182,51 @@ Evidence:
 Open questions:
 - Exact checkpoint triggers, active-scenario limits, scenario refresh behaviour,
   and adoption controls remain unconfirmed.
+
+### DEC-005 -- Timeline naming and configurable Project Authority Map
+
+- Status: CONFIRMED
+- Date: 2026-08-09
+- Confirmed by: user
+- Scope: product | UX | domain
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+`Timeline` is the user-facing name of the primary project viewing and planning
+workspace. Baseline governance is represented by a `Project Authority Map`. Its
+default `Standard Project Authority` path is: the Project Manager proposes,
+affected Workstream Leads acknowledge feasibility and impact, and the Project
+Sponsor gives final approval.
+
+The acknowledgement step is informative and accountable but is not a separate
+approval or automatic veto. Projects may select simpler owner-led governance or
+add appropriate specialist, client, steering, or compliance stages while keeping
+one clearly identified final authority.
+
+Rationale:
+A visible authority relationship explains who may do what and why without relying
+on a dense permission table. A default prevents governance configuration from
+becoming mandatory setup, while constrained variations support projects with
+different accountability structures.
+
+Consequences:
+- Use `Timeline` consistently for the primary workspace.
+- Use `Project Authority Map` for the project-level governance representation.
+- Apply Standard Project Authority by default instead of requiring users to build
+  a governance graph from scratch.
+- Treat affected Workstream Lead review as acknowledgement, not approval.
+- Route approval according to the kind and consequence of the commitment, not
+  organizational rank alone.
+- Do not send ordinary assignee reports or every task adjustment through baseline
+  approval.
+- Preserve the authority context of historical approvals when the current map is
+  later changed.
+
+Evidence:
+- User confirmation in the 2026-08-09 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- Exact names for baseline/current-plan layers, authority delegation, collective
+  quorum rules, and detailed approval triggers remain unconfirmed.

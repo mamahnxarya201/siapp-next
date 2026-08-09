@@ -31,6 +31,8 @@ const WORKSTREAM_COLORS = [
   'bg-info/15 text-info',
 ]
 
+const MAX_HISTORY_ENTRIES = 50
+
 export interface TaskCreationDefaults {
   startDate?: Date
   endDate?: Date
@@ -61,6 +63,14 @@ export type VisibleRow =
   | { type: 'group-header'; group: WorkstreamGroup; workstream: Workstream; taskCount: number }
   | { type: 'task'; task: Task }
 
+interface PMISHistorySnapshot {
+  tasks: Task[]
+  workstreams: Workstream[]
+  expandedGroups: WorkstreamGroup[]
+  selectedTaskId: string | null
+  inspectorOpen: boolean
+}
+
 function createClientId(prefix: string): string {
   const randomId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
   return `${prefix}-${randomId}`
@@ -70,6 +80,60 @@ function addCalendarDays(date: Date, days: number): Date {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
   return next
+}
+
+function cloneTask(task: Task): Task {
+  return {
+    ...task,
+    assignee: { ...task.assignee },
+    startDate: new Date(task.startDate),
+    endDate: new Date(task.endDate),
+    plannedStart: task.plannedStart ? new Date(task.plannedStart) : undefined,
+    plannedEnd: task.plannedEnd ? new Date(task.plannedEnd) : undefined,
+    earliestStart: task.earliestStart ? new Date(task.earliestStart) : undefined,
+    createdAt: task.createdAt ? new Date(task.createdAt) : undefined,
+    dependencies: [...task.dependencies],
+    dependents: [...task.dependents],
+    blockers: [...task.blockers],
+    linkedChangeRequests: [...task.linkedChangeRequests],
+    comments: task.comments.map((comment) => ({
+      ...comment,
+      timestamp: new Date(comment.timestamp),
+    })),
+  }
+}
+
+function cloneWorkstream(workstream: Workstream): Workstream {
+  return { ...workstream }
+}
+
+function captureHistorySnapshot(state: PMISHistorySnapshot): PMISHistorySnapshot {
+  return {
+    tasks: state.tasks.map(cloneTask),
+    workstreams: state.workstreams.map(cloneWorkstream),
+    expandedGroups: [...state.expandedGroups],
+    selectedTaskId: state.selectedTaskId,
+    inspectorOpen: state.inspectorOpen,
+  }
+}
+
+function restoreHistorySnapshot(snapshot: PMISHistorySnapshot): PMISHistorySnapshot {
+  return captureHistorySnapshot(snapshot)
+}
+
+function pushHistoryEntry(stack: PMISHistorySnapshot[], snapshot: PMISHistorySnapshot): PMISHistorySnapshot[] {
+  return [...stack.slice(-(MAX_HISTORY_ENTRIES - 1)), snapshot]
+}
+
+function historySnapshotsMatch(left: PMISHistorySnapshot, right: PMISHistorySnapshot): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function historyFlags(undoStack: PMISHistorySnapshot[], redoStack: PMISHistorySnapshot[]) {
+  return {
+    canUndo: undoStack.length > 0,
+    canRedo: redoStack.length > 0,
+  }
 }
 
 function createsDependencyCycle(tasks: Task[], predecessorIds: string[], dependentIds: string[]): boolean {
@@ -161,6 +225,11 @@ interface PMISState {
   inspectorOpen: boolean
   taskCreateOpen: boolean
   taskCreateDefaults: TaskCreationDefaults
+  undoStack: PMISHistorySnapshot[]
+  redoStack: PMISHistorySnapshot[]
+  historyTransaction: PMISHistorySnapshot | null
+  canUndo: boolean
+  canRedo: boolean
   
   // Filter state
   searchQuery: string
@@ -184,6 +253,10 @@ interface PMISState {
   createWorkstream: (label: string) => PMISMutationResult
   renameWorkstream: (id: WorkstreamGroup, label: string) => PMISMutationResult
   deleteWorkstream: (id: WorkstreamGroup) => PMISMutationResult
+  beginHistoryTransaction: () => void
+  commitHistoryTransaction: () => void
+  undo: () => void
+  redo: () => void
   updateTaskDates: (taskId: string, startDate: Date, endDate: Date) => void
   updateTaskDatesBatch: (updates: { taskId: string; startDate: Date; endDate: Date }[]) => void
   updateTaskStatus: (taskId: string, status: Task['status']) => void
@@ -217,6 +290,11 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   inspectorOpen: true,
   taskCreateOpen: false,
   taskCreateDefaults: {},
+  undoStack: [],
+  redoStack: [],
+  historyTransaction: null,
+  canUndo: false,
+  canRedo: false,
   searchQuery: '',
   statusFilter: [],
   assigneeFilter: [],
@@ -251,6 +329,11 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       searchQuery: '',
       taskCreateOpen: false,
       taskCreateDefaults: {},
+      undoStack: [],
+      redoStack: [],
+      historyTransaction: null,
+      canUndo: false,
+      canRedo: false,
     }
   }),
   
@@ -360,6 +443,8 @@ export const usePMISStore = create<PMISState>((set, get) => ({
     })
     nextTasks.push(task)
     nextTasks = propagateScheduleForward(nextTasks, [taskId])
+    const previousHistory = captureHistorySnapshot(state)
+    const nextUndoStack = pushHistoryEntry(state.undoStack, previousHistory)
 
     set({
       tasks: nextTasks,
@@ -372,6 +457,10 @@ export const usePMISStore = create<PMISState>((set, get) => ({
         : [...state.expandedGroups, input.workstreamId],
       currentProjectId: state.currentProjectId ?? state.projects[0]?.id ?? null,
       currentView: 'project',
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
     })
 
     return { ok: true, id: taskId }
@@ -390,9 +479,14 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       label: normalizedLabel,
       color: WORKSTREAM_COLORS[state.workstreams.length % WORKSTREAM_COLORS.length],
     }
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
     set({
       workstreams: [...state.workstreams, workstream],
       expandedGroups: [...state.expandedGroups, id],
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
     })
     return { ok: true, id }
   },
@@ -407,10 +501,15 @@ export const usePMISStore = create<PMISState>((set, get) => ({
     if (!state.workstreams.some((workstream) => workstream.id === id)) {
       return { ok: false, error: 'Workstream not found.' }
     }
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
     set({
       workstreams: state.workstreams.map((workstream) => workstream.id === id
         ? { ...workstream, label: normalizedLabel }
         : workstream),
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
     })
     return { ok: true, id }
   },
@@ -423,23 +522,104 @@ export const usePMISStore = create<PMISState>((set, get) => ({
     if (!state.workstreams.some((workstream) => workstream.id === id)) {
       return { ok: false, error: 'Workstream not found.' }
     }
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
     set({
       workstreams: state.workstreams.filter((workstream) => workstream.id !== id),
       expandedGroups: state.expandedGroups.filter((group) => group !== id),
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
     })
     return { ok: true, id }
   },
+
+  beginHistoryTransaction: () => set((state) => (
+    state.historyTransaction
+      ? {}
+      : { historyTransaction: captureHistorySnapshot(state) }
+  )),
+
+  commitHistoryTransaction: () => set((state) => {
+    if (!state.historyTransaction) return {}
+    const currentSnapshot = captureHistorySnapshot(state)
+    if (historySnapshotsMatch(state.historyTransaction, currentSnapshot)) {
+      return { historyTransaction: null }
+    }
+
+    const nextUndoStack = pushHistoryEntry(state.undoStack, state.historyTransaction)
+    return {
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
+    }
+  }),
+
+  undo: () => set((state) => {
+    if (state.historyTransaction) return {}
+
+    const previous = state.undoStack[state.undoStack.length - 1]
+    if (!previous) return {}
+
+    const nextUndoStack = state.undoStack.slice(0, -1)
+    const nextRedoStack = pushHistoryEntry(state.redoStack, captureHistorySnapshot(state))
+    return {
+      ...restoreHistorySnapshot(previous),
+      undoStack: nextUndoStack,
+      redoStack: nextRedoStack,
+      historyTransaction: null,
+      hoveredTaskId: null,
+      taskCreateOpen: false,
+      taskCreateDefaults: {},
+      ...historyFlags(nextUndoStack, nextRedoStack),
+    }
+  }),
+
+  redo: () => set((state) => {
+    if (state.historyTransaction) return {}
+
+    const next = state.redoStack[state.redoStack.length - 1]
+    if (!next) return {}
+
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    const nextRedoStack = state.redoStack.slice(0, -1)
+    return {
+      ...restoreHistorySnapshot(next),
+      undoStack: nextUndoStack,
+      redoStack: nextRedoStack,
+      historyTransaction: null,
+      hoveredTaskId: null,
+      taskCreateOpen: false,
+      taskCreateDefaults: {},
+      ...historyFlags(nextUndoStack, nextRedoStack),
+    }
+  }),
   
-  updateTaskDates: (taskId, startDate, endDate) => set((state) => ({
-    tasks: state.tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, startDate, endDate }
-        : task
-    )
-  })),
+  updateTaskDates: (taskId, startDate, endDate) => set((state) => {
+    const nextUndoStack = state.historyTransaction
+      ? state.undoStack
+      : pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+
+    return {
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? { ...task, startDate, endDate }
+          : task
+      ),
+      undoStack: nextUndoStack,
+      redoStack: state.historyTransaction ? state.redoStack : [],
+      ...historyFlags(nextUndoStack, state.historyTransaction ? state.redoStack : []),
+    }
+  }),
 
   updateTaskDatesBatch: (updates) => set((state) => {
+    if (updates.length === 0) return {}
     const updatesByTaskId = new Map(updates.map((update) => [update.taskId, update]))
+    const nextUndoStack = state.historyTransaction
+      ? state.undoStack
+      : pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    const nextRedoStack = state.historyTransaction ? state.redoStack : []
 
     return {
       tasks: state.tasks.map((task) => {
@@ -448,16 +628,26 @@ export const usePMISStore = create<PMISState>((set, get) => ({
           ? { ...task, startDate: update.startDate, endDate: update.endDate }
           : task
       }),
+      undoStack: nextUndoStack,
+      redoStack: nextRedoStack,
+      ...historyFlags(nextUndoStack, nextRedoStack),
     }
   }),
   
-  updateTaskStatus: (taskId, status) => set((state) => ({
-    tasks: state.tasks.map(task =>
-      task.id === taskId
-        ? { ...task, status, progress: status === 'done' ? 100 : task.progress }
-        : task
-    )
-  })),
+  updateTaskStatus: (taskId, status) => set((state) => {
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    return {
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? { ...task, status, progress: status === 'done' ? 100 : task.progress }
+          : task
+      ),
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
+    }
+  }),
   
   // Computed getters
   getTaskById: (id) => get().tasks.find(t => t.id === id),

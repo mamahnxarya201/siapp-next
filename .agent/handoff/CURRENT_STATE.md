@@ -1,12 +1,11 @@
 # PMIS Current State
 
-Last updated: 2026-08-08
+Last updated: 2026-08-09
 
 ## Current Objective
 
-Provide isolated, deterministic mock workspaces for each dashboard project so the
-prototype can exercise empty-state authoring, long-content layout, dense Gantt
-dependencies, and schedule/rendering boundaries without a database.
+Keep dense Gantt interactions responsive while preserving grid snapping,
+dependency constraints, recursive forward-only propagation, and atomic undo/redo.
 
 ## Thesis Source Materials
 
@@ -14,14 +13,15 @@ dependencies, and schedule/rendering boundaries without a database.
 - Use the newer Google Drive folder **Referensi Skripsi** (created May 2026) as the active reference collection: https://drive.google.com/drive/folders/1vTT8oYGGB3clhG7-MQbcIyas0bVjy4ij
 - The working thesis Google Doc is **skripsi lurd**: https://docs.google.com/document/d/1kqOoOBZuE-b9MCwvWsFi7XSHTK0f4f16xHF1N90Cs0U
 - The document is stored alongside, rather than inside, the newer reference folder. Do not edit it unless the user explicitly requests a specific change.
+- Citation audit and edit (2026-08-09): BAB I now includes verified author-year citations to Daraojimba et al. (2024), Carreno (2024), Gledson et al. (2024), Bagshaw (2021), and Jouda & Shiker (2024), all sourced from PDFs in **Referensi Skripsi** and already represented in the document's bibliography. BAB II already contained multiple folder-backed CPM/PERT citations and was left substantively unchanged.
 
 ## Verified Repository State
 
 - Repository: Next.js 16.2.6 App Router application using React 19, TypeScript,
   Tailwind CSS 4, shadcn/Radix UI components, Zustand 5, and mock in-memory data.
 - Active branch: `master`, tracking `origin/master`.
-- Inspected revision: `47ca2508844620fa7e04a219234d9877fb38c4d0`
-  (`Update application features and supporting components`).
+- Inspected revision: `9258cfbae0080797d9d2ea4b218b30e2f2c03841`
+  (`Implement isolated project workspaces and Gantt improvements`).
 - Working tree at initialization: tracked implementation files were clean.
   `AGENTS.md`, `.agent/handoff/`, and `PMIS-handoff-pack.zip` were already
   present as untracked files and were preserved.
@@ -55,6 +55,16 @@ dependencies, and schedule/rendering boundaries without a database.
 - Workstreams are runtime records with stable IDs and editable labels. The left
   panel supports create, rename, and safe delete; deletion is limited to empty
   workstreams so tasks are never silently removed or reclassified.
+- Undo/redo is available from the top navigation and keyboard shortcuts
+  (`Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, and `Ctrl+Y`). History stores bounded
+  in-memory snapshots of the active mock workspace covering tasks, workstreams,
+  expanded workstreams, selection, and inspector state. Gantt drag/resize uses a
+  transaction so one drag gesture creates one undo entry instead of one entry per
+  mousemove.
+- Undoing a propagated Gantt edit restores the snapshot that existed before the
+  user gesture. This may visually move dependents back during undo, but it does
+  not change the forward-only propagation rule used when calculating new schedule
+  edits.
 - Schedule state and project data are prototype mock data. No API routes,
   database schema/ORM, PostgreSQL integration, authentication, or persistence
   layer were found.
@@ -83,9 +93,43 @@ dependencies, and schedule/rendering boundaries without a database.
 - The task-list and Gantt vertical scrollbar tracks are visually hidden while
   wheel/touch scrolling, frame-synchronous vertical movement, and the Gantt's
   horizontal scrollbar remain available.
+- Gantt move and resize now use an isolated SVG preview updated at most once per
+  animation frame. Mouse movement does not mutate the Zustand task array; the
+  final snapped dates and recursive schedule propagation commit once on mouseup.
+  The window listeners are attached once and read current actions through refs.
+- The isolated preview now includes the full in-memory propagated update map:
+  affected descendant SVG groups are faded while projected child bars move with
+  the parent, then the same update map is committed once on release.
+- Task selection/inspector opening occurs after a click or completed gesture, so
+  the 320px inspector no longer changes the timeline width during pointer
+  movement. Resize hit targets are 12px wide instead of 6px.
+- Dependency connector coordinates are shifted into calendar-header space once
+  per task-position change instead of rebuilding a complete position map for
+  every rendered edge. Recursive propagation also evaluates the latest end date
+  across all direct predecessors before pushing a dependent.
 - PERT input fields are stored and displayed. Critical-path membership is
   currently static mock-data metadata; no CPM/PERT calculation engine for
   earliest/latest dates, slack, or computed critical path was found.
+- Type check (2026-08-09): `node .\node_modules\typescript\bin\tsc --noEmit
+  --incremental false` passed after undo/redo implementation.
+- Interactive browser verification (2026-08-09): loaded `localhost:3000`, created
+  a temporary mock task through the task dialog, verified toolbar undo removed it
+  and toolbar redo restored it. Dragged a Gantt bar from SVG x=224 to x=352,
+  verified one toolbar undo restored x=224, toolbar redo restored x=352, and
+  keyboard `Ctrl+Z` / `Ctrl+Shift+Z` repeated the same reversal/restoration.
+  Browser console reported no warnings or errors during this smoke test.
+- Gantt performance verification (2026-08-09): on the 240-task/487-edge API
+  Gateway fixture, a stepped 160px drag completed in about 0.73s including the
+  automation's pointer timing (about 4.6s before this change). A stepped end
+  resize completed in about 0.55s, expanded a 32px bar to 128px, and one undo
+  restored the original 32px duration. The browser console reported no warnings
+  or errors. Strict TypeScript validation, `git diff --check`, and the production
+  build passed.
+- Propagated-preview verification (2026-08-09): moving `performance-21` in the
+  dense fixture moved its inspected downstream chain; `performance-26` began at
+  the moved parent's new end, the preview layer was removed after release, one
+  undo restored the original positions, and browser logs contained no warnings
+  or errors.
 - Type check (2026-08-08): `node.exe .\node_modules\typescript\bin\tsc --noEmit
   --incremental false` passed.
 - Production build (2026-08-08): `npm.cmd run build` passed after network access was allowed
@@ -120,6 +164,9 @@ dependencies, and schedule/rendering boundaries without a database.
 
 - Read the repository operating contract, product knowledge, dependency-rendering
   rules, initial implementation handoff, decision ledger, and handoff protocol.
+- Audited BAB I and BAB II of the working thesis against the active Google Drive
+  reference collection; added four source-grounded citation callouts to BAB I and
+  verified the existing folder-backed citations in BAB II.
 - Inspected the active revision, working tree, package configuration, application
   structure, PMIS state/data modules, and core UI implementation.
 - Initialized this file from verified repository evidence without modifying
@@ -132,18 +179,22 @@ dependencies, and schedule/rendering boundaries without a database.
 - Expanded the performance fixture, removed scroll synchronization from React's
   render path, added the sticky calendar architecture, simplified the top bar,
   and made timeline preferences explicitly project-scoped.
+- Implemented in-memory undo/redo for task/workstream workspace mutations and
+  Gantt scheduling gestures without changing the dependency propagation rules.
+- Replaced per-mousemove global schedule mutations with an animation-frame drag
+  preview and one atomic release commit; widened resize handles and removed a
+  dense connector-map allocation from the render loop.
+- Extended the isolated preview to render propagated child bars from the same
+  frozen schedule used by the final release commit.
+- Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
+  model, preserved scheduling rules, and verification evidence for this change.
 
 ## Files Changed in Latest Work
 
+- `.agents/docs/GANTT_DRAG_PERFORMANCE.md`
 - `.agent/handoff/CURRENT_STATE.md`
-- `app/globals.css`
-- `components/pmis/dashboard-view.tsx`
 - `components/pmis/gantt-chart.tsx`
-- `components/pmis/pmis-app.tsx`
-- `components/pmis/project-view.tsx`
-- `components/pmis/task-list-panel.tsx`
 - `components/pmis/top-nav.tsx`
-- `lib/pmis-project-fixtures.ts`
 - `lib/pmis-store.ts`
 
 ## Confirmed Decisions Awaiting Implementation
@@ -171,8 +222,14 @@ dependencies, and schedule/rendering boundaries without a database.
   current frontend prototype.
 - Newly created tasks and workstream mutations remain client-memory state and are
   intentionally not persisted while database design is on hold.
+- User-supervised product discussions remain open for scheduling conventions,
+  layered project-state/domain authority, canonical grouping semantics, and
+  checkpoint/scenario governance. Future implementation touching those topics
+  should ask for confirmation and record the confirmed decision in writing.
 - Populated workstream deletion requires a future task reassignment/editing flow;
-  until then, only empty workstreams can be deleted.
+  until then, only empty workstreams can be deleted. The user clarified that mock
+  workstream deletion may later allow deleting child/member tasks or keeping them
+  parentless/unassigned, but that behavior is not implemented yet.
 - Lint cannot run until a flat ESLint configuration compatible with ESLint 10 is
   added or the lint toolchain is otherwise aligned.
 - Automated behavioral tests are absent.
@@ -180,6 +237,6 @@ dependencies, and schedule/rendering boundaries without a database.
 ## Next Action
 
 Use the focused project fixtures as the manual regression matrix for future Gantt
-and layout changes. Persistence still requires a confirmed domain model before
-these isolated client workspaces are wired to PostgreSQL; task editing/reassignment
-remains the smallest independent product step.
+and layout changes. Automated drag/scheduling regression tests remain the next
+engineering hardening step; persistence still requires a confirmed domain model
+before these isolated client workspaces are wired to PostgreSQL.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
+import { forwardRef, useRef, useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react'
 import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -87,13 +87,45 @@ interface TaskDateUpdate {
 
 interface DragState {
   taskId: string
+  task: Task
   mode: GanttInteractionMode
   startClientX: number
   startClientY: number
   initialStartDate: Date
   initialEndDate: Date
+  previewY: number
+  tasksById: Map<string, Task>
+  taskCount: number
+  snapIncrement: GanttDisplaySettings['snapIncrement']
+  visibleWeekdays: number[]
+  dayWidth: number
+  timelineMinDate: Date
+  showCriticalPath: boolean
+  originalElement: SVGGElement | null
+  previewPositions: Map<string, { x: number; y: number; width: number }>
+  taskElements: Map<string, SVGGElement>
+  previewElements: Map<string, SVGGElement>
+  pendingClientX: number
+  pendingClientY: number
   lastUnitDelta: number
   warnedVerticalMove: boolean
+}
+
+interface DragPreviewItem {
+  task: Task
+  x: number
+  y: number
+  width: number
+}
+
+interface DragPreviewSnapshot {
+  items: DragPreviewItem[]
+  showCriticalPath: boolean
+}
+
+interface DragPreviewHandle {
+  show: (preview: DragPreviewSnapshot) => void
+  hide: () => void
 }
 
 interface GanttCreateContext {
@@ -114,6 +146,182 @@ const WEEKDAY_OPTIONS = [
 ]
 
 const HALF_DAY_MS = 12 * 60 * 60 * 1000
+
+function calculateDraggedTaskDates(drag: DragState, clientX: number) {
+  const snapUnits = drag.snapIncrement === 'half-day' ? 0.5 : 1
+  const unitDelta = Math.round((clientX - drag.startClientX) / (drag.dayWidth * snapUnits)) * snapUnits
+  const minimumDuration = snapUnits * 24 * 60 * 60 * 1000
+  const initialDuration = Math.max(
+    minimumDuration,
+    drag.initialEndDate.getTime() - drag.initialStartDate.getTime()
+  )
+  const earliestStart = drag.task.dependencies.reduce<Date | null>((latest, dependencyId) => {
+    const dependency = drag.tasksById.get(dependencyId)
+    if (!dependency) return latest
+    const dependencyEnd = normalizeTimelineBoundary(dependency.endDate)
+    return !latest || dependencyEnd.getTime() > latest.getTime()
+      ? dependencyEnd
+      : latest
+  }, null)
+
+  let nextStart = new Date(drag.initialStartDate)
+  let nextEnd = new Date(drag.initialEndDate)
+
+  if (drag.mode === 'move') {
+    nextStart = shiftByVisibleUnits(drag.initialStartDate, unitDelta, drag.visibleWeekdays)
+    if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
+      nextStart = new Date(earliestStart)
+    }
+    nextEnd = new Date(nextStart.getTime() + initialDuration)
+  }
+
+  if (drag.mode === 'resize-start') {
+    nextStart = shiftByVisibleUnits(drag.initialStartDate, unitDelta, drag.visibleWeekdays)
+    if (nextEnd.getTime() - nextStart.getTime() < minimumDuration) {
+      nextStart = new Date(nextEnd.getTime() - minimumDuration)
+    }
+    if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
+      nextStart = new Date(earliestStart)
+    }
+  }
+
+  if (drag.mode === 'resize-end') {
+    nextEnd = shiftByVisibleUnits(drag.initialEndDate, unitDelta, drag.visibleWeekdays)
+    if (nextEnd.getTime() - nextStart.getTime() < minimumDuration) {
+      nextEnd = new Date(nextStart.getTime() + minimumDuration)
+    }
+  }
+
+  return { unitDelta, startDate: nextStart, endDate: nextEnd }
+}
+
+function applyForwardSchedulePropagation(
+  drag: DragState,
+  initialUpdates: TaskDateUpdate[]
+) {
+  const updatesById = new Map(initialUpdates.map((update) => [update.taskId, update]))
+  const queue = initialUpdates.map((update) => update.taskId)
+  let safetyCounter = 0
+  const maxIterations = Math.max(1, drag.taskCount * drag.taskCount)
+
+  const getTaskDates = (taskId: string) => {
+    const update = updatesById.get(taskId)
+    if (update) return update
+
+    const task = drag.tasksById.get(taskId)
+    return task
+      ? { taskId, startDate: task.startDate, endDate: task.endDate }
+      : null
+  }
+
+  while (queue.length > 0 && safetyCounter < maxIterations) {
+    safetyCounter += 1
+    const predecessorId = queue.shift()
+    if (!predecessorId) continue
+
+    const predecessorTask = drag.tasksById.get(predecessorId)
+    if (!predecessorTask) continue
+
+    predecessorTask.dependents.forEach((dependentId) => {
+      const dependentTask = drag.tasksById.get(dependentId)
+      const dependentDates = getTaskDates(dependentId)
+      if (!dependentTask || !dependentDates) return
+
+      const latestPredecessorEnd = dependentTask.dependencies.reduce<Date | null>((latest, dependencyId) => {
+        const dependencyDates = getTaskDates(dependencyId)
+        if (!dependencyDates) return latest
+        return !latest || dependencyDates.endDate.getTime() > latest.getTime()
+          ? dependencyDates.endDate
+          : latest
+      }, null)
+
+      if (!latestPredecessorEnd || latestPredecessorEnd.getTime() <= dependentDates.startDate.getTime()) {
+        return
+      }
+
+      const dependentDuration = Math.max(
+        drag.snapIncrement === 'half-day' ? HALF_DAY_MS : HALF_DAY_MS * 2,
+        dependentDates.endDate.getTime() - dependentDates.startDate.getTime()
+      )
+      const nextStartDate = normalizeTimelineBoundary(latestPredecessorEnd)
+      const nextEndDate = new Date(nextStartDate.getTime() + dependentDuration)
+
+      updatesById.set(dependentId, {
+        taskId: dependentId,
+        startDate: nextStartDate,
+        endDate: nextEndDate,
+      })
+      queue.push(dependentId)
+    })
+  }
+
+  return Array.from(updatesById.values())
+}
+
+const DragPreviewLayer = forwardRef<DragPreviewHandle>(function DragPreviewLayer(_, ref) {
+  const [preview, setPreview] = useState<DragPreviewSnapshot | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    show: setPreview,
+    hide: () => setPreview(null),
+  }), [])
+
+  if (!preview) return null
+
+  return (
+    <g data-testid="gantt-drag-preview" className="pointer-events-none">
+      {preview.items.map(({ task, x, y, width }) => {
+        const isCritical = preview.showCriticalPath && task.isCriticalPath
+        const barColor = isCritical
+          ? 'fill-destructive'
+          : task.status === 'done'
+            ? 'fill-success'
+            : task.status === 'blocked'
+              ? 'fill-destructive'
+              : task.status === 'in-progress'
+                ? 'fill-info'
+                : 'fill-muted-foreground/40'
+        const labelColor = isCritical || task.status !== 'todo' ? 'fill-background' : 'fill-foreground'
+        const progressWidth = (width * task.progress) / 100
+
+        return (
+          <g key={task.id}>
+            <rect
+              x={x - 2}
+              y={y - 2}
+              width={width + 4}
+              height={BAR_HEIGHT + 4}
+              rx={6}
+              className="fill-primary/25"
+            />
+            <rect x={x} y={y} width={width} height={BAR_HEIGHT} rx={4} className={cn('gantt-bar', barColor)} />
+            {task.progress > 0 && task.progress < 100 && (
+              <rect
+                x={x}
+                y={y + BAR_HEIGHT - 3}
+                width={progressWidth}
+                height={3}
+                rx={1.5}
+                className="fill-background/65"
+              />
+            )}
+            {width > 80 && (
+              <text
+                x={x + 8}
+                y={y + BAR_HEIGHT / 2 + 4}
+                className={cn('text-[11px] font-semibold', labelColor)}
+              >
+                {task.name.length > Math.floor(width / 8)
+                  ? `${task.name.slice(0, Math.floor(width / 8))}...`
+                  : task.name}
+              </text>
+            )}
+          </g>
+        )
+      })}
+    </g>
+  )
+})
 
 interface DependencyLineProps {
   fromTask: Task
@@ -290,15 +498,15 @@ function GanttBar({
           <rect
             x={x}
             y={y}
-            width={6}
+            width={12}
             height={BAR_HEIGHT}
             className="fill-transparent cursor-ew-resize"
             onMouseDown={(e) => onInteractionStart('resize-start', e)}
           />
           <rect
-            x={x + width - 6}
+            x={x + width - 12}
             y={y}
-            width={6}
+            width={12}
             height={BAR_HEIGHT}
             className="fill-transparent cursor-ew-resize"
             onMouseDown={(e) => onInteractionStart('resize-end', e)}
@@ -320,6 +528,8 @@ export function GanttChart({
 }) {
   const containerRef = scrollRef
   const dragStateRef = useRef<DragState | null>(null)
+  const dragPreviewRef = useRef<DragPreviewHandle | null>(null)
+  const dragAnimationFrameRef = useRef<number | null>(null)
   const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shrinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastScrollLeftRef = useRef(0)
@@ -349,6 +559,8 @@ export function GanttChart({
     selectTask,
     hoverTask,
     updateTaskDatesBatch,
+    beginHistoryTransaction,
+    commitHistoryTransaction,
     getTaskDependencies,
     getTaskDependents,
     getUpstreamChain,
@@ -460,6 +672,7 @@ export function GanttChart({
     [visibleRows]
   )
   const visibleTaskIds = useMemo(() => new Set(visibleTasks.map((task) => task.id)), [visibleTasks])
+  const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
 
   const prepareCreateContext = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     const containerBounds = event.currentTarget.getBoundingClientRect()
@@ -541,6 +754,16 @@ export function GanttChart({
 
     return positions
   }, [visibleRows, timelineData.minDate, scale.dayWidth, displaySettings.visibleWeekdays])
+
+  const connectorTaskPositions = useMemo(
+    () => new Map(
+      Array.from(taskPositions.entries()).map(([id, position]) => [
+        id,
+        { ...position, y: position.y + HEADER_HEIGHT },
+      ])
+    ),
+    [taskPositions]
+  )
 
   // Get visible dependency lines
   const visibleDependencies = useMemo(() => {
@@ -703,163 +926,220 @@ export function GanttChart({
     noticeTimeoutRef.current = setTimeout(() => setDragNotice(null), 3200)
   }, [])
 
+  const interactionActionsRef = useRef({
+    selectTask,
+    beginHistoryTransaction,
+    updateTaskDatesBatch,
+    commitHistoryTransaction,
+    showVerticalMoveNotice,
+  })
+  interactionActionsRef.current = {
+    selectTask,
+    beginHistoryTransaction,
+    updateTaskDatesBatch,
+    commitHistoryTransaction,
+    showVerticalMoveNotice,
+  }
+
   const beginBarInteraction = useCallback((task: Task, mode: GanttInteractionMode, event: React.MouseEvent) => {
     if (event.button !== 0) return
+    const position = taskPositions.get(task.id)
+    if (!position) return
+
     event.preventDefault()
     event.stopPropagation()
-    selectTask(task.id)
+
+    const originalElement = (event.currentTarget as Element).closest<SVGGElement>('[data-task-id]')
+    if (originalElement) originalElement.style.opacity = '0.2'
+    const taskElements = new Map<string, SVGGElement>()
+    containerRef.current?.querySelectorAll<SVGGElement>('[data-task-id]').forEach((element) => {
+      const taskId = element.dataset.taskId
+      if (taskId) taskElements.set(taskId, element)
+    })
+    if (originalElement) taskElements.set(task.id, originalElement)
 
     dragStateRef.current = {
       taskId: task.id,
+      task,
       mode,
       startClientX: event.clientX,
       startClientY: event.clientY,
       initialStartDate: normalizeTimelineBoundary(task.startDate),
       initialEndDate: normalizeTimelineBoundary(task.endDate),
+      previewY: HEADER_HEIGHT + position.y,
+      tasksById,
+      taskCount: tasks.length,
+      snapIncrement: displaySettings.snapIncrement,
+      visibleWeekdays: displaySettings.visibleWeekdays,
+      dayWidth: scale.dayWidth,
+      timelineMinDate: timelineData.minDate,
+      showCriticalPath,
+      originalElement,
+      previewPositions: taskPositions,
+      taskElements,
+      previewElements: originalElement ? new Map([[task.id, originalElement]]) : new Map(),
+      pendingClientX: event.clientX,
+      pendingClientY: event.clientY,
       lastUnitDelta: 0,
       warnedVerticalMove: false,
     }
+    dragPreviewRef.current?.show({
+      items: [{
+        task,
+        x: position.x,
+        y: HEADER_HEIGHT + position.y,
+        width: position.width,
+      }],
+      showCriticalPath,
+    })
     setIsDragging(true)
-  }, [selectTask])
+  }, [
+    displaySettings.snapIncrement,
+    displaySettings.visibleWeekdays,
+    scale.dayWidth,
+    showCriticalPath,
+    taskPositions,
+    tasks,
+    tasksById,
+    timelineData.minDate,
+  ])
 
-  const applyForwardSchedulePropagation = useCallback((initialUpdates: TaskDateUpdate[]) => {
-    const tasksById = new Map(tasks.map((task) => [task.id, task]))
-    const updatesById = new Map(initialUpdates.map((update) => [update.taskId, update]))
-    const queue = initialUpdates.map((update) => update.taskId)
-    let safetyCounter = 0
-    const maxIterations = Math.max(1, tasks.length * tasks.length)
+  useEffect(() => {
+    const renderDragPreview = (drag: DragState, clientX: number) => {
+      const result = calculateDraggedTaskDates(drag, clientX)
+      if (result.unitDelta === drag.lastUnitDelta) return
+      drag.lastUnitDelta = result.unitDelta
 
-    const getTaskDates = (taskId: string) => {
-      const update = updatesById.get(taskId)
-      if (update) return update
+      const updates = applyForwardSchedulePropagation(drag, [{
+        taskId: drag.taskId,
+        startDate: result.startDate,
+        endDate: result.endDate,
+      }])
+      const nextPreviewIds = new Set(updates.map((update) => update.taskId))
 
-      const task = tasksById.get(taskId)
-      return task
-        ? { taskId, startDate: task.startDate, endDate: task.endDate }
-        : null
-    }
+      for (const [taskId, element] of drag.previewElements) {
+        if (!nextPreviewIds.has(taskId)) {
+          element.style.opacity = ''
+          drag.previewElements.delete(taskId)
+        }
+      }
 
-    while (queue.length > 0 && safetyCounter < maxIterations) {
-      safetyCounter += 1
-      const predecessorId = queue.shift()
-      if (!predecessorId) continue
+      const items = updates.flatMap((update) => {
+        const task = drag.tasksById.get(update.taskId)
+        const position = drag.previewPositions.get(update.taskId)
+        if (!task || !position) return []
 
-      const predecessorTask = tasksById.get(predecessorId)
-      const predecessorDates = getTaskDates(predecessorId)
-      if (!predecessorTask || !predecessorDates) continue
-
-      predecessorTask.dependents.forEach((dependentId) => {
-        const dependentDates = getTaskDates(dependentId)
-        if (!dependentDates) return
-
-        if (predecessorDates.endDate.getTime() <= dependentDates.startDate.getTime()) {
-          return
+        const element = drag.taskElements.get(update.taskId)
+        if (element && !drag.previewElements.has(update.taskId)) {
+          element.style.opacity = '0.2'
+          drag.previewElements.set(update.taskId, element)
         }
 
-        const dependentDuration = Math.max(
-          displaySettings.snapIncrement === 'half-day' ? HALF_DAY_MS : HALF_DAY_MS * 2,
-          dependentDates.endDate.getTime() - dependentDates.startDate.getTime()
+        const startOffset = visibleUnitsBetween(
+          drag.timelineMinDate,
+          update.startDate,
+          drag.visibleWeekdays
         )
-        const nextStartDate = normalizeTimelineBoundary(predecessorDates.endDate)
-        const nextEndDate = new Date(nextStartDate.getTime() + dependentDuration)
+        const duration = visibleUnitsBetween(
+          update.startDate,
+          update.endDate,
+          drag.visibleWeekdays
+        )
 
-        updatesById.set(dependentId, {
-          taskId: dependentId,
-          startDate: nextStartDate,
-          endDate: nextEndDate,
-        })
-        queue.push(dependentId)
+        return [{
+          task,
+          x: startOffset * drag.dayWidth,
+          y: HEADER_HEIGHT + position.y,
+          width: Math.max(duration * drag.dayWidth, drag.dayWidth / 2),
+        }]
+      })
+
+      dragPreviewRef.current?.show({
+        items,
+        showCriticalPath: drag.showCriticalPath,
       })
     }
 
-    return Array.from(updatesById.values())
-  }, [tasks, displaySettings.snapIncrement])
+    const cancelPendingFrame = () => {
+      if (dragAnimationFrameRef.current === null) return
+      window.cancelAnimationFrame(dragAnimationFrameRef.current)
+      dragAnimationFrameRef.current = null
+    }
 
-  useEffect(() => {
-    if (!isDragging) return
+    const clearDragVisuals = (drag: DragState) => {
+      for (const element of drag.previewElements.values()) {
+        element.style.opacity = ''
+      }
+      drag.previewElements.clear()
+      dragPreviewRef.current?.hide()
+      dragStateRef.current = null
+      setIsDragging(false)
+    }
 
     const handlePointerMove = (event: MouseEvent) => {
       const drag = dragStateRef.current
       if (!drag) return
 
-      const deltaY = Math.abs(event.clientY - drag.startClientY)
+      drag.pendingClientX = event.clientX
+      drag.pendingClientY = event.clientY
+
+      const deltaY = Math.abs(drag.pendingClientY - drag.startClientY)
       if (deltaY > TASK_ROW_HEIGHT && !drag.warnedVerticalMove) {
         drag.warnedVerticalMove = true
-        showVerticalMoveNotice()
+        interactionActionsRef.current.showVerticalMoveNotice()
       }
 
-      const snapUnits = displaySettings.snapIncrement === 'half-day' ? 0.5 : 1
-      const unitDelta = Math.round((event.clientX - drag.startClientX) / (scale.dayWidth * snapUnits)) * snapUnits
-      if (unitDelta === drag.lastUnitDelta) return
-      drag.lastUnitDelta = unitDelta
-
-      const minimumDuration = snapUnits * 24 * 60 * 60 * 1000
-      const initialDuration = Math.max(minimumDuration, drag.initialEndDate.getTime() - drag.initialStartDate.getTime())
-      const draggedTask = tasks.find((task) => task.id === drag.taskId)
-      const earliestStart = draggedTask?.dependencies.reduce<Date | null>((latest, dependencyId) => {
-        const dependency = tasks.find((task) => task.id === dependencyId)
-        if (!dependency) return latest
-        const dependencyEnd = normalizeTimelineBoundary(dependency.endDate)
-        return !latest || dependencyEnd.getTime() > latest.getTime()
-          ? dependencyEnd
-          : latest
-      }, null)
-      let nextStart = new Date(drag.initialStartDate)
-      let nextEnd = new Date(drag.initialEndDate)
-
-      if (drag.mode === 'move') {
-        nextStart = shiftByVisibleUnits(drag.initialStartDate, unitDelta, displaySettings.visibleWeekdays)
-        if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
-          nextStart = new Date(earliestStart)
-        }
-        nextEnd = new Date(nextStart.getTime() + initialDuration)
-      }
-
-      if (drag.mode === 'resize-start') {
-        nextStart = shiftByVisibleUnits(drag.initialStartDate, unitDelta, displaySettings.visibleWeekdays)
-        if (nextEnd.getTime() - nextStart.getTime() < minimumDuration) {
-          nextStart = new Date(nextEnd.getTime() - minimumDuration)
-        }
-        if (earliestStart && nextStart.getTime() < earliestStart.getTime()) {
-          nextStart = new Date(earliestStart)
-        }
-      }
-
-      if (drag.mode === 'resize-end') {
-        nextEnd = shiftByVisibleUnits(drag.initialEndDate, unitDelta, displaySettings.visibleWeekdays)
-        if (nextEnd.getTime() - nextStart.getTime() < minimumDuration) {
-          nextEnd = new Date(nextStart.getTime() + minimumDuration)
-        }
-      }
-
-      const updates = applyForwardSchedulePropagation([
-        { taskId: drag.taskId, startDate: nextStart, endDate: nextEnd },
-      ])
-
-      updateTaskDatesBatch(updates)
+      if (dragAnimationFrameRef.current !== null) return
+      dragAnimationFrameRef.current = window.requestAnimationFrame(() => {
+        dragAnimationFrameRef.current = null
+        const latestDrag = dragStateRef.current
+        if (latestDrag) renderDragPreview(latestDrag, latestDrag.pendingClientX)
+      })
     }
 
-    const handlePointerUp = () => {
-      dragStateRef.current = null
-      setIsDragging(false)
+    const handlePointerUp = (event: MouseEvent) => {
+      const drag = dragStateRef.current
+      if (!drag) return
+
+      cancelPendingFrame()
+      const result = calculateDraggedTaskDates(drag, event.clientX)
+      const datesChanged = result.startDate.getTime() !== drag.initialStartDate.getTime()
+        || result.endDate.getTime() !== drag.initialEndDate.getTime()
+
+      clearDragVisuals(drag)
+
+      const actions = interactionActionsRef.current
+      actions.selectTask(drag.taskId)
+      if (!datesChanged) return
+
+      const updates = applyForwardSchedulePropagation(drag, [{
+        taskId: drag.taskId,
+        startDate: result.startDate,
+        endDate: result.endDate,
+      }])
+
+      actions.beginHistoryTransaction()
+      actions.updateTaskDatesBatch(updates)
+      actions.commitHistoryTransaction()
+    }
+
+    const handleWindowBlur = () => {
+      const drag = dragStateRef.current
+      if (!drag) return
+      cancelPendingFrame()
+      clearDragVisuals(drag)
     }
 
     window.addEventListener('mousemove', handlePointerMove)
     window.addEventListener('mouseup', handlePointerUp)
+    window.addEventListener('blur', handleWindowBlur)
     return () => {
+      cancelPendingFrame()
       window.removeEventListener('mousemove', handlePointerMove)
       window.removeEventListener('mouseup', handlePointerUp)
+      window.removeEventListener('blur', handleWindowBlur)
     }
-  }, [
-    applyForwardSchedulePropagation,
-    displaySettings.snapIncrement,
-    displaySettings.visibleWeekdays,
-    isDragging,
-    scale.dayWidth,
-    showVerticalMoveNotice,
-    tasks,
-    updateTaskDatesBatch,
-  ])
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -1311,12 +1591,7 @@ export function GanttChart({
                 key={`dep-${i}`}
                 fromTask={dep.from}
                 toTask={dep.to}
-                taskPositions={new Map(
-                  Array.from(taskPositions.entries()).map(([id, pos]) => [
-                    id,
-                    { ...pos, y: pos.y + HEADER_HEIGHT }
-                  ])
-                )}
+                taskPositions={connectorTaskPositions}
                 isCritical={dep.isCritical}
               />
             ))}
@@ -1344,6 +1619,7 @@ export function GanttChart({
               />
             )
           })}
+          <DragPreviewLayer ref={dragPreviewRef} />
             </svg>
             </div>
             </div>

@@ -145,7 +145,9 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   type validation is skipped because `next.config.mjs` sets
   `typescript.ignoreBuildErrors: true`; the separate strict type check passed.
 - Lint: `npm.cmd run lint` failed before analyzing source because ESLint 10.8.0
-  could not find an `eslint.config.js`, `.mjs`, or `.cjs` configuration.
+  could not find an `eslint.config.js`, `.mjs`, or `.cjs` configuration. This is
+  now repaired with a flat configuration: `pnpm lint` checks JavaScript config
+  files with ESLint and validates all TypeScript/TSX with a no-emit type check.
 - Tests: no test script or dedicated test/spec files were found, so no automated
   test suite was run.
 - Interactive browser verification passed for opening the reusable dialog,
@@ -198,6 +200,9 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   the three-panel project view.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
+- Restored the repository lint command with an ESLint 10 flat configuration and
+  a TypeScript no-emit validation step; documented the scope and future Next.js
+  preset enhancement in `.agents/docs/STATIC_ANALYSIS.md`.
 
 ## Files Changed in Latest Work
 
@@ -242,8 +247,9 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   until then, only empty workstreams can be deleted. The user clarified that mock
   workstream deletion may later allow deleting child/member tasks or keeping them
   parentless/unassigned, but that behavior is not implemented yet.
-- Lint cannot run until a flat ESLint configuration compatible with ESLint 10 is
-  added or the lint toolchain is otherwise aligned.
+- The static-analysis baseline does not yet include the Next.js ESLint preset or
+  TypeScript-specific ESLint rules; TypeScript/TSX correctness is currently
+  covered by the compiler step in `pnpm lint`.
 - Automated behavioral tests are absent.
 
 ## Next Action

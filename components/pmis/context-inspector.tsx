@@ -1,6 +1,6 @@
 'use client'
 
-import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link } from 'lucide-react'
+import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,6 +20,9 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
     getTaskById,
     getTaskDependencies,
     getTaskDependents,
+    getCurrentForecast,
+    reportTaskCompletion,
+    confirmTaskCompletion,
     workstreams,
   } = usePMISStore()
 
@@ -48,6 +51,9 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
   }
 
   const duration = daysBetween(task.startDate, task.endDate)
+  const forecast = getCurrentForecast()?.tasks.find((candidate) => candidate.taskId === task.id)
+  const completionReported = Boolean(task.actual?.reportedCompletionAt)
+  const completionConfirmed = Boolean(task.actual?.confirmedAt)
 
   return (
     <div
@@ -176,6 +182,55 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
               <span className="text-xs font-medium text-foreground">{task.progress}%</span>
             </div>
             <Progress value={task.progress} className="h-2" />
+          </div>
+
+          {/* Calculated forecast */}
+          {forecast && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <FileText className="h-3.5 w-3.5" />
+                <span>Calculated Forecast</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Expected duration</span>
+                  <p className="text-foreground">{forecast.expectedDurationDays.toFixed(1)}d</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Slack</span>
+                  <p className={cn('text-foreground', forecast.critical && 'font-medium text-destructive')}>
+                    {forecast.slackDays}d{forecast.critical ? ' · Critical' : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Completion confirmation */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Completion confirmation</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {completionConfirmed
+                ? 'Completion confirmed by the task approver.'
+                : completionReported
+                  ? 'Completion reported by the assignee and awaiting approver confirmation.'
+                  : 'The assignee must report completion before the approver can confirm it.'}
+            </p>
+            <div className="flex gap-2">
+              {!completionReported && task.assignee.id === 'u1' && (
+                <Button size="sm" variant="outline" onClick={() => reportTaskCompletion(task.id, 'u1')}>
+                  Report done
+                </Button>
+              )}
+              {completionReported && !completionConfirmed && task.approverId === 'u1' && (
+                <Button size="sm" onClick={() => confirmTaskCompletion(task.id, 'u1')}>
+                  Confirm done
+                </Button>
+              )}
+            </div>
           </div>
 
           <Separator />

@@ -15,6 +15,9 @@ import {
   createProjectWorkspaces,
   type ProjectWorkspace,
 } from './pmis-project-fixtures'
+import { calculateForecast } from './domain/forecast'
+import { toActivePlan } from './domain/pmis-adapter'
+import type { ForecastResult } from './domain/planning-types'
 
 const initialProjectWorkspaces = createProjectWorkspaces()
 const defaultProjectId = initialProjects[0]?.id ?? ''
@@ -86,6 +89,8 @@ function cloneTask(task: Task): Task {
   return {
     ...task,
     assignee: { ...task.assignee },
+    approverId: task.approverId,
+    actual: task.actual ? { ...task.actual } : undefined,
     startDate: new Date(task.startDate),
     endDate: new Date(task.endDate),
     plannedStart: task.plannedStart ? new Date(task.plannedStart) : undefined,
@@ -260,6 +265,8 @@ interface PMISState {
   updateTaskDates: (taskId: string, startDate: Date, endDate: Date) => void
   updateTaskDatesBatch: (updates: { taskId: string; startDate: Date; endDate: Date }[]) => void
   updateTaskStatus: (taskId: string, status: Task['status']) => void
+  reportTaskCompletion: (taskId: string, actorId?: string) => PMISMutationResult
+  confirmTaskCompletion: (taskId: string, actorId?: string) => PMISMutationResult
   
   // Computed
   getTaskById: (id: string) => Task | undefined
@@ -271,6 +278,7 @@ interface PMISState {
   getCriticalPathTasks: () => Task[]
   getPortfolioTasks: () => Task[]
   getVisibleRows: () => VisibleRow[]
+  getCurrentForecast: () => ForecastResult | null
 }
 
 export const usePMISStore = create<PMISState>((set, get) => ({
@@ -412,6 +420,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       status: 'todo',
       priority: 'medium',
       assignee,
+      approverId: 'u1',
       startDate,
       endDate,
       plannedStart: new Date(startDate),
@@ -648,6 +657,50 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       ...historyFlags(nextUndoStack, []),
     }
   }),
+
+  reportTaskCompletion: (taskId, actorId = 'u1') => {
+    const state = get()
+    const task = state.tasks.find((candidate) => candidate.id === taskId)
+    if (!task) return { ok: false, error: 'Task not found.' }
+    if (task.assignee.id !== actorId) return { ok: false, error: 'Only the assignee can report completion.' }
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    set({
+      tasks: state.tasks.map((candidate) => candidate.id === taskId
+        ? {
+            ...candidate,
+            actual: {
+              progress: 100,
+              status: 'done',
+              reportedAt: new Date(),
+              reportedBy: actorId,
+              reportedCompletionAt: new Date(),
+            },
+          }
+        : candidate),
+      undoStack: nextUndoStack,
+      redoStack: [],
+      ...historyFlags(nextUndoStack, []),
+    })
+    return { ok: true, id: taskId }
+  },
+
+  confirmTaskCompletion: (taskId, actorId = 'u1') => {
+    const state = get()
+    const task = state.tasks.find((candidate) => candidate.id === taskId)
+    if (!task) return { ok: false, error: 'Task not found.' }
+    if (!task.actual?.reportedCompletionAt) return { ok: false, error: 'The assignee must report completion first.' }
+    if (task.approverId && task.approverId !== actorId) return { ok: false, error: 'Only the task approver can confirm completion.' }
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    set({
+      tasks: state.tasks.map((candidate) => candidate.id === taskId
+        ? { ...candidate, status: 'done', progress: 100, actual: { ...candidate.actual!, confirmedAt: new Date(), confirmedBy: actorId } }
+        : candidate),
+      undoStack: nextUndoStack,
+      redoStack: [],
+      ...historyFlags(nextUndoStack, []),
+    })
+    return { ok: true, id: taskId }
+  },
   
   // Computed getters
   getTaskById: (id) => get().tasks.find(t => t.id === id),
@@ -715,6 +768,12 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   getTasksByGroup: (group) => get().tasks.filter(t => t.groupName === group),
   
   getCriticalPathTasks: () => get().tasks.filter(t => t.isCriticalPath),
+
+  getCurrentForecast: () => {
+    const state = get()
+    if (!state.currentProjectId) return null
+    return calculateForecast(toActivePlan(state.currentProjectId, state.tasks))
+  },
 
   getPortfolioTasks: () => {
     const { projectWorkspaces, currentProjectId, tasks } = get()

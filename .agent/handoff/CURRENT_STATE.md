@@ -201,6 +201,21 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 
 ## Files Changed in Latest Work
 
+- `.agents/docs/PMIS_TECHNICAL_ARCHITECTURE.md`
+- `app/api/planning/history/route.ts`
+- `app/api/planning/revisions/route.ts`
+- `lib/application/planning-service.ts`
+- `lib/domain/forecast.ts`
+- `lib/domain/pmis-adapter.ts`
+- `lib/domain/planning-types.ts`
+- `lib/domain/reconciliation.ts`
+- `lib/domain/scheduling.ts`
+- `lib/persistence/planning-repository.ts`
+- `lib/persistence/sqlite-planning-repository.server.ts`
+- `types/node-sqlite.d.ts`
+- `lib/pmis-data.ts`
+- `lib/pmis-store.ts`
+- `.gitignore`
 - `.agents/docs/GANTT_DRAG_PERFORMANCE.md`
 - `.agent/handoff/CURRENT_STATE.md`
 - `components/pmis/gantt-chart.tsx`
@@ -208,6 +223,31 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
 - `lib/pmis-store.ts`
+
+## Planning-domain implementation (2026-08-12)
+
+- Added framework-independent planning types for Active Plan, Approved Baseline,
+  Scenario, Actual Progress, Forecast, Change Records, reconciliation, and Task
+  Change Proposals.
+- Extracted forward-only dependency schedule propagation into
+  `lib/domain/scheduling.ts` and added PERT/CPM forecast calculation in
+  `lib/domain/forecast.ts`.
+- Added baseline activation reconciliation and an application service covering
+  Scenario creation/submission, baseline approval, activation, schedule changes,
+  and task-date proposals.
+- Added the accepted closed Change Record action vocabulary and grouped automatic
+  downstream scheduling effects in the application service.
+- Added optional `Task.approverId`, defaulting newly created mock tasks to `u1`,
+  plus client actions for assignee completion reporting and approver confirmation.
+- Added a repository port and a local SQLite implementation using Node 26's
+  built-in `node:sqlite`, with a typed SQL query-builder/POJO row-mapper boundary.
+  This avoids coupling the domain to a database driver and leaves a direct path
+  for a PostgreSQL or Supabase adapter.
+- Added read-only revision and Change Record API endpoints.
+- Added a POST planning command endpoint for Scenario creation/submission,
+  baseline approval/activation, schedule changes, and Task Change Proposals.
+- Added `.agents/docs/PMIS_TECHNICAL_ARCHITECTURE.md` as the durable handoff for
+  the adapter boundary and remaining integration work.
 
 ## Confirmed Decisions Awaiting Implementation
 
@@ -229,11 +269,15 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Documentation/implementation mismatch: the initial handoff describes dark mode
   as the default and only mode, while `app/layout.tsx` currently uses the system
   theme.
-- Academic/backend scope remains incomplete: CPM/PERT calculation and PostgreSQL
-  persistence are required by product knowledge but are not implemented in the
-  current frontend prototype.
-- Newly created tasks and workstream mutations remain client-memory state and are
-  intentionally not persisted while database design is on hold.
+- PostgreSQL/Supabase persistence is intentionally not implemented pending the
+  DBA agent's schema/auth decisions. SQLite persistence exists behind the
+  repository port, but the current fixture workspace is not yet hydrated from
+  SQLite on page load.
+- The current Timeline still renders fixture `isCriticalPath` metadata; the
+  calculated Forecast API is available but has not yet replaced every visual
+  critical-path consumer.
+- Completion-report/confirmation API commands and visible Plan History, Forecast,
+  Scenario, and baseline controls remain follow-up integration work.
 - User-supervised product discussions remain open for scheduling conventions,
   layered project-state/domain authority, canonical grouping semantics, and
   checkpoint/scenario governance. Future implementation touching those topics
@@ -248,7 +292,7 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 
 ## Next Action
 
-Use the focused project fixtures as the manual regression matrix for future Gantt
-and layout changes. Automated drag/scheduling regression tests remain the next
-engineering hardening step; persistence still requires a confirmed domain model
-before these isolated client workspaces are wired to PostgreSQL.
+Wire the current fixture workspace to the repository through server actions, add
+focused domain tests for scheduling/forecast/reconciliation, then replace static
+critical-path rendering with calculated Forecast output. PostgreSQL/Supabase
+adapter work waits for DBA schema and authentication decisions.

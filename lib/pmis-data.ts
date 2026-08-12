@@ -1,4 +1,5 @@
 // PMIS Mock Data - Realistic project management data
+import type { TaskActualProgress } from './domain/planning-types'
 
 export type TaskStatus = 'todo' | 'in-progress' | 'blocked' | 'done'
 export type Priority = 'low' | 'medium' | 'high' | 'critical'
@@ -26,6 +27,8 @@ export interface Task {
     avatar: string
     initials: string
   }
+  approverId?: string
+  actual?: TaskActualProgress
   startDate: Date
   endDate: Date
   plannedStart?: Date

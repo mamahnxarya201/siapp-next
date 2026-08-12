@@ -69,12 +69,18 @@ export function TopNav() {
       {/* Left section */}
       <div className="flex items-center gap-4">
         {/* Logo */}
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          onClick={() => setCurrentProject(null)}
+          aria-label="Go to project dashboard"
+          title="Go to project dashboard"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <GanttChart className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold text-foreground">Planview</span>
-        </div>
+        </button>
 
         {/* Project Selector */}
         <DropdownMenu>

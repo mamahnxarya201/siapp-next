@@ -76,15 +76,18 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+      <ScrollArea
+        className="min-w-0 flex-1"
+        viewportClassName="[&>div]:!block [&>div]:!w-full [&>div]:!min-w-0"
+      >
+        <div className="w-full min-w-0 max-w-full space-y-6 overflow-hidden p-4">
           {/* Title and status */}
           <div className="space-y-3">
-            <div className="flex items-start gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               {task.isMilestone && (
                 <span className="mt-0.5 text-milestone">◆</span>
               )}
-              <h2 className="text-base font-semibold text-foreground leading-tight">
+              <h2 className="min-w-0 flex-1 break-words text-base font-semibold leading-tight text-foreground">
                 {task.name}
               </h2>
             </div>

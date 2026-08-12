@@ -110,6 +110,10 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - The right task-details inspector is resizable from a 280px minimum to a 520px
   maximum through a dedicated vertical separator. Its live width is passed into
   `ContextInspector`, matching the existing task-list panel resize behavior.
+- The task-details inspector now constrains Radix ScrollArea's intrinsic content
+  wrapper to the live viewport width, so long task titles reflow while the panel
+  is dragged instead of retaining a wider stale layout. The Planview header logo
+  is a keyboard-accessible dashboard action that returns to the portfolio view.
 - PERT input fields are stored and displayed. Critical-path membership is
   currently static mock-data metadata; no CPM/PERT calculation engine for
   earliest/latest dates, slack, or computed critical path was found.
@@ -138,6 +142,12 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   418px, and verified its minimum clamp at 280px. The inspector content matched
   the live panel width and browser logs contained no warnings or errors. Strict
   TypeScript validation and `git diff --check` passed.
+- Issue regression verification (2026-08-12): resized the task-details panel
+  between its 480px expanded width and 280px minimum while inspecting a long
+  task title. The title reflowed from two lines to three, and the viewport had no
+  horizontal overflow. Clicking the Planview logo returned to Project Overview
+  and reset the project selector to All Projects. Browser logs contained no
+  warnings or errors.
 - Type check (2026-08-08): `node.exe .\node_modules\typescript\bin\tsc --noEmit
   --incremental false` passed.
 - Production build (2026-08-08): `npm.cmd run build` passed after network access was allowed
@@ -196,6 +206,8 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   frozen schedule used by the final release commit.
 - Added a matching resizable right inspector separator and width constraints to
   the three-panel project view.
+- Fixed task-title reflow in the resizable inspector and made the header logo a
+  semantic, keyboard-accessible return-to-dashboard action.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
 
@@ -222,6 +234,7 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `components/pmis/context-inspector.tsx`
 - `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
+- `components/ui/scroll-area.tsx`
 - `lib/pmis-store.ts`
 
 ## Planning-domain implementation (2026-08-12)

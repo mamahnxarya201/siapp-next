@@ -77,3 +77,17 @@ Do not make that classification yourself.
 - Update `.agent/handoff/DECISIONS.md` only through the decision handshake.
 - Do not treat conversation memory, unstated assumptions, or an agent's previous answer as authoritative when repository context disagrees.
 
+## PMIS Presentation Preference
+
+- For new human-facing PMIS documentation, explanatory HTML, product articles,
+  briefs, and visual reports, default to the project-local
+  `.agents/skills/pmis-editorial-tech/SKILL.md` unless the user supplies another
+  style or format constraint.
+- The explicit trigger is `$pmis-editorial-tech`; natural-language triggers include
+  “editorial tech style,” “the PMIS documentation style,” and “the product
+  explanation style.”
+- The canonical visual reference is
+  `.agent/product-explanation-for-humans.html`.
+- Apply this language to application UI only when the user explicitly requests
+  it. Documentation styling must not silently override screenshot-authoritative
+  UI, accepted interaction architecture, or protected product behaviours.

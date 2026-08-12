@@ -1,0 +1,4 @@
+interface:
+  display_name: "PMIS Editorial Tech"
+  short_description: "Create calm editorial PMIS docs and UI"
+  default_prompt: "Use $pmis-editorial-tech to create PMIS documentation in the established editorial-tech visual language."

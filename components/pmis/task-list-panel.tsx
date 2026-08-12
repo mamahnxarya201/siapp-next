@@ -209,13 +209,17 @@ function GroupHeaderRow({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         {compact ? (
-          <span
-            className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', workstream.color)}
-            title={workstream.label}
-            aria-label={workstream.label}
-          >
-            <WorkstreamIcon className="h-3.5 w-3.5" />
-          </span>
+          <>
+            <span
+              className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', workstream.color)}
+              aria-hidden="true"
+            >
+              <WorkstreamIcon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left text-xs font-medium text-foreground" title={workstream.label}>
+              {workstream.label}
+            </span>
+          </>
         ) : (
           <Badge variant="secondary" className={cn('shrink-0 text-xs', workstream.color)}>
             {workstream.label}

@@ -55,6 +55,9 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Workstreams are runtime records with stable IDs and editable labels. The left
   panel supports create, rename, and safe delete; deletion is limited to empty
   workstreams so tasks are never silently removed or reclassified.
+- Compact task-list headers retain the workstream icon and a flexible, truncated
+  text label, so workstream names remain visible at the default and minimum panel
+  widths without widening the three-panel workspace.
 - Undo/redo is available from the top navigation and keyboard shortcuts
   (`Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, and `Ctrl+Y`). History stores bounded
   in-memory snapshots of the active mock workspace covering tasks, workstreams,
@@ -148,6 +151,11 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   horizontal overflow. Clicking the Planview logo returned to Project Overview
   and reset the project selector to All Projects. Browser logs contained no
   warnings or errors.
+- Workstream-sidebar regression verification (2026-08-12): at both the default
+  320px task-list width and its 280px minimum, all Mobile App Redesign workstream
+  names remained present beside their icons, long labels truncated within the
+  available space, and each header's scroll width matched its rendered width.
+  Browser logs contained no warnings or errors.
 - Type check (2026-08-08): `node.exe .\node_modules\typescript\bin\tsc --noEmit
   --incremental false` passed.
 - Production build (2026-08-08): `npm.cmd run build` passed after network access was allowed
@@ -208,6 +216,8 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   the three-panel project view.
 - Fixed task-title reflow in the resizable inspector and made the header logo a
   semantic, keyboard-accessible return-to-dashboard action.
+- Kept workstream names visible in the task list's compact-width header layout
+  without changing panel dimensions or removing task and status summaries.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
 
@@ -234,6 +244,7 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `components/pmis/context-inspector.tsx`
 - `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
+- `components/pmis/task-list-panel.tsx`
 - `components/ui/scroll-area.tsx`
 - `lib/pmis-store.ts`
 

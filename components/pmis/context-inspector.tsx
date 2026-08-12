@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, priorityConfig, teamConfig } from '@/lib/pmis-data'
 
-export function ContextInspector() {
+export function ContextInspector({ width = 320 }: { width?: number }) {
   const {
     selectedTaskId,
     inspectorOpen,
@@ -50,7 +50,10 @@ export function ContextInspector() {
   const duration = daysBetween(task.startDate, task.endDate)
 
   return (
-    <div className="flex h-full w-80 flex-col border-l border-border bg-card">
+    <div
+      className="flex h-full flex-col border-l border-border bg-card"
+      style={{ width, minWidth: width }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h3 className="text-sm font-medium text-foreground">Task Details</h3>

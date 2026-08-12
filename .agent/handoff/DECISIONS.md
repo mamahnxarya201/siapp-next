@@ -180,8 +180,10 @@ Evidence:
 - Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
 
 Open questions:
-- Exact checkpoint triggers, active-scenario limits, scenario refresh behaviour,
-  and adoption controls remain unconfirmed.
+- Scenario quantity and ownership are resolved by DEC-009. Scenario refresh
+  behaviour and detailed adoption controls remain unconfirmed. The term
+  `checkpoint` is refined to `Key Moment` by DEC-007. DEC-010 clarifies that
+  adoption must pass through Approved Baseline before Active Plan activation.
 
 ### DEC-005 -- Timeline naming and configurable Project Authority Map
 
@@ -228,5 +230,239 @@ Evidence:
 - Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
 
 Open questions:
-- Exact names for baseline/current-plan layers, authority delegation, collective
-  quorum rules, and detailed approval triggers remain unconfirmed.
+- Authority delegation, collective quorum rules, and detailed approval triggers
+  remain unconfirmed.
+
+### DEC-006 -- Timeline state names
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+The confirmed user-facing project-state names are `Active Plan`, `Approved
+Baseline`, `Actual Progress`, `Forecast`, `Scenario`, and `Plan History`.
+
+Rationale:
+Consistent names distinguish the schedule currently being followed, the formal
+comparison reference, observed or reported work, expected future outcomes,
+non-operational alternatives, and recorded project memory.
+
+Consequences:
+- Use these names consistently when presenting project-state layers in Timeline
+  and other views.
+- Do not collapse these states into a binary planned/real model.
+- Do not imply that Actual Progress, Forecast, or a Scenario is an approved
+  organizational commitment.
+
+Evidence:
+- User confirmation in the 2026-08-12 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- The visual encoding and interaction treatment of these states remain
+  unconfirmed.
+
+### DEC-007 -- Read-only Change Records and named Key Moments
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: none; refines the user-facing `checkpoint` wording in DEC-004
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+`Plan History` contains read-only, filterable `Change Records`. An important,
+named Change Record preserved for navigation and reference is called a `Key
+Moment`. An `Approved Baseline` is a formally approved Key Moment.
+
+One initiating action and its automatic downstream effects are grouped as one
+Change Record. Corrections append a new record rather than modifying historical
+records. Users may inspect the project at a historical record or Key Moment, but
+continuing from history requires creating a Scenario.
+
+Rationale:
+The transaction-record model supports auditability and detailed investigation,
+while Key Moments prevent users from navigating an overwhelming sequence of
+minor changes. The names are more understandable than exposing versions or
+checkpoints as competing concepts.
+
+Consequences:
+- Use `Change Record` for an audit entry and `Key Moment` for an important named
+  historical reference.
+- Treat earlier user-facing references to `checkpoint` in DEC-004 as `Key
+  Moment`; DEC-009 separately refines Scenario ownership and quantity.
+- Keep historical records read-only and filterable.
+- Preserve corrections and automatic consequences as traceable history.
+- Do not expose every small update as a Key Moment.
+
+Evidence:
+- User confirmation in the 2026-08-12 HCI discussion.
+- Detailed record: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`.
+
+Open questions:
+- The exact closed action vocabulary and the formal lifecycle events that receive
+  automatic Key Moment labels remain unconfirmed.
+
+### DEC-008 -- Complete automatic Change Record history
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: none; refines DEC-007
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+Every project event and direct Timeline modification automatically creates a
+read-only Change Record using a closed action vocabulary. Plan History exposes the
+complete searchable and filterable record rather than hiding actions according to
+an inferred significance threshold. Users are not required to justify every
+ordinary action.
+
+Key Moments are automatic labels for defined formal lifecycle events; they do not
+replace or hide ordinary Change Records.
+
+Rationale:
+Complete transaction-like recording supports audit and investigation without
+requiring the application to infer which ordinary actions matter to a particular
+team.
+
+Consequences:
+- Record direct changes and automatic downstream effects consistently.
+- Group one initiating action and its automatic consequences into one record.
+- Append corrections rather than rewriting prior history.
+- Make the full record searchable and filterable.
+- Do not require manual history creation or a reason for every ordinary action.
+
+Evidence:
+- User confirmation in the 2026-08-12 HCI discussion.
+
+Open questions:
+- The exact action vocabulary and automatic Key Moment event list remain to be
+  defined with the component model.
+
+### DEC-009 -- Single-owner private Scenarios
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: DEC-004 only where `bounded scenarios` implied a quantity limit;
+  the single official line and no-merge/no-rebase boundaries remain in force
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+A Scenario is an unlimited, private-by-default what-if laboratory with exactly one
+owner and editor. It may be shared read-only indefinitely. A viewer who wants to
+modify it creates a new independently owned Scenario based on the shared state.
+
+Derived Scenarios preserve their origin but do not synchronize, merge, or rebase
+with their source. PMIS facilitates promotion but does not prescribe how users
+explore or compare alternatives.
+
+Rationale:
+Single ownership preserves the authorship and integrity of a planning argument.
+Read-only sharing supports review without allowing another person to unexpectedly
+rewrite the owner's Timeline.
+
+Consequences:
+- Do not provide multi-author Scenario editing.
+- Keep sharing read-only.
+- Allow unlimited private Scenarios and independent derivation from a shared
+  Scenario.
+- Preserve source attribution without creating a version-control graph.
+
+Evidence:
+- User confirmation in the 2026-08-12 HCI discussion.
+
+Open questions:
+- None for the core ownership and sharing model; detailed access control is
+  deferred to component-level RBAC.
+
+### DEC-010 -- Approved Baseline required before Active Plan activation
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain | data
+- Supersedes: none; clarifies DEC-003 and DEC-004
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+A Scenario cannot become the Active Plan directly. It must first pass through the
+Project Authority Map and become an Approved Baseline. An Approved Baseline may
+remain inactive; only an Approved Baseline can be activated as the Active Plan.
+
+If Actual Progress exists, activation attempts to reconcile the new baseline with
+recorded facts. The system explains compatible, review-required, and unreconcilable
+changes and warns that automatic reconciliation is not universally successful.
+The user chooses whether to continue with the reconciled result. Actual Progress,
+previous plans, baselines, and Change Records remain preserved.
+
+Rationale:
+Approval establishes legitimacy before a plan becomes operational, while
+reconciliation allows an approved alternative to be introduced without pretending
+that recorded project reality did not happen.
+
+Consequences:
+- Enforce Scenario -> Approved Baseline -> Active Plan ordering.
+- Keep approval and activation as distinct actions.
+- Preserve inactive Approved Baselines.
+- Reconcile against Actual Progress before activation and disclose limitations.
+- Never erase factual or audit history as a side effect of activation.
+
+Evidence:
+- User correction and confirmation in the 2026-08-12 HCI discussion.
+
+Open questions:
+- Exact reconciliation conflict handling and effective-date behaviour remain
+  unconfirmed.
+
+### DEC-011 -- Calculated Forecast and bounded task-change proposals
+
+- Status: CONFIRMED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | domain
+- Supersedes: none
+- Source: `.agents/docs/PMIS_AGREED_PRODUCT_DIRECTION.md`
+
+Decision:
+Forecast is derived from supported planning inputs and dependency analysis,
+including PERT/CPM, and is presented as a distinct Timeline function. Users revise
+Forecast through supported inputs rather than arbitrary manual replacement of the
+calculated result.
+
+Task completion requires an assignee report followed by confirmation from the
+task's listed approver. An assignee may request a date change; that request creates
+a restricted Task Change Proposal and proposed forecast visible to the Project
+Manager and/or relevant supervisor. It is not a project Scenario branch.
+
+Direct dependency consequences remain visible in real time, while Change Records
+and notifications provide awareness. PMIS does not judge whether a user's planning
+choice is organizationally wise.
+
+Rationale:
+This keeps calculated schedule intelligence distinct from arbitrary opinion,
+supports accountable completion, and gives task-level change requests a bounded
+review space without multiplying project Scenarios.
+
+Consequences:
+- Recalculate Forecast when supported inputs change and record the update.
+- Keep PERT/CPM Forecast access distinct within Timeline.
+- Require confirmation of reported completion.
+- Treat requested task-date changes as Task Change Proposals.
+- Preserve existing real-time dependency propagation as the immediate schedule
+  consequence feedback.
+
+Evidence:
+- User confirmation in the 2026-08-12 HCI discussion.
+
+Open questions:
+- Forecast confidence presentation, task approver assignment, and detailed action
+  permissions remain deferred.

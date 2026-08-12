@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="A human-readable product explanation of PMIS: its Timeline, planning states, governance, scenarios, forecasts, and project history."
+  />
+  <meta name="theme-color" content="#f4f1e9" />
+  <title>PMIS — Product Explanation for Humans</title>
+  <style>
+    :root {
+      --paper: #f4f1e9;
+      --paper-strong: #ebe6da;
+      --ink: #161815;
+      --muted: #65685f;
+      --line: rgba(22, 24, 21, 0.16);
+      --line-strong: rgba(22, 24, 21, 0.32);
+      --green: #1d6b4d;
+      --green-soft: #dce9df;
+      --blue: #315f80;
+      --blue-soft: #dce8ee;
+      --amber: #9a5d16;
+      --amber-soft: #f0dfc4;
+      --red: #a33f34;
+      --red-soft: #efdad6;
+      --max: 1180px;
+      --reading: 730px;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --serif: Iowan Old Style, Charter, "Bitstream Charter", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 88px;
+      background: var(--paper);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(to right, transparent calc(50% - 0.5px), rgba(22, 24, 21, 0.035) 50%, transparent calc(50% + 0.5px)),
+        var(--paper);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.65;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+
+    .skip-link {
+      position: fixed;
+      left: 16px;
+      top: -80px;
+      z-index: 100;
+      padding: 10px 14px;
+      color: white;
+      background: var(--ink);
+      text-decoration: none;
+      transition: top 160ms ease;
+    }
+
+    .skip-link:focus { top: 16px; }
+
+    .progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 99;
+      width: 0;
+      height: 3px;
+      background: var(--green);
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--paper) 90%, transparent);
+      backdrop-filter: blur(16px);
+    }
+
+    .header-inner {
+      width: min(var(--max), calc(100% - 40px));
+      height: 64px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ink);
+      border-radius: 50%;
+      font: 700 11px/1 var(--mono);
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font: 600 11px/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      width: min(var(--max), calc(100% - 40px));
+      min-height: calc(100vh - 64px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.75fr);
+      gap: clamp(40px, 8vw, 120px);
+      align-items: center;
+      padding: 88px 0 70px;
+    }
+
+    .eyebrow,
+    .section-number,
+    .kicker {
+      margin: 0 0 20px;
+      color: var(--green);
+      font: 700 11px/1.4 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { text-wrap: pretty; }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(58px, 8.4vw, 126px);
+      font-weight: 560;
+      line-height: 0.91;
+      letter-spacing: -0.075em;
+    }
+
+    .hero-intro {
+      margin: 36px 0 0;
+      max-width: 720px;
+      font-family: var(--serif);
+      font-size: clamp(22px, 2.1vw, 31px);
+      line-height: 1.34;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-aside {
+      align-self: end;
+      padding-bottom: 18px;
+    }
+
+    .fact-list {
+      margin: 0;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .fact-list > div {
+      display: grid;
+      grid-template-columns: 94px 1fr;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .fact-list dt {
+      color: var(--muted);
+      font: 600 10px/1.5 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .fact-list dd {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .scroll-cue {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 24px;
+      color: var(--muted);
+      font: 600 11px/1 var(--mono);
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .scroll-cue::before {
+      content: "↓";
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+    }
+
+    .manifesto {
+      border-block: 1px solid var(--line-strong);
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .manifesto-inner {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+      padding: clamp(64px, 9vw, 120px) 0;
+      display: grid;
+      grid-template-columns: 0.75fr 2fr;
+      gap: clamp(40px, 8vw, 120px);
+    }
+
+    .manifesto .eyebrow { color: #8dc9aa; }
+
+    .manifesto blockquote {
+      margin: 0;
+      max-width: 930px;
+      font-family: var(--serif);
+      font-size: clamp(34px, 5vw, 70px);
+      line-height: 1.03;
+      letter-spacing: -0.045em;
+    }
+
+    .page-grid {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 210px minmax(0, var(--reading));
+      gap: clamp(46px, 8vw, 110px);
+      justify-content: center;
+      padding: 100px 0 140px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 96px;
+      align-self: start;
+      border-top: 1px solid var(--line-strong);
+      padding-top: 14px;
+    }
+
+    .toc-label {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font: 700 10px/1.4 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc a {
+      display: block;
+      padding: 7px 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      text-decoration: none;
+      transition: color 140ms ease, transform 140ms ease;
+    }
+
+    .toc a:hover,
+    .toc a[aria-current="true"] {
+      color: var(--ink);
+      transform: translateX(4px);
+    }
+
+    article { min-width: 0; }
+
+    .article-lead {
+      margin: 0 0 100px;
+      font-family: var(--serif);
+      font-size: clamp(27px, 3.2vw, 44px);
+      line-height: 1.2;
+      letter-spacing: -0.035em;
+    }
+
+    section {
+      margin: 0 0 112px;
+      scroll-margin-top: 90px;
+    }
+
+    h2 {
+      margin: 0 0 28px;
+      font-size: clamp(38px, 5vw, 64px);
+      font-weight: 570;
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    h3 {
+      margin: 48px 0 12px;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+    }
+
+    p { margin: 0 0 22px; }
+
+    .lede {
+      font-family: var(--serif);
+      font-size: 23px;
+      line-height: 1.45;
+      color: #363932;
+    }
+
+    .rule {
+      margin: 42px 0;
+      padding: 24px 0 24px 26px;
+      border-block: 1px solid var(--line-strong);
+      border-left: 4px solid var(--green);
+      font-family: var(--serif);
+      font-size: 24px;
+      line-height: 1.4;
+    }
+
+    .plain-list {
+      margin: 24px 0 30px;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .plain-list li {
+      position: relative;
+      padding: 13px 0 13px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .plain-list li::before {
+      content: "↳";
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-family: var(--mono);
+    }
+
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin: 34px 0;
+      border: 1px solid var(--line-strong);
+      background: var(--line-strong);
+    }
+
+    .state-card {
+      min-height: 180px;
+      padding: 24px;
+      background: var(--paper);
+    }
+
+    .state-card strong {
+      display: block;
+      margin-bottom: 20px;
+      font-size: 19px;
+      letter-spacing: -0.025em;
+    }
+
+    .state-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .state-card:nth-child(1) strong { color: var(--blue); }
+    .state-card:nth-child(2) strong { color: var(--green); }
+    .state-card:nth-child(3) strong { color: var(--amber); }
+    .state-card:nth-child(4) strong { color: var(--red); }
+
+    .diagram {
+      position: relative;
+      width: calc(100% + 80px);
+      margin: 44px -40px;
+      padding: 34px 24px 22px;
+      overflow-x: auto;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(rgba(22, 24, 21, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(22, 24, 21, 0.045) 1px, transparent 1px),
+        #f7f4ed;
+      background-size: 24px 24px;
+    }
+
+    .diagram::before {
+      content: attr(data-label);
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      color: var(--muted);
+      font: 700 9px/1 var(--mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .diagram .mermaid {
+      min-width: 630px;
+      text-align: center;
+    }
+
+    .diagram figcaption {
+      padding-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .timeline-demo {
+      width: calc(100% + 80px);
+      margin: 44px -40px;
+      border: 1px solid var(--line-strong);
+      background: #f7f4ed;
+      box-shadow: 0 24px 60px rgba(22, 24, 21, 0.08);
+    }
+
+    .demo-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font: 600 10px/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .demo-toolbar span:last-child { color: var(--green); }
+
+    .demo-body {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      min-height: 275px;
+    }
+
+    .demo-list { border-right: 1px solid var(--line); }
+    .demo-chart { overflow: hidden; }
+
+    .demo-row {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .demo-row.group {
+      background: var(--paper-strong);
+      font: 700 10px/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .demo-chart .demo-row {
+      position: relative;
+      padding: 0;
+      background-image: repeating-linear-gradient(90deg, transparent 0 51px, var(--line) 52px);
+    }
+
+    .bar {
+      position: absolute;
+      top: 13px;
+      height: 20px;
+      border-radius: 4px;
+      background: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+
+    .bar.green { background: var(--green); }
+    .bar.red { background: var(--red); }
+    .bar.muted { background: #85877f; }
+    .bar.one { left: 7%; width: 31%; }
+    .bar.two { left: 34%; width: 28%; }
+    .bar.three { left: 58%; width: 24%; }
+    .bar.four { left: 71%; width: 18%; }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin: 34px 0;
+      border: 1px solid var(--line-strong);
+      background: var(--line-strong);
+    }
+
+    .comparison > div {
+      min-height: 210px;
+      padding: 22px;
+      background: var(--paper);
+    }
+
+    .comparison .tag,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      margin-bottom: 32px;
+      padding: 0 9px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      color: var(--green);
+      font: 700 9px/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .comparison h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .comparison p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .record {
+      margin: 34px 0;
+      border: 1px solid var(--line-strong);
+      background: #f7f4ed;
+    }
+
+    .record-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .record-main { padding: 22px 18px; }
+    .record-main strong { font-size: 19px; letter-spacing: -0.02em; }
+
+    .record-tree {
+      margin: 18px 0 0;
+      padding: 0 0 0 18px;
+      list-style: none;
+      border-left: 1px solid var(--line-strong);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .record-tree li { padding: 5px 0; }
+    .record-tree b { color: var(--ink); font-weight: 600; }
+
+    .closing {
+      margin-bottom: 0;
+      padding: 54px 0 0;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .closing p:last-child {
+      margin-top: 42px;
+      font-family: var(--serif);
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.16;
+      letter-spacing: -0.04em;
+    }
+
+    footer {
+      border-top: 1px solid var(--line-strong);
+      background: var(--paper-strong);
+    }
+
+    .footer-inner {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+      padding: 34px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--muted);
+      font: 600 10px/1.5 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .hero-aside { max-width: 540px; }
+      .manifesto-inner { grid-template-columns: 1fr; }
+      .page-grid { grid-template-columns: 1fr; }
+      .toc { display: none; }
+      .diagram, .timeline-demo { width: 100%; margin-inline: 0; }
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .header-meta span:first-child { display: none; }
+      .hero { padding-top: 64px; }
+      h1 { font-size: clamp(52px, 17vw, 78px); }
+      .state-grid, .comparison { grid-template-columns: 1fr; }
+      .demo-body { grid-template-columns: 135px 1fr; }
+      .demo-row { padding-inline: 10px; font-size: 10px; }
+      .record-head { flex-direction: column; gap: 6px; }
+      .footer-inner { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+
+    @media print {
+      .site-header, .progress, .scroll-cue, .toc { display: none; }
+      body { background: white; color: black; }
+      .hero { min-height: auto; padding-top: 40px; }
+      .page-grid { display: block; padding-top: 50px; }
+      section { break-inside: avoid; }
+      .diagram, .timeline-demo { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#article">Skip to article</a>
+  <div class="progress" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="PMIS product explanation home">
+        <span class="brand-mark">P</span>
+        <span>PMIS</span>
+      </a>
+      <div class="header-meta">
+        <span>Product explanation</span>
+        <span>08 / 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">Project planning, with a memory</p>
+        <h1 id="hero-title">A plan should remember what it promised.</h1>
+        <p class="hero-intro">
+          PMIS gives project managers one place to see the project, test an
+          alternative, understand dependencies, collect real progress, and turn
+          an approved plan into operational work—without losing the story of how
+          it changed.
+        </p>
+      </div>
+
+      <aside class="hero-aside" aria-label="Product summary">
+        <dl class="fact-list">
+          <div><dt>Primary user</dt><dd>Project Manager</dd></div>
+          <div><dt>Main view</dt><dd>Timeline</dd></div>
+          <div><dt>Core idea</dt><dd>Plan, reality, forecast, and history stay distinct.</dd></div>
+          <div><dt>Position</dt><dd>More than a Gantt chart. Less than an ERP maze.</dd></div>
+        </dl>
+        <a class="scroll-cue" href="#article">Read the product story</a>
+      </aside>
+    </section>
+
+    <section class="manifesto" aria-label="Core product statement">
+      <div class="manifesto-inner">
+        <p class="eyebrow">The premise</p>
+        <blockquote>
+          The interface should show the project—not the weight of the software
+          managing it.
+        </blockquote>
+      </div>
+    </section>
+
+    <div class="page-grid">
+      <nav class="toc" aria-label="Article contents">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#problem">The problem</a></li>
+          <li><a href="#timeline">The Timeline</a></li>
+          <li><a href="#states">Six project states</a></li>
+          <li><a href="#lifecycle">From idea to operation</a></li>
+          <li><a href="#authority">Visible authority</a></li>
+          <li><a href="#scenarios">Private scenarios</a></li>
+          <li><a href="#dependencies">Dependency intelligence</a></li>
+          <li><a href="#participation">Team participation</a></li>
+          <li><a href="#history">A project memory</a></li>
+          <li><a href="#promise">The promise</a></li>
+        </ol>
+      </nav>
+
+      <article id="article">
+        <p class="article-lead">
+          PMIS is a project-planning and observability workspace. It helps a
+          manager understand what was agreed, what is happening, what is likely
+          to happen next, and what would change under a different plan.
+        </p>
+
+        <section id="problem" data-section>
+          <p class="section-number">01 — Why it exists</p>
+          <h2>Projects rarely fail inside one tab.</h2>
+          <p class="lede">
+            Project managers reconstruct reality from schedules, messages,
+            meetings, reports, approvals, and a browser full of open context.
+            The burden is not simply “too many features.” It is the cost of
+            rebuilding the project in their head every time they return.
+          </p>
+          <ul class="plain-list">
+            <li>The official schedule and actual work quietly drift apart.</li>
+            <li>Dependencies become obvious only after delay has propagated.</li>
+            <li>Planning decisions lose their author, reason, and approval context.</li>
+            <li>Prediction, commitment, and observed progress collapse into one chart.</li>
+            <li>Management visibility depends on another person retelling the project.</li>
+          </ul>
+          <p>
+            PMIS does not answer this by stripping planning down to a toy, nor by
+            confronting the manager with every administrative module at once. It
+            aims for <strong>calm operational depth</strong>: serious capability,
+            disclosed progressively around the project itself.
+          </p>
+        </section>
+
+        <section id="timeline" data-section>
+          <p class="section-number">02 — The primary workspace</p>
+          <h2>The project is the interface.</h2>
+          <p class="lede">
+            The main workspace is called <strong>Timeline</strong>. It is where
+            work identity, time, dependencies, milestones, and context remain
+            spatially connected.
+          </p>
+
+          <div class="timeline-demo" role="img" aria-label="Conceptual Timeline showing grouped work and project bars">
+            <div class="demo-toolbar">
+              <span>Timeline / Active Plan</span>
+              <span>Forecast available</span>
+            </div>
+            <div class="demo-body">
+              <div class="demo-list">
+                <div class="demo-row group">Platform</div>
+                <div class="demo-row">API foundation</div>
+                <div class="demo-row">Auth integration</div>
+                <div class="demo-row group">Validation</div>
+                <div class="demo-row">QA acceptance</div>
+                <div class="demo-row">Release review</div>
+              </div>
+              <div class="demo-chart" aria-hidden="true">
+                <div class="demo-row group"></div>
+                <div class="demo-row"><span class="bar one"></span></div>
+                <div class="demo-row"><span class="bar two green"></span></div>
+                <div class="demo-row group"></div>
+                <div class="demo-row"><span class="bar three red"></span></div>
+                <div class="demo-row"><span class="bar four muted"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <p>
+            Grouped work sits on the left, the time-based plan occupies the
+            center, and contextual task details appear alongside it. A separate
+            task-oriented view may help with inventory, filtering, and operational
+            triage, but it does not displace Timeline as the project manager’s
+            primary workspace.
+          </p>
+          <div class="rule">
+            Users may create different perspectives, but they should not silently
+            create different meanings.
+          </div>
+          <p>
+            Grouping, filtering, zooming, annotations, and saved views can remain
+            flexible. Shared meanings—completed, blocked, critical, dependent—stay
+            stable across the organization.
+          </p>
+        </section>
+
+        <section id="states" data-section>
+          <p class="section-number">03 — The semantic model</p>
+          <h2>One project. Six kinds of truth.</h2>
+          <p class="lede">
+            PMIS refuses to present planning, reality, and prediction as if they
+            were interchangeable. Timeline may display several layers, but each
+            keeps a distinct meaning.
+          </p>
+
+          <div class="state-grid">
+            <div class="state-card">
+              <strong>Active Plan</strong>
+              <p>The approved schedule currently in operation—the plan people are expected to follow.</p>
+            </div>
+            <div class="state-card">
+              <strong>Approved Baseline</strong>
+              <p>An immutable, formally accepted reference used to understand variance and commitment.</p>
+            </div>
+            <div class="state-card">
+              <strong>Actual Progress</strong>
+              <p>Reported or observed project events: starts, completion, blockers, and verified work.</p>
+            </div>
+            <div class="state-card">
+              <strong>Forecast</strong>
+              <p>The expected future outcome calculated from supported inputs and dependency analysis.</p>
+            </div>
+            <div class="state-card">
+              <strong>Scenario</strong>
+              <p>A private, non-operational what-if plan owned by one person.</p>
+            </div>
+            <div class="state-card">
+              <strong>Plan History</strong>
+              <p>The complete, read-only record of project changes, formal moments, authorship, and effects.</p>
+            </div>
+          </div>
+
+          <p>
+            Actual Progress is evidence. Forecast is inference. An Approved
+            Baseline is a commitment. A Scenario is an argument about what could
+            happen. Keeping these apart gives the project manager a more honest
+            picture of the project.
+          </p>
+        </section>
+
+        <section id="lifecycle" data-section>
+          <p class="section-number">04 — Plan lifecycle</p>
+          <h2>Approval first. Operation second.</h2>
+          <p class="lede">
+            A what-if plan cannot jump directly into operation. PMIS separates
+            approval from activation so legitimacy is established before a plan
+            directs the team.
+          </p>
+
+          <figure class="diagram" data-label="Plan lifecycle">
+            <pre class="mermaid">
+flowchart LR
+  S["Scenario<br/>private what-if"] --> R["Authority review"]
+  R --> B["Approved Baseline<br/>immutable"]
+  B -->|activate now or later| A["Active Plan<br/>operational"]
+  A --> P["Actual Progress<br/>continues to accumulate"]
+
+  classDef scenario fill:#dce8ee,stroke:#315f80,color:#161815;
+  classDef approval fill:#f0dfc4,stroke:#9a5d16,color:#161815;
+  classDef baseline fill:#dce9df,stroke:#1d6b4d,color:#161815;
+  classDef active fill:#161815,stroke:#161815,color:#f4f1e9;
+  classDef actual fill:#efdad6,stroke:#a33f34,color:#161815;
+  class S scenario;
+  class R approval;
+  class B baseline;
+  class A active;
+  class P actual;
+            </pre>
+            <figcaption>Approval makes a plan legitimate; activation makes it operational.</figcaption>
+          </figure>
+
+          <p>
+            An Approved Baseline may wait for a future activation. When it is
+            activated in an ongoing project, PMIS attempts to reconcile it with
+            Actual Progress. Completed work and historical facts remain intact.
+            Compatible planning changes are applied; conflicts and limitations are
+            disclosed before the user continues.
+          </p>
+
+          <div class="record" aria-label="Example reconciliation summary">
+            <div class="record-head"><span>Reconciliation preview</span><span>Before activation</span></div>
+            <div class="record-main">
+              <strong>This approved plan meets an ongoing project.</strong>
+              <ul class="record-tree">
+                <li><b>18 changes</b> can be applied</li>
+                <li><b>3 changes</b> require review</li>
+                <li><b>2 changes</b> cannot be reconciled automatically</li>
+                <li><b>Actual Progress</b> and Plan History remain preserved</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="authority" data-section>
+          <p class="section-number">05 — Governance</p>
+          <h2>Authority should be visible.</h2>
+          <p class="lede">
+            A <strong>Project Authority Map</strong> shows who proposes,
+            acknowledges, approves, and is informed. It explains the relationship
+            behind a decision instead of hiding governance inside a dense
+            permission table.
+          </p>
+
+          <figure class="diagram" data-label="Standard Project Authority">
+            <pre class="mermaid">
+flowchart LR
+  PM["Project Manager<br/>prepares + proposes"] --> WL["Affected Workstream Leads<br/>acknowledge feasibility"]
+  WL --> SP["Project Sponsor<br/>final approval"]
+  SP --> AB["Approved Baseline"]
+
+  classDef prepare fill:#dce8ee,stroke:#315f80,color:#161815;
+  classDef acknowledge fill:#f0dfc4,stroke:#9a5d16,color:#161815;
+  classDef approve fill:#161815,stroke:#161815,color:#f4f1e9;
+  classDef outcome fill:#dce9df,stroke:#1d6b4d,color:#161815;
+  class PM prepare;
+  class WL acknowledge;
+  class SP approve;
+  class AB outcome;
+            </pre>
+            <figcaption>The default map. Smaller or controlled projects may choose a different preset.</figcaption>
+          </figure>
+
+          <p>
+            Acknowledgement means that affected leads reviewed feasibility and
+            impact. It is not final approval and does not automatically create a
+            veto. The sponsor remains accountable for the final decision.
+          </p>
+
+          <div class="comparison" aria-label="Authority presets">
+            <div>
+              <span class="tag">Owner-led</span>
+              <h3>One final authority</h3>
+              <p>Suitable for small or centralized projects where one role prepares and approves.</p>
+            </div>
+            <div>
+              <span class="tag">Default</span>
+              <h3>Standard authority</h3>
+              <p>Manager proposes, affected leads acknowledge, sponsor approves.</p>
+            </div>
+            <div>
+              <span class="tag">Controlled</span>
+              <h3>Additional authority</h3>
+              <p>Add client, steering, compliance, or specialist approval when the commitment requires it.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="scenarios" data-section>
+          <p class="section-number">06 — What-if planning</p>
+          <h2>A Scenario belongs to one mind.</h2>
+          <p class="lede">
+            A Scenario is a private laboratory for a planning argument. It has one
+            owner and one editor, preserving the integrity and authorship of that
+            proposal.
+          </p>
+
+          <figure class="diagram" data-label="Scenario ownership">
+            <pre class="mermaid">
+flowchart LR
+  AP["Active Plan"] --> AS["Ashley's Scenario<br/>private + editable by Ashley"]
+  AS -->|share| RV["Read-only review"]
+  RV -->|create from this| TS["Tom's Scenario<br/>independent + editable by Tom"]
+  AS -. no sync / merge .- TS
+
+  classDef source fill:#161815,stroke:#161815,color:#f4f1e9;
+  classDef own fill:#dce8ee,stroke:#315f80,color:#161815;
+  classDef review fill:#f0dfc4,stroke:#9a5d16,color:#161815;
+  class AP source;
+  class AS,TS own;
+  class RV review;
+            </pre>
+            <figcaption>Sharing enables review, not co-editing. A different argument becomes a different Scenario.</figcaption>
+          </figure>
+
+          <p>
+            Scenarios are unlimited and private by default. They may be shared
+            read-only indefinitely. A viewer may create a new independent Scenario
+            from the shared state, but the two proposals do not synchronize,
+            merge, or rebase.
+          </p>
+        </section>
+
+        <section id="dependencies" data-section>
+          <p class="section-number">07 — Schedule intelligence</p>
+          <h2>Dependencies are constraints, not decoration.</h2>
+          <p class="lede">
+            When a predecessor violates a dependent task’s minimum start date,
+            the consequence becomes visible immediately in the Timeline.
+          </p>
+
+          <figure class="diagram" data-label="Forward-only propagation">
+            <pre class="mermaid">
+flowchart LR
+  A["Predecessor moves right"] --> V{"Minimum start<br/>violated?"}
+  V -->|No| U["Dependent stays unchanged"]
+  V -->|Yes| D["Push dependent forward<br/>preserve duration"]
+  D --> N{"Its dependent<br/>now violated?"}
+  N -->|Yes| D
+  N -->|No| E["Propagation ends"]
+
+  classDef action fill:#dce8ee,stroke:#315f80,color:#161815;
+  classDef decision fill:#f0dfc4,stroke:#9a5d16,color:#161815;
+  classDef result fill:#dce9df,stroke:#1d6b4d,color:#161815;
+  class A action;
+  class V,N decision;
+  class U,D,E result;
+            </pre>
+            <figcaption>Moving work earlier never automatically pulls dependent tasks backward.</figcaption>
+          </figure>
+
+          <p>
+            Dependency lines are progressively disclosed: direct relationships on
+            hover, expanded context on selection, critical chains in critical-path
+            mode, and the complete network only when explicitly requested. This
+            keeps the plan readable while preserving causal detail.
+          </p>
+
+          <h3>Forecast is calculated, not declared</h3>
+          <p>
+            Forecast uses supported inputs and dependency analysis, including PERT
+            and CPM. Users revise estimates, dependencies, progress, blockers, or
+            proposed dates; PMIS recalculates the expected outcome. The result is
+            prediction—not fact, baseline, or commitment.
+          </p>
+        </section>
+
+        <section id="participation" data-section>
+          <p class="section-number">08 — Participation</p>
+          <h2>Reporting work is not rewriting the plan.</h2>
+          <p class="lede">
+            Assignees contribute reality. Project governance determines what
+            becomes an operational commitment.
+          </p>
+          <ul class="plain-list">
+            <li>Report progress, blockers, and expected delay.</li>
+            <li>Submit completed work for confirmation by the task’s listed approver.</li>
+            <li>Request a date change without silently changing the Active Plan.</li>
+            <li>Attach evidence and context through the task’s record.</li>
+          </ul>
+
+          <figure class="diagram" data-label="Task completion">
+            <pre class="mermaid">
+flowchart LR
+  W["Assignee performs work"] --> S["Submit as done"]
+  S --> A["Listed task approver<br/>reviews completion"]
+  A -->|confirm| C["Completion recorded"]
+  A -->|changes needed| W
+
+  classDef work fill:#dce8ee,stroke:#315f80,color:#161815;
+  classDef review fill:#f0dfc4,stroke:#9a5d16,color:#161815;
+  classDef done fill:#dce9df,stroke:#1d6b4d,color:#161815;
+  class W,S work;
+  class A review;
+  class C done;
+            </pre>
+            <figcaption>Completion is reported by the assignee and confirmed by the task’s approver.</figcaption>
+          </figure>
+
+          <p>
+            A requested date change creates a bounded <strong>Task Change Proposal</strong>
+            and a proposed forecast visible to the project
+            manager or relevant supervisor. It is a focused review buffer—not a
+            new project Scenario.
+          </p>
+        </section>
+
+        <section id="history" data-section>
+          <p class="section-number">09 — Audit and memory</p>
+          <h2>Every change leaves a readable trace.</h2>
+          <p class="lede">
+            Plan History is a complete, read-only, searchable record of project
+            events and direct Timeline modifications. The application does not
+            hide an event because it guessed that the event was insignificant.
+          </p>
+
+          <div class="record" aria-label="Example Change Record">
+            <div class="record-head"><span>Change Record / Schedule</span><span>12 Aug · 10:42</span></div>
+            <div class="record-main">
+              <strong>Maya moved “Backend Integration” by three days.</strong>
+              <ul class="record-tree">
+                <li>Before: <b>12–15 Aug</b></li>
+                <li>After: <b>15–18 Aug</b></li>
+                <li>Automatic effect: <b>QA Testing moved 3 days</b></li>
+                <li>Automatic effect: <b>Release Forecast moved 2 days</b></li>
+              </ul>
+            </div>
+          </div>
+
+          <p>
+            One initiating action and its automatic downstream effects remain
+            grouped so cause and consequence stay understandable. Corrections
+            append a new Change Record; they do not rewrite earlier history.
+          </p>
+          <p>
+            Formal lifecycle events receive an automatic <strong>Key Moment</strong>
+            label for easier navigation. An Approved Baseline is an immutable,
+            formally approved Key Moment. Historical states are always read-only;
+            continuing from the past creates a Scenario.
+          </p>
+        </section>
+
+        <section id="promise" class="closing" data-section>
+          <p class="section-number">10 — The product promise</p>
+          <h2>Clarity without flattening the project.</h2>
+          <p>
+            Executives receive portfolio observability: active and delayed
+            projects, approval queues, health, risks, blockers, critical work, and
+            upcoming milestones. Project managers receive the full planning and
+            reasoning workspace. Assignees receive a focused way to report work
+            and request change.
+          </p>
+          <p>
+            PMIS makes the project’s plan, reality, forecast, alternatives,
+            authority, and history understandable—without pretending they are the
+            same thing.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>PMIS · Academic thesis prototype</span>
+      <span>Product explanation for humans · August 2026</span>
+    </div>
+  </footer>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: "strict",
+      theme: "base",
+      flowchart: { curve: "linear", htmlLabels: true, nodeSpacing: 28, rankSpacing: 42 },
+      themeVariables: {
+        background: "#f7f4ed",
+        primaryColor: "#dce8ee",
+        primaryTextColor: "#161815",
+        primaryBorderColor: "#315f80",
+        lineColor: "#65685f",
+        secondaryColor: "#dce9df",
+        tertiaryColor: "#f0dfc4",
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        fontSize: "14px"
+      }
+    });
+  </script>
+  <script>
+    const progress = document.querySelector(".progress");
+    const tocLinks = [...document.querySelectorAll(".toc a")];
+    const sections = [...document.querySelectorAll("[data-section]")];
+
+    const updateProgress = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const percent = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+      progress.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      tocLinks.forEach((link) => {
+        link.toggleAttribute("aria-current", link.hash === `#${visible.target.id}`);
+      });
+    }, { rootMargin: "-20% 0px -65% 0px", threshold: [0, 0.2, 0.6] });
+
+    sections.forEach((section) => observer.observe(section));
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
+  </script>
+</body>
+</html>

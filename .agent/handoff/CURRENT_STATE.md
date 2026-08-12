@@ -1,6 +1,6 @@
 # PMIS Current State
 
-Last updated: 2026-08-09
+Last updated: 2026-08-12
 
 ## Current Objective
 
@@ -107,6 +107,9 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   per task-position change instead of rebuilding a complete position map for
   every rendered edge. Recursive propagation also evaluates the latest end date
   across all direct predecessors before pushing a dependent.
+- The right task-details inspector is resizable from a 280px minimum to a 520px
+  maximum through a dedicated vertical separator. Its live width is passed into
+  `ContextInspector`, matching the existing task-list panel resize behavior.
 - PERT input fields are stored and displayed. Critical-path membership is
   currently static mock-data metadata; no CPM/PERT calculation engine for
   earliest/latest dates, slack, or computed critical path was found.
@@ -130,6 +133,11 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   the moved parent's new end, the preview layer was removed after release, one
   undo restored the original positions, and browser logs contained no warnings
   or errors.
+- Right-inspector resize verification (2026-08-12): selected a task in the
+  Mobile App Redesign fixture, expanded the task-details panel from 320px to
+  418px, and verified its minimum clamp at 280px. The inspector content matched
+  the live panel width and browser logs contained no warnings or errors. Strict
+  TypeScript validation and `git diff --check` passed.
 - Type check (2026-08-08): `node.exe .\node_modules\typescript\bin\tsc --noEmit
   --incremental false` passed.
 - Production build (2026-08-08): `npm.cmd run build` passed after network access was allowed
@@ -186,6 +194,8 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   dense connector-map allocation from the render loop.
 - Extended the isolated preview to render propagated child bars from the same
   frozen schedule used by the final release commit.
+- Added a matching resizable right inspector separator and width constraints to
+  the three-panel project view.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
 
@@ -194,6 +204,8 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `.agents/docs/GANTT_DRAG_PERFORMANCE.md`
 - `.agent/handoff/CURRENT_STATE.md`
 - `components/pmis/gantt-chart.tsx`
+- `components/pmis/context-inspector.tsx`
+- `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
 - `lib/pmis-store.ts`
 

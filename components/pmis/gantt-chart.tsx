@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef, useRef, useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react'
-import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -568,6 +568,7 @@ export function GanttChart({
     getVisibleRows,
     workstreams,
     openTaskCreate,
+    openTaskDelete,
   } = usePMISStore()
 
   const scale = SCALES[timelineScale]
@@ -1671,6 +1672,14 @@ export function GanttChart({
                 >
                   <GitBranch className="h-4 w-4" />
                   Add dependent task
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  variant="destructive"
+                  onSelect={() => createContext.taskId && openTaskDelete(createContext.taskId)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete task
                 </ContextMenuItem>
               </>
             )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link, CheckCircle2 } from 'lucide-react'
+import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link, CheckCircle2, Pencil, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, priorityConfig, teamConfig } from '@/lib/pmis-data'
+import { TaskEditForm } from './task-edit-form'
 
 export function ContextInspector({ width = 320 }: { width?: number }) {
   const {
@@ -24,6 +25,8 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
     reportTaskCompletion,
     confirmTaskCompletion,
     workstreams,
+    inspectorEditingTaskId,
+    setInspectorEditingTask,
   } = usePMISStore()
 
   if (!inspectorOpen || !selectedTaskId) {
@@ -32,6 +35,7 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
 
   const task = getTaskById(selectedTaskId)
   if (!task) return null
+  const isEditing = inspectorEditingTaskId === task.id
 
   const dependencies = getTaskDependencies(selectedTaskId)
   const dependents = getTaskDependents(selectedTaskId)
@@ -54,32 +58,91 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
   const forecast = getCurrentForecast()?.tasks.find((candidate) => candidate.taskId === task.id)
   const completionReported = Boolean(task.actual?.reportedCompletionAt)
   const completionConfirmed = Boolean(task.actual?.confirmedAt)
+  const editFormId = `task-edit-form-${task.id}`
 
   return (
     <div
-      className="flex h-full flex-col border-l border-border bg-card"
+      className="flex h-full min-h-0 flex-col border-l border-border bg-card"
       style={{ width, minWidth: width }}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h3 className="text-sm font-medium text-foreground">Task Details</h3>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-7 w-7"
-          onClick={() => {
-            selectTask(null)
-            setInspectorOpen(false)
-          }}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <h3 className="text-sm font-medium text-foreground">{isEditing ? 'Edit Task' : 'Task Details'}</h3>
+        <div className="flex items-center gap-1">
+          {isEditing ? (
+            <>
+              <Button
+                key="save-task"
+                id={`task-save-${task.id}`}
+                type="submit"
+                form={editFormId}
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Save task changes"
+                title="Save task changes"
+              >
+                <Save className="h-4 w-4" />
+              </Button>
+              <Button
+                key="cancel-task-edit"
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setInspectorEditingTask(null)}
+                aria-label="Cancel task editing"
+                title="Cancel task editing"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                key="edit-task"
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setInspectorEditingTask(task.id)}
+                aria-label="Edit task"
+                title="Edit task"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                key="close-task-details"
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => {
+                  selectTask(null)
+                  setInspectorOpen(false)
+                }}
+                aria-label="Close task details"
+                title="Close task details"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <ScrollArea
-        className="min-w-0 flex-1"
+        className="min-h-0 min-w-0 flex-1"
         viewportClassName="[&>div]:!block [&>div]:!w-full [&>div]:!min-w-0"
       >
+        {isEditing ? (
+          <TaskEditForm
+            key={task.id}
+            task={task}
+            formId={editFormId}
+            onSaved={() => setInspectorEditingTask(null)}
+          />
+        ) : (
         <div className="w-full min-w-0 max-w-full space-y-6 overflow-hidden p-4">
           {/* Title and status */}
           <div className="space-y-3">
@@ -382,6 +445,7 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
             </>
           )}
         </div>
+        )}
       </ScrollArea>
     </div>
   )

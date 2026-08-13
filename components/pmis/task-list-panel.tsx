@@ -55,6 +55,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -72,7 +80,8 @@ function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
     selectedTaskId, 
     hoveredTaskId, 
     selectTask, 
-    hoverTask 
+    hoverTask,
+    openTaskDelete,
   } = usePMISStore()
 
   const isSelected = selectedTaskId === task.id
@@ -82,8 +91,11 @@ function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
   const teamCfg = teamConfig[task.teamName]
 
   return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
     <div
       data-row-key={`task-${task.id}`}
+      data-task-id={task.id}
       className={cn(
         'task-row flex h-full cursor-pointer items-center border-b border-border/50',
         compact ? 'gap-2 px-2' : 'gap-3 px-3',
@@ -92,6 +104,7 @@ function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
         isHovered && !isSelected && 'bg-accent/30'
       )}
       onClick={() => selectTask(task.id)}
+      onContextMenu={() => selectTask(task.id)}
       onMouseEnter={() => hoverTask(task.id)}
       onMouseLeave={() => hoverTask(null)}
     >
@@ -146,6 +159,18 @@ function TaskRow({ task, compact }: { task: Task; compact: boolean }) {
         </div>
       )}
     </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+          {task.name}
+        </ContextMenuLabel>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={() => openTaskDelete(task.id)}>
+          <Trash2 className="h-4 w-4" />
+          Delete task
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -162,6 +187,7 @@ function GroupHeaderRow({
   taskCount,
   compact,
   showTeamSummary,
+  onAddTask,
   onRename,
   onDelete,
 }: {
@@ -169,6 +195,7 @@ function GroupHeaderRow({
   taskCount: number
   compact: boolean
   showTeamSummary: boolean
+  onAddTask: (workstream: Workstream) => void
   onRename: (workstream: Workstream) => void
   onDelete: (workstream: Workstream) => void
 }) {
@@ -193,7 +220,7 @@ function GroupHeaderRow({
     <div
       data-row-key={`group-${group}`}
       className={cn(
-        'flex w-full items-center border-b border-border transition-colors hover:bg-accent/30',
+        'group/workstream flex w-full items-center border-b border-border transition-colors hover:bg-accent/30',
         compact ? 'pr-1' : 'pr-2'
       )}
       style={{ height: GROUP_HEADER_HEIGHT }}
@@ -255,6 +282,15 @@ function GroupHeaderRow({
           )}
         </span>
       </button>
+      <button
+        type="button"
+        className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus:opacity-100 group-hover/workstream:opacity-100 group-focus-within/workstream:opacity-100"
+        aria-label={`Add task to ${workstream.label}`}
+        title={`Add task to ${workstream.label}`}
+        onClick={() => onAddTask(workstream)}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={`Manage ${workstream.label}`}>
@@ -285,6 +321,7 @@ export function TaskListPanel({
 }) {
   const {
     tasks,
+    workstreams,
     getVisibleRows,
     createWorkstream,
     renameWorkstream,
@@ -375,7 +412,7 @@ export function TaskListPanel({
           style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }}
           className="sticky top-0 z-20 border-b border-border/60 bg-card"
         />
-        {tasks.length === 0 ? (
+        {workstreams.length === 0 ? (
           <Empty className="min-h-[280px] gap-4 border-0 px-5">
             <EmptyHeader>
               <EmptyMedia variant="icon"><ListTodo /></EmptyMedia>
@@ -400,6 +437,7 @@ export function TaskListPanel({
                 taskCount={row.taskCount}
                 compact={compact}
                 showTeamSummary={showTeamSummary}
+                onAddTask={(workstream) => openTaskCreate({ workstreamId: workstream.id })}
                 onRename={openRenameWorkstream}
                 onDelete={setDeleteTarget}
               />

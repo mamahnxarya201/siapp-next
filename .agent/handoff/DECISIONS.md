@@ -466,3 +466,65 @@ Evidence:
 Open questions:
 - Forecast confidence presentation, task approver assignment, and detailed action
   permissions remain deferred.
+
+### DEC-012 -- Unified Timeline task authoring interactions
+
+- Status: VERIFIED
+- Date: 2026-08-12
+- Confirmed by: user
+- Scope: product | UX | implementation
+- Supersedes: none; applies DEC-001 and preserves DEC-011
+- Source: `.agent/task/001-unionizing-ui.md` and user confirmation in the
+  2026-08-12 implementation conversation
+
+Decision:
+Timeline task creation, editing, and deletion are core features. Every task must
+belong to a workstream. Users may create a task from its Timeline date context or
+from a hover-revealed action on a workstream header; if no workstream exists, the
+creation flow first explains and creates the required workstream.
+
+Task deletion is available from both Timeline bars and task-list rows through one
+confirmation flow. Deleting recursive dependent descendants is explicit and
+optional. When the selected task is the workstream's only task, deleting the
+workstream is also an explicit optional choice.
+
+The task inspector uses pencil, save, and cancel controls. Edit mode covers
+user-authored task fields. Calculated Forecast, completion confirmation,
+dependent links, comments, and history remain derived, governed, or read-only in
+accordance with DEC-011. Affirmative dialog actions precede cancellation actions
+for keyboard-centric operation.
+
+The core automated strategy is focused unit testing plus Playwright interaction
+testing. Broader integration testing is deferred.
+
+Rationale:
+The Timeline is the primary workspace and must provide discoverable, consistent
+task-authoring paths without weakening workstream grouping or governed planning
+semantics.
+
+Consequences:
+- Reuse shared creation and deletion flows across Timeline and task-list entry
+  points.
+- Keep workstream membership mandatory and independent from dependency hierarchy.
+- Treat "children" in task deletion as all recursive dependent descendants.
+- Clean dependency references after deletion and make each mutation undoable.
+- Keep Forecast and completion state outside ordinary inspector editing.
+- Maintain focused unit and Playwright coverage; integration coverage may be
+  added later.
+
+Evidence:
+- `components/pmis/task-create-dialog.tsx`
+- `components/pmis/task-delete-dialog.tsx`
+- `components/pmis/task-edit-form.tsx`
+- `components/pmis/context-inspector.tsx`
+- `components/pmis/task-list-panel.tsx`
+- `components/pmis/gantt-chart.tsx`
+- `lib/pmis-store.ts`
+- `lib/domain/task-mutations.ts`
+- `tests/unit/task-mutations.test.ts`
+- `tests/e2e/timeline-task-flows.spec.ts`
+- 2026-08-13 verification: 3 unit tests and 2 Playwright scenarios passed;
+  strict TypeScript, `git diff --check`, and the production build passed.
+
+Open questions:
+- Integration testing remains deferred by explicit user choice.

@@ -108,7 +108,7 @@ export function ProjectView() {
   }, [isResizingRight])
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex min-h-0 flex-1 overflow-hidden">
       {/* Left Panel - Task List */}
       {!leftPanelHidden && (
         <>
@@ -164,7 +164,7 @@ export function ProjectView() {
             onMouseDown={beginRightResize}
           />
           <div
-            className="flex-shrink-0 overflow-hidden"
+            className="flex min-h-0 flex-shrink-0 overflow-hidden"
             style={{ width: rightPanelWidth, minWidth: RIGHT_PANEL_MIN_WIDTH }}
           >
             <ContextInspector width={rightPanelWidth} />

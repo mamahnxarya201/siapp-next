@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, GitBranch, Milestone, Users } from 'lucide-react'
+import { Blocks, CalendarDays, GitBranch, Milestone, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -107,6 +107,7 @@ export function TaskCreateDialog() {
     taskCreateDefaults,
     closeTaskCreate,
     createTask,
+    createWorkstream,
     workstreams,
     projects,
     currentProjectId,
@@ -124,6 +125,8 @@ export function TaskCreateDialog() {
   const [dependentIds, setDependentIds] = useState<string[]>([])
   const [isMilestone, setIsMilestone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [firstWorkstreamName, setFirstWorkstreamName] = useState('')
+  const [workstreamError, setWorkstreamError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!taskCreateOpen) return
@@ -145,6 +148,8 @@ export function TaskCreateDialog() {
     setDependentIds(taskCreateDefaults.dependentIds ?? [])
     setIsMilestone(taskCreateDefaults.isMilestone ?? false)
     setError(null)
+    setFirstWorkstreamName('')
+    setWorkstreamError(null)
   }, [taskCreateDefaults, taskCreateOpen, workstreams])
 
   const currentProject = projects.find((project) => project.id === currentProjectId) ?? projects[0]
@@ -184,9 +189,66 @@ export function TaskCreateDialog() {
     if (!result.ok) setError(result.error)
   }
 
+  const createFirstWorkstream = () => {
+    const result = createWorkstream(firstWorkstreamName)
+    if (!result.ok) {
+      setWorkstreamError(result.error)
+      return
+    }
+
+    setWorkstreamId(result.id)
+    setFirstWorkstreamName('')
+    setWorkstreamError(null)
+  }
+
   return (
     <Dialog open={taskCreateOpen} onOpenChange={(open) => !open && closeTaskCreate()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+        {workstreams.length === 0 ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Create a workstream first</DialogTitle>
+              <DialogDescription>
+                Every task must belong to a workstream. Create the first delivery lane, then this dialog will continue to task creation with it selected.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                createFirstWorkstream()
+              }}
+            >
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <Blocks className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Tasks stay grouped by delivery workstream</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Workstream membership organizes the Timeline and remains independent from task dependencies.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="first-workstream-name">Workstream name</Label>
+                <Input
+                  id="first-workstream-name"
+                  autoFocus
+                  value={firstWorkstreamName}
+                  onChange={(event) => setFirstWorkstreamName(event.target.value)}
+                  placeholder="Example: Delivery Foundation"
+                />
+              </div>
+              {workstreamError && <p role="alert" className="text-sm text-destructive">{workstreamError}</p>}
+              <DialogFooter className="flex-col sm:justify-start">
+                <Button type="submit">Create workstream</Button>
+                <Button type="button" variant="outline" onClick={closeTaskCreate}>Cancel</Button>
+              </DialogFooter>
+            </form>
+          </>
+        ) : (
+          <>
         <DialogHeader>
           <DialogTitle>New task</DialogTitle>
           <DialogDescription>
@@ -311,11 +373,13 @@ export function TaskCreateDialog() {
 
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeTaskCreate}>Cancel</Button>
+          <DialogFooter className="flex-col sm:justify-start">
             <Button type="submit">Create task</Button>
+            <Button type="button" variant="outline" onClick={closeTaskCreate}>Cancel</Button>
           </DialogFooter>
         </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )

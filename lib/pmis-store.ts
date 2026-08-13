@@ -18,6 +18,11 @@ import {
 import { calculateForecast } from './domain/forecast'
 import { toActivePlan } from './domain/pmis-adapter'
 import type { ForecastResult } from './domain/planning-types'
+import {
+  collectRecursiveDependentIds,
+  removeTasksFromDependencyGraph,
+  wouldCreateTaskDependencyCycle,
+} from './domain/task-mutations'
 
 const initialProjectWorkspaces = createProjectWorkspaces()
 const defaultProjectId = initialProjects[0]?.id ?? ''
@@ -56,6 +61,31 @@ export interface CreateTaskInput {
   predecessorIds: string[]
   dependentIds: string[]
   isMilestone: boolean
+}
+
+export interface UpdateTaskInput {
+  name: string
+  description: string
+  startDate: Date
+  endDate: Date
+  workstreamId: WorkstreamGroup
+  teamName: TaskTeam
+  assigneeId: string
+  status: Task['status']
+  priority: Task['priority']
+  riskLevel: Task['riskLevel']
+  optimisticDays: number
+  estimatedDays: number
+  pessimisticDays: number
+  predecessorIds: string[]
+  blockers: string[]
+  linkedChangeRequests: string[]
+  isMilestone: boolean
+}
+
+export interface DeleteTaskOptions {
+  deleteDescendants: boolean
+  deleteWorkstreamIfEmpty: boolean
 }
 
 export type PMISMutationResult =
@@ -228,8 +258,10 @@ interface PMISState {
   showCriticalPath: boolean
   expandedGroups: WorkstreamGroup[]
   inspectorOpen: boolean
+  inspectorEditingTaskId: string | null
   taskCreateOpen: boolean
   taskCreateDefaults: TaskCreationDefaults
+  taskDeleteTargetId: string | null
   undoStack: PMISHistorySnapshot[]
   redoStack: PMISHistorySnapshot[]
   historyTransaction: PMISHistorySnapshot | null
@@ -251,10 +283,15 @@ interface PMISState {
   toggleCriticalPath: () => void
   toggleGroup: (group: WorkstreamGroup) => void
   setInspectorOpen: (open: boolean) => void
+  setInspectorEditingTask: (taskId: string | null) => void
   setSearchQuery: (query: string) => void
   openTaskCreate: (defaults?: TaskCreationDefaults) => void
   closeTaskCreate: () => void
   createTask: (input: CreateTaskInput) => PMISMutationResult
+  updateTask: (taskId: string, input: UpdateTaskInput) => PMISMutationResult
+  openTaskDelete: (taskId: string) => void
+  closeTaskDelete: () => void
+  deleteTask: (taskId: string, options: DeleteTaskOptions) => PMISMutationResult
   createWorkstream: (label: string) => PMISMutationResult
   renameWorkstream: (id: WorkstreamGroup, label: string) => PMISMutationResult
   deleteWorkstream: (id: WorkstreamGroup) => PMISMutationResult
@@ -296,8 +333,10 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   showCriticalPath: false,
   expandedGroups: ['foundation', 'core-platform', 'execution-ui', 'validation', 'release'],
   inspectorOpen: true,
+  inspectorEditingTaskId: null,
   taskCreateOpen: false,
   taskCreateDefaults: {},
+  taskDeleteTargetId: null,
   undoStack: [],
   redoStack: [],
   historyTransaction: null,
@@ -331,12 +370,14 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       workstreams: workspace.workstreams,
       expandedGroups: workspace.workstreams.map((workstream) => workstream.id),
       selectedTaskId: null,
+      inspectorEditingTaskId: null,
       hoveredTaskId: null,
       showAllDependencies: false,
       showCriticalPath: false,
       searchQuery: '',
       taskCreateOpen: false,
       taskCreateDefaults: {},
+      taskDeleteTargetId: null,
       undoStack: [],
       redoStack: [],
       historyTransaction: null,
@@ -345,10 +386,13 @@ export const usePMISStore = create<PMISState>((set, get) => ({
     }
   }),
   
-  selectTask: (taskId) => set({ 
+  selectTask: (taskId) => set((state) => ({
     selectedTaskId: taskId,
-    inspectorOpen: taskId !== null 
-  }),
+    inspectorOpen: taskId !== null,
+    inspectorEditingTaskId: state.selectedTaskId === taskId
+      ? state.inspectorEditingTaskId
+      : null,
+  })),
   
   hoverTask: (taskId) => set({ hoveredTaskId: taskId }),
   
@@ -369,6 +413,8 @@ export const usePMISStore = create<PMISState>((set, get) => ({
   })),
   
   setInspectorOpen: (open) => set({ inspectorOpen: open }),
+
+  setInspectorEditingTask: (taskId) => set({ inspectorEditingTaskId: taskId }),
   
   setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -459,6 +505,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       tasks: nextTasks,
       selectedTaskId: taskId,
       inspectorOpen: true,
+      inspectorEditingTaskId: null,
       taskCreateOpen: false,
       taskCreateDefaults: {},
       expandedGroups: state.expandedGroups.includes(input.workstreamId)
@@ -466,6 +513,147 @@ export const usePMISStore = create<PMISState>((set, get) => ({
         : [...state.expandedGroups, input.workstreamId],
       currentProjectId: state.currentProjectId ?? state.projects[0]?.id ?? null,
       currentView: 'project',
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
+    })
+
+    return { ok: true, id: taskId }
+  },
+
+  updateTask: (taskId, input) => {
+    const state = get()
+    const task = state.tasks.find((candidate) => candidate.id === taskId)
+    if (!task) return { ok: false, error: 'Task not found.' }
+
+    const name = input.name.trim()
+    const description = input.description.trim()
+    const predecessorIds = Array.from(new Set(input.predecessorIds))
+      .filter((id) => id !== taskId && state.tasks.some((candidate) => candidate.id === id))
+    const blockers = input.blockers.map((blocker) => blocker.trim()).filter(Boolean)
+    const linkedChangeRequests = input.linkedChangeRequests.map((item) => item.trim()).filter(Boolean)
+
+    if (!name) return { ok: false, error: 'Task title is required.' }
+    if (!state.workstreams.some((workstream) => workstream.id === input.workstreamId)) {
+      return { ok: false, error: 'Choose an existing workstream.' }
+    }
+    if (input.endDate.getTime() <= input.startDate.getTime()) {
+      return { ok: false, error: 'End date must be after start date.' }
+    }
+    if (
+      !Number.isFinite(input.optimisticDays)
+      || !Number.isFinite(input.estimatedDays)
+      || !Number.isFinite(input.pessimisticDays)
+      || input.optimisticDays <= 0
+      || input.optimisticDays > input.estimatedDays
+      || input.estimatedDays > input.pessimisticDays
+    ) {
+      return { ok: false, error: 'PERT estimates must be positive and ordered optimistic ≤ most likely ≤ pessimistic.' }
+    }
+    if (input.status === 'done' && !task.actual?.confirmedAt) {
+      return { ok: false, error: 'Completion must be reported and confirmed through the governed completion flow.' }
+    }
+    if (wouldCreateTaskDependencyCycle(state.tasks, taskId, predecessorIds)) {
+      return { ok: false, error: 'Those predecessor choices would create a dependency cycle.' }
+    }
+
+    const assignee = teamMembers.find((member) => member.id === input.assigneeId) ?? task.assignee
+    const duration = input.endDate.getTime() - input.startDate.getTime()
+    const minimumStart = predecessorIds.reduce<Date | null>((latest, predecessorId) => {
+      const predecessor = state.tasks.find((candidate) => candidate.id === predecessorId)
+      if (!predecessor) return latest
+      return !latest || predecessor.endDate.getTime() > latest.getTime() ? predecessor.endDate : latest
+    }, null)
+    const startDate = minimumStart && input.startDate.getTime() < minimumStart.getTime()
+      ? new Date(minimumStart)
+      : new Date(input.startDate)
+    const endDate = new Date(startDate.getTime() + duration)
+
+    let nextTasks = state.tasks.map((candidate) => {
+      if (candidate.id === taskId) {
+        return {
+          ...candidate,
+          name,
+          description,
+          group: input.teamName,
+          groupName: input.workstreamId,
+          teamName: input.teamName,
+          assignee,
+          status: input.status,
+          priority: input.priority,
+          riskLevel: input.riskLevel,
+          startDate,
+          endDate,
+          earliestStart: minimumStart ? new Date(minimumStart) : new Date(startDate),
+          optimisticDays: Math.round(input.optimisticDays),
+          estimatedDays: Math.round(input.estimatedDays),
+          pessimisticDays: Math.round(input.pessimisticDays),
+          dependencies: predecessorIds,
+          blockers,
+          linkedChangeRequests,
+          isMilestone: input.isMilestone,
+        }
+      }
+
+      const wasPredecessor = task.dependencies.includes(candidate.id)
+      const isPredecessor = predecessorIds.includes(candidate.id)
+      if (wasPredecessor === isPredecessor) return candidate
+      return {
+        ...candidate,
+        dependents: isPredecessor
+          ? Array.from(new Set([...candidate.dependents, taskId]))
+          : candidate.dependents.filter((dependentId) => dependentId !== taskId),
+      }
+    })
+    nextTasks = propagateScheduleForward(nextTasks, [taskId])
+
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    set({
+      tasks: nextTasks,
+      expandedGroups: state.expandedGroups.includes(input.workstreamId)
+        ? state.expandedGroups
+        : [...state.expandedGroups, input.workstreamId],
+      undoStack: nextUndoStack,
+      redoStack: [],
+      historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
+    })
+    return { ok: true, id: taskId }
+  },
+
+  openTaskDelete: (taskId) => set({ taskDeleteTargetId: taskId }),
+
+  closeTaskDelete: () => set({ taskDeleteTargetId: null }),
+
+  deleteTask: (taskId, options) => {
+    const state = get()
+    const task = state.tasks.find((candidate) => candidate.id === taskId)
+    if (!task) return { ok: false, error: 'Task not found.' }
+
+    const taskIds = new Set([taskId])
+    if (options.deleteDescendants) {
+      collectRecursiveDependentIds(state.tasks, taskId).forEach((id) => taskIds.add(id))
+    }
+
+    const nextTasks = removeTasksFromDependencyGraph(state.tasks, taskIds)
+    const removeWorkstream = options.deleteWorkstreamIfEmpty
+      && !nextTasks.some((candidate) => candidate.groupName === task.groupName)
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+
+    set({
+      tasks: nextTasks,
+      workstreams: removeWorkstream
+        ? state.workstreams.filter((workstream) => workstream.id !== task.groupName)
+        : state.workstreams,
+      expandedGroups: removeWorkstream
+        ? state.expandedGroups.filter((group) => group !== task.groupName)
+        : state.expandedGroups,
+      selectedTaskId: taskIds.has(state.selectedTaskId ?? '') ? null : state.selectedTaskId,
+      hoveredTaskId: taskIds.has(state.hoveredTaskId ?? '') ? null : state.hoveredTaskId,
+      inspectorOpen: taskIds.has(state.selectedTaskId ?? '') ? false : state.inspectorOpen,
+      taskDeleteTargetId: null,
+      inspectorEditingTaskId: null,
       undoStack: nextUndoStack,
       redoStack: [],
       historyTransaction: null,
@@ -581,6 +769,8 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       hoveredTaskId: null,
       taskCreateOpen: false,
       taskCreateDefaults: {},
+      taskDeleteTargetId: null,
+      inspectorEditingTaskId: null,
       ...historyFlags(nextUndoStack, nextRedoStack),
     }
   }),
@@ -601,6 +791,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       hoveredTaskId: null,
       taskCreateOpen: false,
       taskCreateDefaults: {},
+      taskDeleteTargetId: null,
       ...historyFlags(nextUndoStack, nextRedoStack),
     }
   }),

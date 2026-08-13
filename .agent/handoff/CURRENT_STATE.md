@@ -272,6 +272,14 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   baseline approval/activation, schedule changes, and Task Change Proposals.
 - Added `.agents/docs/PMIS_TECHNICAL_ARCHITECTURE.md` as the durable handoff for
   the adapter boundary and remaining integration work.
+- Added `.agents/docs/PLANNING_UI_IMPLEMENTATION_HANDOFF.md` and implemented
+  `components/pmis/planning-panel.tsx` with Forecast, Plan History, Scenarios,
+  Approved Baselines, and Task Change Proposals tabs. The panel is opened from a
+  project-scoped Planning button and does not participate in Gantt pointer-frame
+  updates.
+- Plan History loads read-only Change Records from the SQLite-backed API, and
+  Scenario creation posts a snapshot of the current Active Plan through the
+  planning command endpoint.
 
 ## Confirmed Decisions Awaiting Implementation
 
@@ -300,19 +308,19 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - The current Timeline still renders fixture `isCriticalPath` metadata; the
   calculated Forecast API is available but has not yet replaced every visual
   critical-path consumer.
-- Completion-report/confirmation API commands and visible Plan History, Forecast,
-  Scenario, and baseline controls remain follow-up integration work.
+- Completion-report/confirmation API commands, authenticated actor resolution,
+  proposal review APIs, and full scenario/baseline/reconciliation action
+  controls remain follow-up integration work.
 - User-supervised product discussions remain open for scheduling conventions,
   layered project-state/domain authority, canonical grouping semantics, and
   checkpoint/scenario governance. Future implementation touching those topics
   should ask for confirmation and record the confirmed decision in writing.
-- Populated workstream deletion requires a future task reassignment/editing flow;
-  until then, only empty workstreams can be deleted. The user clarified that mock
-  workstream deletion may later allow deleting child/member tasks or keeping them
-  parentless/unassigned, but that behavior is not implemented yet.
+- Workstream deletion remains limited to empty workstreams. Tasks can now be
+  reassigned to another workstream through inspector edit mode before deletion.
 - Lint cannot run until a flat ESLint configuration compatible with ESLint 10 is
   added or the lint toolchain is otherwise aligned.
-- Automated behavioral tests are absent.
+- Integration testing for the unified task-authoring flow is deferred. Focused
+  unit and Playwright interaction coverage now exists.
 
 ## Next Action
 
@@ -320,3 +328,72 @@ Wire the current fixture workspace to the repository through server actions, add
 focused domain tests for scheduling/forecast/reconciliation, then replace static
 critical-path rendering with calculated Forecast output. PostgreSQL/Supabase
 adapter work waits for DBA schema and authentication decisions.
+
+## Unified Timeline task authoring (2026-08-13)
+
+- Follow-up verification confirms the inspector keeps long task details inside a
+  constrained scroll viewport, and the final selectable edit field tabs to the
+  keyed Save action.
+- Milestones remain supported: product knowledge, task data, creation/edit
+  forms, and Gantt rendering all establish this as an existing timeline and
+  academic feature.
+
+- Implemented the confirmed core task-authoring flow from
+  `.agent/task/001-unionizing-ui.md` without changing the three-panel Timeline or
+  dependency scheduling rules.
+- Workstream headers expose a hover/focus add-task control that opens the shared
+  creation dialog with the workstream selected.
+- Projects without workstreams cannot create an ungrouped task. The shared dialog
+  explains the rule, creates the first workstream, and then continues the task
+  flow with that workstream selected.
+- Creation and deletion dialogs place the affirmative action before Cancel and
+  support keyboard form submission.
+- Task-list rows and Gantt bars expose the same task deletion flow. Its recursive
+  dependent option is shown only when descendants exist; the workstream option is
+  shown only when the selected task is the workstream's sole task.
+- Deletion removes selected tasks atomically, cleans both sides of surviving
+  dependency references, closes deleted selections, and participates in undo/redo.
+- The inspector now has pencil, save, and cancel modes. Save commits one undoable
+  mutation; Cancel discards its local draft. User-authored task fields are
+  editable while Forecast, completion confirmation, dependents, comments, and
+  history remain governed or derived.
+- Inspector edit-session identity is centralized with selection state so drafts
+  cannot leak between tasks. Distinct keyed edit/save controls prevent React DOM
+  reuse from turning a pencil click into an unintended form submission.
+- Added Vitest and Playwright scripts/configuration. Unit tests cover recursive
+  descendants, graph cleanup, and cycle rejection. Playwright covers shared
+  create/edit/delete interaction, dynamic deletion controls, keyboard submission,
+  and the no-workstream continuation flow.
+
+### Files added or materially changed for this feature
+
+- `.agent/task/001-unionizing-ui.md`
+- `.agent/handoff/DECISIONS.md`
+- `.agent/handoff/CURRENT_STATE.md`
+- `components/pmis/context-inspector.tsx`
+- `components/pmis/gantt-chart.tsx`
+- `components/pmis/pmis-app.tsx`
+- `components/pmis/task-create-dialog.tsx`
+- `components/pmis/task-delete-dialog.tsx`
+- `components/pmis/task-edit-form.tsx`
+- `components/pmis/task-list-panel.tsx`
+- `lib/domain/task-mutations.ts`
+- `lib/pmis-store.ts`
+- `package.json`
+- `package-lock.json`
+- `playwright.config.ts`
+- `tests/e2e/timeline-task-flows.spec.ts`
+- `tests/unit/task-mutations.test.ts`
+- `vitest.config.mts`
+
+### Verification
+
+- `npm.cmd run test:unit`: passed, 3 tests.
+- `npm.cmd run test:e2e`: passed, 2 Chrome scenarios.
+- `node .\node_modules\typescript\bin\tsc --noEmit --incremental false`:
+  passed.
+- `git diff --check`: passed.
+- `npm.cmd run build`: passed. Next.js still reports that build-time type
+  validation is skipped by configuration; the separate strict type check passed.
+- User manual verification remains pending by explicit choice. Integration tests
+  remain deferred.

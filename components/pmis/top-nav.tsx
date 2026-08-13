@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun, Undo2, Redo2 } from 'lucide-react'
+import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun, Undo2, Redo2, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePMISStore } from '@/lib/pmis-store'
 import { cn } from '@/lib/utils'
 
-export function TopNav() {
+export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
   const { resolvedTheme, setTheme } = useTheme()
   const [themeReady, setThemeReady] = useState(false)
 
@@ -179,6 +179,13 @@ export function TopNav() {
           <Plus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">New Task</span>
         </Button>
+
+        {currentProjectId && (
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onOpenPlanning}>
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Planning</span>
+          </Button>
+        )}
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="h-8 w-8 relative">

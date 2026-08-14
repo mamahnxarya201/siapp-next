@@ -66,6 +66,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { teamMembers } from '@/lib/pmis-data'
 import { usePMISStore } from '@/lib/pmis-store'
 import { statusConfig, teamConfig, type Task, type Workstream } from '@/lib/pmis-data'
 import {
@@ -378,28 +379,16 @@ export function TaskListPanel({
         className="flex shrink-0 items-center justify-between border-b border-border px-3"
         style={{ height: PROJECT_PANEL_TOOLBAR_HEIGHT }}
       >
-        <h2 className="text-sm font-medium text-foreground">Tasks</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{tasks.length} total</span>
-          <button
-            type="button"
-            onClick={openCreateWorkstream}
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            aria-label="Add workstream"
-            title="Add workstream"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onHide}
-            className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            aria-label="Hide task list"
-            title="Hide task list"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-1" aria-label="People in project">
+          {teamMembers.slice(0, 5).map((member) => (
+            <Avatar key={member.id} className="h-8 w-8 border-2 border-card">
+              <AvatarFallback className="flex items-center justify-center bg-primary/15 text-[10px] font-medium text-foreground">{member.initials}</AvatarFallback>
+            </Avatar>
+          ))}
         </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-lg text-foreground" aria-label="People in Project">
+          <span aria-hidden="true">›</span>
+        </Button>
       </div>
 
       <div
@@ -410,8 +399,15 @@ export function TaskListPanel({
       >
         <div
           style={{ height: GANTT_TIMELINE_HEADER_HEIGHT }}
-          className="sticky top-0 z-20 border-b border-border/60 bg-card"
-        />
+          className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-card px-3"
+        >
+          <h2 className="text-sm font-medium text-foreground">Tasks</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{tasks.length} total</span>
+            <button type="button" onClick={openCreateWorkstream} className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground" aria-label="Add workstream" title="Add workstream"><Plus className="h-4 w-4" /></button>
+            <button type="button" onClick={onHide} className="rounded-md p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground" aria-label="Hide task list" title="Hide task list"><PanelLeftClose className="h-4 w-4" /></button>
+          </div>
+        </div>
         {workstreams.length === 0 ? (
           <Empty className="min-h-[280px] gap-4 border-0 px-5">
             <EmptyHeader>

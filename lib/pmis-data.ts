@@ -42,6 +42,7 @@ export interface Task {
   dependents: string[] // Task IDs that depend on this task
   blockers: string[]
   progress: number // 0-100
+  checklist?: TaskChecklistItem[]
   isMilestone: boolean
   isCriticalPath: boolean
   linkedChangeRequests: string[]
@@ -596,6 +597,13 @@ function applyFinishToStartConstraints(
   return sourceTasks.map((task) => schedule(task.id))
 }
 
+export interface TaskChecklistItem {
+  id: string
+  text: string
+  weight: number
+  completed: boolean
+}
+
 const addDaysFrom = (date: Date, days: number) => {
   const result = new Date(date)
   result.setDate(result.getDate() + days)
@@ -606,6 +614,7 @@ const scheduledTasks = applyFinishToStartConstraints(rawTasks)
 
 export const tasks: Task[] = scheduledTasks.map((task, index) => ({
   ...task,
+  checklist: [],
   groupName: WORKSTREAM_BY_TASK_ID[task.id] ?? 'core-platform',
   teamName: task.group,
   plannedStart: task.startDate,

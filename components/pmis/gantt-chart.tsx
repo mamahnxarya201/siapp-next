@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef, useRef, useState, useEffect, useCallback, useMemo, useImperativeHandle } from 'react'
-import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitBranch, AlertTriangle, Settings2, Plus, Milestone, ListTodo, Trash2, Undo2, Redo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -569,6 +569,10 @@ export function GanttChart({
     workstreams,
     openTaskCreate,
     openTaskDelete,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = usePMISStore()
 
   const scale = SCALES[timelineScale]
@@ -1175,13 +1179,15 @@ export function GanttChart({
             ))}
           </div>
 
-          {/* Scroll controls */}
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollTimeline('left')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollTimeline('right')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {/* Workspace history */}
+          <div className="flex items-center gap-1 border-l border-border pl-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={undo} disabled={!canUndo} aria-label="Undo last workspace change" title="Undo">
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={redo} disabled={!canRedo} aria-label="Redo last workspace change" title="Redo">
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
 
         </div>
 
@@ -1203,6 +1209,16 @@ export function GanttChart({
               <TooltipContent>Show all dependency lines</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Timeline scroll controls */}
+          <div className="flex items-center gap-1 border-l border-border pl-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollTimeline('left')} aria-label="Scroll timeline left" title="Scroll timeline left">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollTimeline('right')} aria-label="Scroll timeline right" title="Scroll timeline right">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
           {/* Toggle critical path */}
           <TooltipProvider>

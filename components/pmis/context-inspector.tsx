@@ -1,7 +1,9 @@
 'use client'
 
-import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link, CheckCircle2, Pencil, Save } from 'lucide-react'
+import { useState } from 'react'
+import { X, User, Calendar, Clock, GitBranch, AlertTriangle, MessageSquare, FileText, Link, CheckCircle2, Pencil, Save, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
@@ -9,10 +11,12 @@ import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
-import { statusConfig, priorityConfig, teamConfig } from '@/lib/pmis-data'
+import { statusConfig, priorityConfig, teamConfig, type TaskChecklistItem } from '@/lib/pmis-data'
 import { TaskEditForm } from './task-edit-form'
 
 export function ContextInspector({ width = 320 }: { width?: number }) {
+  const [newChecklistText, setNewChecklistText] = useState('')
+  const [checklistWeightDrafts, setChecklistWeightDrafts] = useState<Record<string, string>>({})
   const {
     selectedTaskId,
     inspectorOpen,
@@ -27,6 +31,7 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
     workstreams,
     inspectorEditingTaskId,
     setInspectorEditingTask,
+    updateTaskChecklist,
   } = usePMISStore()
 
   if (!inspectorOpen || !selectedTaskId) {
@@ -58,7 +63,37 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
   const forecast = getCurrentForecast()?.tasks.find((candidate) => candidate.taskId === task.id)
   const completionReported = Boolean(task.actual?.reportedCompletionAt)
   const completionConfirmed = Boolean(task.actual?.confirmedAt)
+  const checklist = task.checklist ?? []
   const editFormId = `task-edit-form-${task.id}`
+  const changeChecklist = (items: TaskChecklistItem[]) => {
+    updateTaskChecklist(task.id, { items })
+  }
+
+  const addChecklistItem = () => {
+    const text = newChecklistText.trim()
+    if (!text) return
+    const items = [...checklist, { id: `check-${Date.now()}`, text, weight: 0, completed: false }]
+    const baseWeight = Math.floor(100 / items.length)
+    const remainder = 100 - baseWeight * items.length
+    changeChecklist(items.map((item, index) => ({ ...item, weight: baseWeight + (index < remainder ? 1 : 0) })))
+    setNewChecklistText('')
+  }
+
+  const commitChecklistWeight = (itemId: string, rawValue: string) => {
+    const parsedWeight = rawValue.trim() === '' ? 0 : Math.min(100, Math.max(0, Number.parseInt(rawValue, 10) || 0))
+    const others = checklist.filter((candidate) => candidate.id !== itemId)
+    const remaining = 100 - parsedWeight
+    const base = others.length ? Math.floor(remaining / others.length) : 0
+    const remainder = others.length ? remaining - base * others.length : 0
+    changeChecklist(checklist.map((candidate, index) => candidate.id === itemId
+      ? { ...candidate, weight: parsedWeight }
+      : { ...candidate, weight: base + (index < remainder ? 1 : 0) }))
+    setChecklistWeightDrafts((drafts) => {
+      const next = { ...drafts }
+      delete next[itemId]
+      return next
+    })
+  }
 
   return (
     <div
@@ -271,6 +306,46 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
               </div>
             </div>
           )}
+
+          <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3" data-testid="task-checklist">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                <span>Checklist</span>
+              </div>
+              <span className="shrink-0 text-[10px] text-muted-foreground">{checklist.length ? `${checklist.filter((item) => item.completed).length}/${checklist.length}` : 'No points'}</span>
+            </div>
+            <div className="space-y-2">
+              {checklist.map((item) => (
+                <div key={item.id} className="flex min-w-0 items-center gap-2">
+                  <button type="button" aria-label={`Mark ${item.text} complete`} className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', item.completed ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/50')} onClick={() => changeChecklist(checklist.map((candidate) => candidate.id === item.id ? { ...candidate, completed: !candidate.completed } : candidate))}>
+                    {item.completed && <CheckCircle2 className="h-3 w-3" />}
+                  </button>
+                  <span className={cn('min-w-0 flex-1 break-words text-xs', item.completed && 'text-muted-foreground line-through')}>{item.text}</span>
+                  <input aria-label={`${item.text} weight`} className="w-12 rounded border border-border bg-background px-1 py-0.5 text-right text-[10px]" type="text" inputMode="numeric" pattern="[0-9]*" value={checklistWeightDrafts[item.id] ?? String(item.weight)} onChange={(event) => {
+                    const rawValue = event.target.value.replace(/[^0-9]/g, '').slice(0, 3)
+                    setChecklistWeightDrafts((drafts) => ({ ...drafts, [item.id]: rawValue }))
+                  }} onBlur={(event) => commitChecklistWeight(item.id, event.target.value)} onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      commitChecklistWeight(item.id, event.currentTarget.value)
+                    }
+                  }} />
+                  <span className="text-[10px] text-muted-foreground">%</span>
+                  <button type="button" aria-label={`Delete ${item.text}`} className="text-muted-foreground hover:text-destructive" onClick={() => {
+                    const remaining = checklist.filter((candidate) => candidate.id !== item.id)
+                    const base = remaining.length ? Math.floor(100 / remaining.length) : 0
+                    const remainder = remaining.length ? 100 - base * remaining.length : 0
+                    changeChecklist(remaining.map((candidate, index) => ({ ...candidate, weight: base + (index < remainder ? 1 : 0) })))
+                  }}><Trash2 className="h-3.5 w-3.5" /></button>
+                </div>
+              ))}
+            </div>
+            <div className="flex min-w-0 gap-2">
+              <Input aria-label="New checklist item" value={newChecklistText} onChange={(event) => setNewChecklistText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addChecklistItem() } }} placeholder="Add a checklist point" className="h-8 min-w-0 text-xs" />
+              <Button type="button" size="icon" variant="outline" className="h-8 w-8 shrink-0" aria-label="Add checklist item" onClick={addChecklistItem}><Plus className="h-3.5 w-3.5" /></Button>
+            </div>
+          </div>
 
           {/* Completion confirmation */}
           <div className="space-y-2">

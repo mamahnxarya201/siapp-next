@@ -6,8 +6,9 @@ async function openProject(page: Page, projectName: string) {
     if (message.type() === 'error') console.error(`Browser console error: ${message.text()}`)
   })
   await page.goto('/')
-  await page.getByRole('button', { name: 'All Projects' }).click()
-  await page.getByRole('menuitem', { name: projectName }).click()
+  // The dashboard now presents projects as directly clickable cards; there is
+  // no longer an All Projects project-selector menu in the top navigation.
+  await page.getByText(projectName, { exact: true }).first().click()
   await expect(page.getByTestId('task-list-scroll')).toBeVisible()
 }
 
@@ -72,4 +73,28 @@ test('requires a workstream before task creation and continues after creating on
   await expect(page.getByRole('heading', { name: 'New task' })).toBeVisible()
   await expect(page.getByText('First Delivery Lane', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
+})
+
+test('manages weighted checklist points and updates task progress', async ({ page }) => {
+  await openProject(page, 'Mobile App Redesign')
+  const taskName = 'Consolidate stakeholder interviews into a mobile experience opportunity map'
+  await page.getByTestId('task-list-scroll').getByText(taskName, { exact: true }).click()
+  const checklist = page.getByTestId('task-checklist')
+  await expect(checklist).toBeVisible()
+
+  await checklist.getByLabel('New checklist item').fill('Set up environment')
+  await checklist.getByRole('button', { name: 'Add checklist item' }).click()
+  await checklist.getByLabel('New checklist item').fill('Verify architecture')
+  await checklist.getByRole('button', { name: 'Add checklist item' }).click()
+  await expect(checklist.getByText('Set up environment', { exact: true })).toBeVisible()
+  await expect(checklist.getByText('Verify architecture', { exact: true })).toBeVisible()
+  await expect(checklist.getByLabel('Set up environment weight')).toHaveValue('50')
+  await checklist.getByLabel('Set up environment weight').fill('10')
+  await checklist.getByLabel('Set up environment weight').press('Tab')
+  await expect(checklist.getByLabel('Verify architecture weight')).toHaveValue('90')
+  await checklist.getByRole('button', { name: 'Mark Set up environment complete' }).click()
+  await expect(page.getByText('10%', { exact: true })).toBeVisible()
+  await checklist.getByRole('button', { name: 'Delete Set up environment' }).click()
+  await expect(checklist.getByText('Set up environment', { exact: true })).toHaveCount(0)
+  await expect(checklist.getByLabel('Verify architecture weight')).toHaveValue('100')
 })

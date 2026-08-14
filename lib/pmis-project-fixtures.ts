@@ -80,6 +80,7 @@ function buildFixtureTasks(specs: FixtureTask[]): Task[] {
       dependents: dependentsByTaskId.get(spec.id) ?? [],
       blockers: [...(spec.blockers ?? [])],
       progress: spec.progress ?? (spec.status === 'done' ? 100 : 0),
+      checklist: [],
       isMilestone: spec.isMilestone ?? false,
       isCriticalPath: spec.isCriticalPath ?? false,
       linkedChangeRequests: [],
@@ -416,6 +417,7 @@ export function cloneProjectWorkspace(workspace: ProjectWorkspace): ProjectWorks
       dependencies: [...task.dependencies],
       dependents: [...task.dependents],
       blockers: [...task.blockers],
+      checklist: (task.checklist ?? []).map((item) => ({ ...item })),
       linkedChangeRequests: [...task.linkedChangeRequests],
       comments: task.comments.map((comment) => ({
         ...comment,

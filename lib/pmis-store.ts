@@ -9,6 +9,7 @@ import {
   type TaskTeam,
   type Workstream,
   type WorkstreamGroup,
+  type TaskChecklistItem,
 } from './pmis-data'
 import {
   cloneProjectWorkspace,
@@ -81,6 +82,10 @@ export interface UpdateTaskInput {
   blockers: string[]
   linkedChangeRequests: string[]
   isMilestone: boolean
+}
+
+export interface UpdateChecklistInput {
+  items: TaskChecklistItem[]
 }
 
 export interface DeleteTaskOptions {
@@ -289,6 +294,7 @@ interface PMISState {
   closeTaskCreate: () => void
   createTask: (input: CreateTaskInput) => PMISMutationResult
   updateTask: (taskId: string, input: UpdateTaskInput) => PMISMutationResult
+  updateTaskChecklist: (taskId: string, input: UpdateChecklistInput) => PMISMutationResult
   openTaskDelete: (taskId: string) => void
   closeTaskDelete: () => void
   deleteTask: (taskId: string, options: DeleteTaskOptions) => PMISMutationResult
@@ -480,6 +486,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       dependents: dependentIds,
       blockers: [],
       progress: 0,
+      checklist: [],
       isMilestone: input.isMilestone,
       isCriticalPath: false,
       linkedChangeRequests: [],
@@ -617,6 +624,27 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       undoStack: nextUndoStack,
       redoStack: [],
       historyTransaction: null,
+      ...historyFlags(nextUndoStack, []),
+    })
+    return { ok: true, id: taskId }
+  },
+
+  updateTaskChecklist: (taskId, input) => {
+    const state = get()
+    const task = state.tasks.find((candidate) => candidate.id === taskId)
+    if (!task) return { ok: false, error: 'Task not found.' }
+    const items = input.items
+      .map((item) => ({ ...item, text: item.text.trim(), weight: Math.max(0, Math.round(item.weight)) }))
+      .filter((item) => item.text)
+    if (items.some((item) => item.weight < 0) || (items.length > 0 && items.reduce((sum, item) => sum + item.weight, 0) !== 100)) {
+      return { ok: false, error: 'Checklist weights must total 100%.' }
+    }
+    const progress = items.length === 0 ? 0 : Math.ceil(items.reduce((sum, item) => sum + (item.completed ? item.weight : 0), 0))
+    const nextUndoStack = pushHistoryEntry(state.undoStack, captureHistorySnapshot(state))
+    set({
+      tasks: state.tasks.map((candidate) => candidate.id === taskId ? { ...candidate, checklist: items, progress } : candidate),
+      undoStack: nextUndoStack,
+      redoStack: [],
       ...historyFlags(nextUndoStack, []),
     })
     return { ok: true, id: taskId }

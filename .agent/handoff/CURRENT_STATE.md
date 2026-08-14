@@ -397,3 +397,25 @@ adapter work waits for DBA schema and authentication decisions.
   validation is skipped by configuration; the separate strict type check passed.
 - User manual verification remains pending by explicit choice. Integration tests
   remain deferred.
+
+## Task checklist (2026-08-13)
+
+- Added optional task-owned checklist points with text, completion state, and
+  percentage weight. New points are equally weighted using integer allocation;
+  manual weight edits redistribute the remaining percentage across other points.
+- Added checklist CRUD controls to the right task inspector directly below
+  Calculated Forecast. Checklist completion recalculates task progress using
+  the weighted completed points and therefore updates the existing Gantt
+  progress indicator.
+- Added a Playwright scenario covering creation, equal weighting, manual 10/90
+  redistribution, completion progress, deletion, and final weight normalization.
+- Strict TypeScript validation, unit tests (3), and `git diff --check` pass.
+- Playwright verification was attempted but the existing localhost process
+  repeatedly rejected Next HMR WebSocket handshakes with
+  `ERR_INVALID_HTTP_RESPONSE` before a completed test result; rerun against a
+  clean dev server is pending.
+- Playwright hang root cause was identified: the shared `openProject` helper
+  still waited for the removed top-navigation `All Projects` button. The
+  dashboard now exposes projects as directly clickable cards. The helper now
+  clicks the requested project card; all three E2E scenarios completed
+  successfully afterward.

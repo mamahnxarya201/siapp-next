@@ -1,34 +1,31 @@
 'use client'
 
-import { Search, Bell, Plus, ChevronDown, Settings, LayoutGrid, GanttChart, Moon, Sun, Undo2, Redo2, Sparkles } from 'lucide-react'
+import { Search, Bell, Settings, GanttChart, Moon, Sun, Sparkles, Upload } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { usePMISStore } from '@/lib/pmis-store'
-import { cn } from '@/lib/utils'
 
 export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
   const { resolvedTheme, setTheme } = useTheme()
   const [themeReady, setThemeReady] = useState(false)
+  const [logoOpen, setLogoOpen] = useState(false)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoScale, setLogoScale] = useState(1)
+  const [logoOffset, setLogoOffset] = useState({ x: 0, y: 0 })
+  const cropDrag = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => setThemeReady(true), [])
 
   const { 
     currentProjectId, 
     projects,
-    setCurrentProject,
     setSearchQuery,
     searchQuery,
-    openTaskCreate,
     undo,
     redo,
     canUndo,
@@ -36,6 +33,54 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
   } = usePMISStore()
 
   const currentProject = projects.find(p => p.id === currentProjectId)
+
+  useEffect(() => {
+    if (!currentProjectId) return
+    setLogoPreview(window.localStorage.getItem(`pmis-project-logo:${currentProjectId}`))
+    const savedCrop = window.localStorage.getItem(`pmis-project-logo-crop:${currentProjectId}`)
+    if (savedCrop) {
+      const crop = JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number }
+      setLogoScale(crop.scale ?? 1)
+      setLogoOffset({ x: crop.x ?? 0, y: crop.y ?? 0 })
+    } else {
+      setLogoScale(1)
+      setLogoOffset({ x: 0, y: 0 })
+    }
+  }, [currentProjectId])
+
+  const handleLogoFile = (file?: File) => {
+    if (!file || !currentProjectId) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const value = String(reader.result)
+      setLogoPreview(value)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const saveLogo = () => {
+    if (currentProjectId && logoPreview) {
+      window.localStorage.setItem(`pmis-project-logo:${currentProjectId}`, logoPreview)
+      window.localStorage.setItem(`pmis-project-logo-crop:${currentProjectId}`, JSON.stringify({ scale: logoScale, x: logoOffset.x, y: logoOffset.y }))
+    }
+    setLogoOpen(false)
+  }
+
+  const cancelLogo = () => {
+    if (currentProjectId) {
+      setLogoPreview(window.localStorage.getItem(`pmis-project-logo:${currentProjectId}`))
+      const savedCrop = window.localStorage.getItem(`pmis-project-logo-crop:${currentProjectId}`)
+      const crop = savedCrop ? JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number } : null
+      setLogoScale(crop?.scale ?? 1)
+      setLogoOffset({ x: crop?.x ?? 0, y: crop?.y ?? 0 })
+    }
+    setLogoOpen(false)
+  }
+
+  const handleCropPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    cropDrag.current = { x: event.clientX - logoOffset.x, y: event.clientY - logoOffset.y }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -72,50 +117,40 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
         <button
           type="button"
           className="flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          onClick={() => setCurrentProject(null)}
-          aria-label="Go to project dashboard"
-          title="Go to project dashboard"
+          onClick={() => setLogoOpen(true)}
+          aria-label="Customize project logo"
+          title="Customize project logo"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <GanttChart className="h-4 w-4 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary">
+            {logoPreview ? <img src={logoPreview} alt="" className="h-full w-full object-cover" style={{ transform: `translate(${logoOffset.x * 0.08}px, ${logoOffset.y * 0.08}px) scale(${logoScale})` }} /> : <GanttChart className="h-4 w-4 text-primary-foreground" />}
           </div>
-          <span className="font-semibold text-foreground">Planview</span>
+          <span className="font-semibold text-foreground">{currentProject?.name ?? 'PMIS'}</span>
         </button>
-
-        {/* Project Selector */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 gap-2 text-sm">
-              {currentProject ? currentProject.name : 'All Projects'}
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
-            <DropdownMenuItem onClick={() => setCurrentProject(null)}>
-              <LayoutGrid className="mr-2 h-4 w-4" />
-              All Projects
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {projects.map((project) => (
-              <DropdownMenuItem 
-                key={project.id} 
-                onClick={() => setCurrentProject(project.id)}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={cn(
-                    'h-2 w-2 rounded-full',
-                    project.status === 'active' && 'bg-success',
-                    project.status === 'delayed' && 'bg-destructive',
-                    project.status === 'on-hold' && 'bg-warning',
-                    project.status === 'completed' && 'bg-info'
-                  )} />
-                  <span className="truncate">{project.name}</span>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
+
+      <Dialog open={logoOpen} onOpenChange={(open) => { if (open) setLogoOpen(true); else cancelLogo() }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Customize project logo</DialogTitle><DialogDescription>Upload an image and adjust its crop. It is saved locally for this project.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div
+              className="relative mx-auto h-56 w-full max-w-sm touch-none overflow-hidden rounded-xl border bg-muted"
+              onWheel={(event) => { event.preventDefault(); setLogoScale((value) => Math.min(3, Math.max(0.5, value - event.deltaY * 0.001))) }}
+              onPointerMove={(event) => { if (cropDrag.current) setLogoOffset({ x: event.clientX - cropDrag.current.x, y: event.clientY - cropDrag.current.y }) }}
+              onPointerUp={() => { cropDrag.current = null }}
+              onPointerCancel={() => { cropDrag.current = null }}
+            >
+              {logoPreview ? <img src={logoPreview} alt="Logo crop source" className="absolute left-1/2 top-1/2 max-h-none max-w-none cursor-grab select-none" draggable={false} onPointerDown={handleCropPointerDown} style={{ transform: `translate(calc(-50% + ${logoOffset.x}px), calc(-50% + ${logoOffset.y}px)) scale(${logoScale})` }} /> : <GanttChart className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square h-36 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.38)]" aria-label="Locked square crop area" />
+            </div>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm"><Upload className="h-4 w-4" /> Choose image<input type="file" accept="image/*" className="sr-only" onChange={(e) => handleLogoFile(e.target.files?.[0])} /></label>
+            <p className="text-xs text-muted-foreground">Drag the image to reposition it. Scroll over the image to zoom. The square crop area is locked to the project logo ratio.</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={saveLogo}>Save logo</Button>
+            <Button type="button" variant="outline" onClick={cancelLogo}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Center - Search */}
       <div className="flex flex-1 items-center justify-center px-8">
@@ -133,31 +168,6 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 border-r border-border pr-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={undo}
-            disabled={!canUndo}
-            aria-label="Undo last workspace change"
-            title="Undo"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={redo}
-            disabled={!canRedo}
-            aria-label="Redo last workspace change"
-            title="Redo"
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-        </div>
-
         <Button
           variant="ghost"
           size="icon"
@@ -172,12 +182,6 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
           ) : (
             <Moon className="h-4 w-4" />
           )}
-        </Button>
-
-        {/* Quick Add */}
-        <Button size="sm" className="h-8 gap-1.5" onClick={() => openTaskCreate()}>
-          <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">New Task</span>
         </Button>
 
         {currentProjectId && (
@@ -205,7 +209,7 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">
+                <AvatarFallback className="!flex !items-center !justify-center bg-primary text-[10px] leading-none text-primary-foreground">
                   AC
                 </AvatarFallback>
               </Avatar>

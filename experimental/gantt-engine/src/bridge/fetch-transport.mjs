@@ -67,13 +67,17 @@ function httpError(status, statusText, retryAfter) {
     retryable = true;
   }
 
-  return new BridgeError(code, `HTTP ${status}${statusText ? ` ${statusText}` : ""}.`, {
-    retryable,
-    details: {
-      httpStatus: status,
-      retryAfter: retryAfter ?? null,
+  return new BridgeError(
+    code,
+    `HTTP ${status}${statusText ? ` ${statusText}` : ""}.`,
+    {
+      retryable,
+      details: {
+        httpStatus: status,
+        retryAfter: retryAfter ?? null,
+      },
     },
-  });
+  );
 }
 
 export class FetchTransport {
@@ -94,7 +98,10 @@ export class FetchTransport {
     this.headers = normalizeHeaders(options.headers, "FetchTransport headers");
     this.headerProvider = options.headerProvider ?? null;
 
-    if (this.headerProvider !== null && typeof this.headerProvider !== "function") {
+    if (
+      this.headerProvider !== null &&
+      typeof this.headerProvider !== "function"
+    ) {
       throw new TypeError("headerProvider must be a function when supplied.");
     }
   }
@@ -111,10 +118,22 @@ export class FetchTransport {
       ...providedHeaders,
     };
     setRequiredHeader(headers, "Accept", "application/json");
-    setRequiredHeader(headers, "Content-Type", "application/json; charset=utf-8");
-    setRequiredHeader(headers, "X-PMIS-Bridge-Version", BRIDGE_PROTOCOL_VERSION);
+    setRequiredHeader(
+      headers,
+      "Content-Type",
+      "application/json; charset=utf-8",
+    );
+    setRequiredHeader(
+      headers,
+      "X-PMIS-Bridge-Version",
+      BRIDGE_PROTOCOL_VERSION,
+    );
     if (request.meta.idempotencyKey) {
-      setRequiredHeader(headers, "Idempotency-Key", request.meta.idempotencyKey);
+      setRequiredHeader(
+        headers,
+        "Idempotency-Key",
+        request.meta.idempotencyKey,
+      );
     }
 
     let response;
@@ -164,7 +183,12 @@ export class FetchTransport {
       throw new BridgeError(
         ERROR_CODES.PROTOCOL_ERROR,
         "The bridge endpoint response is not JSON content.",
-        { details: { contentType: contentType || null, httpStatus: response.status } },
+        {
+          details: {
+            contentType: contentType || null,
+            httpStatus: response.status,
+          },
+        },
       );
     }
 

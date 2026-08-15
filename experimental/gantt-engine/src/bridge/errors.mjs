@@ -25,7 +25,10 @@ export function isKnownErrorCode(code) {
 
 export class BridgeError extends Error {
   constructor(code, message, options = {}) {
-    super(message, options.cause === undefined ? undefined : { cause: options.cause });
+    super(
+      message,
+      options.cause === undefined ? undefined : { cause: options.cause },
+    );
     this.name = "BridgeError";
     this.code = isKnownErrorCode(code) ? code : ERROR_CODES.INTERNAL_ERROR;
     this.retryable = options.retryable === true;
@@ -33,15 +36,22 @@ export class BridgeError extends Error {
   }
 }
 
-export function asBridgeError(error, fallbackCode = ERROR_CODES.INTERNAL_ERROR) {
+export function asBridgeError(
+  error,
+  fallbackCode = ERROR_CODES.INTERNAL_ERROR,
+) {
   if (error instanceof BridgeError) {
     return error;
   }
 
   if (error?.name === "AbortError") {
-    return new BridgeError(ERROR_CODES.CANCELLED, "The operation was cancelled.", {
-      cause: error,
-    });
+    return new BridgeError(
+      ERROR_CODES.CANCELLED,
+      "The operation was cancelled.",
+      {
+        cause: error,
+      },
+    );
   }
 
   const message =
@@ -54,7 +64,10 @@ export function asBridgeError(error, fallbackCode = ERROR_CODES.INTERNAL_ERROR) 
   return new BridgeError(fallbackCode, message, { cause: error });
 }
 
-export function toErrorDescriptor(error, fallbackCode = ERROR_CODES.INTERNAL_ERROR) {
+export function toErrorDescriptor(
+  error,
+  fallbackCode = ERROR_CODES.INTERNAL_ERROR,
+) {
   const bridgeError = asBridgeError(error, fallbackCode);
 
   return {

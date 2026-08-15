@@ -1,6 +1,10 @@
 import { BridgeError, ERROR_CODES } from "./errors.mjs";
 
-const FORBIDDEN_OBJECT_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const FORBIDDEN_OBJECT_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 const DEFAULT_MAX_DEPTH = 64;
 
 function serializationError(path, message) {
@@ -16,7 +20,11 @@ function serializeValue(value, path, ancestors, depth, maxDepth) {
     throw serializationError(path, `maximum depth of ${maxDepth} was exceeded`);
   }
 
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean"
+  ) {
     return value;
   }
 
@@ -25,7 +33,10 @@ function serializeValue(value, path, ancestors, depth, maxDepth) {
       throw serializationError(path, "numbers must be finite");
     }
     if (Number.isInteger(value) && !Number.isSafeInteger(value)) {
-      throw serializationError(path, "integers must be within JavaScript's safe range");
+      throw serializationError(
+        path,
+        "integers must be within JavaScript's safe range",
+      );
     }
     return Object.is(value, -0) ? 0 : value;
   }
@@ -52,7 +63,13 @@ function serializeValue(value, path, ancestors, depth, maxDepth) {
   try {
     if (Array.isArray(value)) {
       return value.map((item, index) =>
-        serializeValue(item, `${path}[${index}]`, ancestors, depth + 1, maxDepth),
+        serializeValue(
+          item,
+          `${path}[${index}]`,
+          ancestors,
+          depth + 1,
+          maxDepth,
+        ),
       );
     }
 
@@ -65,13 +82,19 @@ function serializeValue(value, path, ancestors, depth, maxDepth) {
     }
 
     if (Object.getOwnPropertySymbols(value).length > 0) {
-      throw serializationError(path, "symbol-keyed properties are not supported");
+      throw serializationError(
+        path,
+        "symbol-keyed properties are not supported",
+      );
     }
 
     const result = {};
     for (const [key, item] of Object.entries(value)) {
       if (FORBIDDEN_OBJECT_KEYS.has(key)) {
-        throw serializationError(`${path}.${key}`, "this object key is forbidden");
+        throw serializationError(
+          `${path}.${key}`,
+          "this object key is forbidden",
+        );
       }
       result[key] = serializeValue(
         item,

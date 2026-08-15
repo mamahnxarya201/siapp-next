@@ -30,7 +30,11 @@ function isoTime(timestamp) {
 }
 
 function assertRequestId(requestId) {
-  if (typeof requestId !== "string" || requestId.length < 1 || requestId.length > 128) {
+  if (
+    typeof requestId !== "string" ||
+    requestId.length < 1 ||
+    requestId.length > 128
+  ) {
     throw new BridgeError(
       ERROR_CODES.INTERNAL_ERROR,
       "The request ID factory must return a string containing 1-128 characters.",
@@ -68,7 +72,9 @@ function buildResultMeta({
 export class Gateway {
   constructor(options) {
     if (!options?.transport || typeof options.transport.send !== "function") {
-      throw new TypeError("Gateway requires a transport with a send(request, context) method.");
+      throw new TypeError(
+        "Gateway requires a transport with a send(request, context) method.",
+      );
     }
 
     this.transport = options.transport;
@@ -79,7 +85,10 @@ export class Gateway {
     this.requestIdFactory = options.requestIdFactory ?? defaultRequestIdFactory;
     this.now = options.now ?? Date.now;
 
-    if (typeof this.requestIdFactory !== "function" || typeof this.now !== "function") {
+    if (
+      typeof this.requestIdFactory !== "function" ||
+      typeof this.now !== "function"
+    ) {
       throw new TypeError("requestIdFactory and now must be functions.");
     }
   }
@@ -93,9 +102,13 @@ export class Gateway {
     try {
       requestId = assertRequestId(this.requestIdFactory());
       const validatedOperation = validateOperationName(operation);
-      operationVersion = validateOperationVersion(options.operationVersion ?? 1);
+      operationVersion = validateOperationVersion(
+        options.operationVersion ?? 1,
+      );
       const timeoutMs = validateTimeout(
-        options.timeoutMs === undefined ? this.defaultTimeoutMs : options.timeoutMs,
+        options.timeoutMs === undefined
+          ? this.defaultTimeoutMs
+          : options.timeoutMs,
       );
       const idempotencyKey = validateIdempotencyKey(options.idempotencyKey);
       const serializedPayload = serializeObjectPayload(payload);
@@ -119,7 +132,10 @@ export class Gateway {
       const transportPromise = Promise.resolve().then(() =>
         this.transport.send(request, { signal: cancellation.signal }),
       );
-      const response = await raceWithSignal(transportPromise, cancellation.signal);
+      const response = await raceWithSignal(
+        transportPromise,
+        cancellation.signal,
+      );
       const normalized = normalizeResponseEnvelope(response, request);
       const finishedAt = this.now();
 
@@ -138,7 +154,8 @@ export class Gateway {
     } catch (error) {
       const finishedAt = this.now();
       const safeOperation = typeof operation === "string" ? operation : null;
-      return createFailureResult(asBridgeError(error),
+      return createFailureResult(
+        asBridgeError(error),
         buildResultMeta({
           requestId,
           operation: safeOperation,

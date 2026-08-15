@@ -46,7 +46,11 @@ export function validateOperationName(operation) {
     throw new BridgeError(
       ERROR_CODES.VALIDATION_ERROR,
       "Operation names must be lower-case dot, dash, or underscore separated identifiers.",
-      { details: { operation: typeof operation === "string" ? operation : null } },
+      {
+        details: {
+          operation: typeof operation === "string" ? operation : null,
+        },
+      },
     );
   }
   return operation;
@@ -129,10 +133,13 @@ function validateMeta(meta, request) {
     });
   }
   if (serialized.protocolVersion !== request.meta.protocolVersion) {
-    throw protocolError("Response protocolVersion does not match the request.", {
-      expected: request.meta.protocolVersion,
-      received: serialized.protocolVersion ?? null,
-    });
+    throw protocolError(
+      "Response protocolVersion does not match the request.",
+      {
+        expected: request.meta.protocolVersion,
+        received: serialized.protocolVersion ?? null,
+      },
+    );
   }
   if (serialized.operation !== request.operation) {
     throw protocolError("Response operation does not match the request.", {
@@ -159,7 +166,9 @@ function validateErrorDescriptor(error) {
     throw protocolError("Response error.retryable must be a boolean.");
   }
   if (!Object.prototype.hasOwnProperty.call(error, "details")) {
-    throw protocolError("Response error.details must be present; use null when empty.");
+    throw protocolError(
+      "Response error.details must be present; use null when empty.",
+    );
   }
 
   return {

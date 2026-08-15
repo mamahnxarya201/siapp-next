@@ -536,3 +536,11 @@ adapter work waits for DBA schema and authentication decisions.
   It currently controls line visibility, major/minor/row colors, and group/task
   fills through `settings.grid`.
 - Verification: 45 unit tests and 8 browser scenarios pass after the refinement.
+
+### Experiment readability refactor (2026-08-15)
+
+- Applied a behavior-preserving Prettier formatting pass to every JavaScript and
+  MJS module in `experimental/gantt-engine`, including the engine, renderer,
+  scheduling, timeline, bridge, and framework layers plus the demo entrypoint.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios;
+  `git diff --check` passes.

@@ -68,11 +68,14 @@ export class InMemoryTransport {
     this.now = options.now ?? Date.now;
 
     if (!Number.isSafeInteger(this.latencyMs) || this.latencyMs < 0) {
-      throw new TypeError("InMemoryTransport latencyMs must be a non-negative integer.");
+      throw new TypeError(
+        "InMemoryTransport latencyMs must be a non-negative integer.",
+      );
     }
 
     const handlers = options.handlers ?? {};
-    const entries = handlers instanceof Map ? handlers.entries() : Object.entries(handlers);
+    const entries =
+      handlers instanceof Map ? handlers.entries() : Object.entries(handlers);
     for (const [operation, handler] of entries) {
       this.register(operation, handler);
     }
@@ -80,7 +83,9 @@ export class InMemoryTransport {
 
   register(operation, handler) {
     if (typeof operation !== "string" || typeof handler !== "function") {
-      throw new TypeError("In-memory handlers require an operation name and function.");
+      throw new TypeError(
+        "In-memory handlers require an operation name and function.",
+      );
     }
     this.handlers.set(operation, handler);
     return this;
@@ -100,7 +105,9 @@ export class InMemoryTransport {
       ? `${request.operation}:${request.meta.operationVersion}:${idempotencyKey}`
       : null;
     const fingerprint = cacheKey ? canonicalJson(request.payload) : null;
-    const cached = cacheKey ? this.completedIdempotentResults.get(cacheKey) : null;
+    const cached = cacheKey
+      ? this.completedIdempotentResults.get(cacheKey)
+      : null;
 
     if (cached && cached.fingerprint !== fingerprint) {
       return failureResponse(
@@ -147,7 +154,9 @@ export class InMemoryTransport {
         ok: true,
         data: serializeForTransport(data, { path: "handler result" }),
         error: null,
-        meta: createResponseMeta(request, this.now, { idempotentReplay: false }),
+        meta: createResponseMeta(request, this.now, {
+          idempotentReplay: false,
+        }),
       };
     } catch (error) {
       const bridgeError = asBridgeError(error);

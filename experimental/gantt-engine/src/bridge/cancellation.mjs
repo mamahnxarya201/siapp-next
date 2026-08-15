@@ -28,7 +28,10 @@ export function createOperationCancellation(externalSignal, timeoutMs) {
   const cancelFromCaller = () => {
     if (!controller.signal.aborted) {
       controller.abort(
-        abortReason(ERROR_CODES.CANCELLED, "The operation was cancelled by its caller."),
+        abortReason(
+          ERROR_CODES.CANCELLED,
+          "The operation was cancelled by its caller.",
+        ),
       );
     }
   };

@@ -84,6 +84,7 @@ function buildFixtureTasks(specs: FixtureTask[]): Task[] {
       isMilestone: spec.isMilestone ?? false,
       isCriticalPath: spec.isCriticalPath ?? false,
       linkedChangeRequests: [],
+      labels: [],
       comments: [],
       riskLevel: spec.riskLevel ?? 'low',
     }
@@ -419,6 +420,7 @@ export function cloneProjectWorkspace(workspace: ProjectWorkspace): ProjectWorks
       blockers: [...task.blockers],
       checklist: (task.checklist ?? []).map((item) => ({ ...item })),
       linkedChangeRequests: [...task.linkedChangeRequests],
+      labels: [...(task.labels ?? [])],
       comments: task.comments.map((comment) => ({
         ...comment,
         timestamp: new Date(comment.timestamp),

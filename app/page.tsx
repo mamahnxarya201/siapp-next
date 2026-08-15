@@ -1,5 +1,5 @@
-import { PMISApp } from '@/components/pmis/pmis-app'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  return <PMISApp />
+  redirect('/dashboard')
 }

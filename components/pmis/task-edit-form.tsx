@@ -73,6 +73,7 @@ export function TaskEditForm({
   const [predecessorIds, setPredecessorIds] = useState([...task.dependencies])
   const [blockers, setBlockers] = useState(task.blockers.join('\n'))
   const [linkedChangeRequests, setLinkedChangeRequests] = useState(task.linkedChangeRequests.join('\n'))
+  const [labels, setLabels] = useState<string[]>(task.labels ?? [])
   const [isMilestone, setIsMilestone] = useState(task.isMilestone)
   const [error, setError] = useState<string | null>(null)
 
@@ -105,6 +106,7 @@ export function TaskEditForm({
       predecessorIds,
       blockers: splitLines(blockers),
       linkedChangeRequests: splitLines(linkedChangeRequests),
+      labels,
       isMilestone,
     })
 
@@ -285,6 +287,22 @@ export function TaskEditForm({
       <div className="space-y-2">
         <Label htmlFor={`${formId}-changes`}>Linked change requests</Label>
         <Textarea id={`${formId}-changes`} value={linkedChangeRequests} onChange={(event) => setLinkedChangeRequests(event.target.value)} placeholder="One change request per line" />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Labels</Label>
+          <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setLabels((current) => [...current, ''])}>Add label</button>
+        </div>
+        <div className="space-y-2">
+          {labels.map((label, index) => (
+            <div key={`${task.id}-label-${index}`} className="flex min-w-0 gap-2">
+              <Input aria-label={`Task label ${index + 1}`} value={label} onChange={(event) => setLabels((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="e.g. release-critical" />
+              <button type="button" aria-label={`Delete label ${index + 1}`} className="shrink-0 rounded-md border border-destructive/40 px-2 text-destructive hover:bg-destructive/10" onClick={() => setLabels((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Delete</button>
+            </div>
+          ))}
+          {labels.length === 0 && <p className="text-xs text-muted-foreground">No labels assigned.</p>}
+        </div>
       </div>
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

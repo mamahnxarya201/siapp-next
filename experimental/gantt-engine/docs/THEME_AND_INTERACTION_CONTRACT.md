@@ -1,0 +1,51 @@
+# Year 0 theme and interaction contract
+
+This contract applies to the isolated vanilla demo in `experimental/gantt-engine`.
+It does not change the React PMIS application.
+
+## Themes
+
+The host application selects one theme with `data-theme` on
+`.gantt-application`. The supported values are `dark`, `light`, and `editorial`.
+Controls use `data-action="theme.set"`; the stylesheet owns the semantic color
+tokens, so interaction code does not contain palette decisions. The editorial theme
+uses the project’s paper/ink, green, blue, amber, and red visual language while
+preserving the same layout and behavior.
+
+## Cell grid settings
+
+The timeline is rendered as a cell grid with both date-column and row-boundary
+lines. Grid presentation is intentionally separated from task scheduling in
+`src/grid.js`; the engine accepts a future-facing `settings.grid` object with these
+keys:
+
+- `showVerticalLines`
+- `showHorizontalLines`
+- `showMajorLines`
+- `minorLineColor`, `majorLineColor`, and `rowLineColor`
+- `groupFill` and `taskFill`
+
+The current demo uses the wireframe defaults. A later preference panel can update
+these settings without changing task geometry, dependency routing, or scheduling
+rules.
+
+## Task authoring
+
+- The activity panel contains an editable task-name field for every task.
+- The final `Add task…` field creates a task on Enter. It is assigned to the first
+  workstream, receives a one-snap-unit duration, and is persisted through the gateway.
+- A right-click in empty timeline space suppresses the browser menu and offers
+  `Add task bar here`. The new bar starts at the clicked date and remains draggable
+  through the existing schedule interaction controller.
+- Right-clicking a task bar offers `Connect to another task`. Moving over a target
+  renders a preview connector; clicking the target commits the edge. The canonical
+  `predecessorIds` and UI-facing `dependencies` fields are updated together before
+  normalization.
+- Right-clicking a dependency connector offers removal.
+
+Context-menu suppression is scoped to the Gantt root. Browser behavior outside the
+demo remains untouched, and Escape cancels an open menu or connection preview.
+
+The interaction mapping follows the documented Tom’s Planner pattern: names are
+entered directly in the grid, schedule blocks are drawn on the timeline, and
+dependencies are created from a source task to a target task.

@@ -8,15 +8,21 @@ import { TaskCreateDialog } from './task-create-dialog'
 import { TaskDeleteDialog } from './task-delete-dialog'
 import { PlanningPanel } from './planning-panel'
 import { useState } from 'react'
+import { useEffect } from 'react'
 
-export function PMISApp() {
-  const { currentView, currentProjectId } = usePMISStore()
+export function PMISApp({ route = 'dashboard', projectId }: { route?: 'dashboard' | 'project'; projectId?: string }) {
+  const { currentProjectId } = usePMISStore()
+  const setCurrentProject = usePMISStore((state) => state.setCurrentProject)
   const [planningOpen, setPlanningOpen] = useState(false)
+
+  useEffect(() => {
+    setCurrentProject(route === 'project' ? projectId ?? null : null)
+  }, [projectId, route, setCurrentProject])
 
   return (
     <div className="flex h-screen flex-col bg-background">
       <TopNav onOpenPlanning={() => setPlanningOpen(true)} />
-      {currentView === 'dashboard' ? (
+      {route === 'dashboard' ? (
         <DashboardView />
       ) : (
         <ProjectView key={currentProjectId ?? 'no-project'} />

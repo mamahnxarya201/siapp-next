@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { usePMISStore } from '@/lib/pmis-store'
 import type { Project } from '@/lib/pmis-data'
 
-function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+function ProjectCard({ project }: { project: Project }) {
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
       case 'active': return 'bg-success'
@@ -43,10 +43,7 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
   }
 
   return (
-    <Card 
-      className="cursor-pointer hover:bg-accent/50 transition-colors border-border"
-      onClick={onClick}
-    >
+    <Card className="cursor-pointer border-border transition-colors hover:bg-accent/50">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -175,7 +172,7 @@ function KPICard({
 }
 
 export function DashboardView() {
-  const { projects, getPortfolioTasks, setCurrentProject } = usePMISStore()
+  const { projects, getPortfolioTasks } = usePMISStore()
   const tasks = getPortfolioTasks()
 
   // Calculate KPIs
@@ -297,11 +294,9 @@ export function DashboardView() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {projects.map(project => (
-              <ProjectCard 
-                key={project.id} 
-                project={project} 
-                onClick={() => setCurrentProject(project.id)}
-              />
+              <a key={project.id} href={`/project/timeline/${project.id}`} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <ProjectCard project={project} />
+              </a>
             ))}
           </div>
         </div>

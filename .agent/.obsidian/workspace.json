@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "task/002-task-structure.md",
+                "file": "task/007-vision-opened-year-0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "002-task-structure"
+              "title": "007-vision-opened-year-0"
             }
           }
         ]
@@ -190,12 +190,23 @@
   },
   "active": "f914be581a5adaf1",
   "lastOpenFiles": [
+    "task/006-road-to-the-year-0.md",
+    "task/STD-COC.md",
+    "task/STD-HCI.md",
+    "task/STD-THE-PURGE.md",
+    "task/003-routing-sane.md",
+    "task/004-navigation-layout.md",
+    "task/005-preparing-the-purge.md",
+    "task/007-vision-opened-year-0.md",
+    "rendered wireframe.png",
+    "loosely-shapes-wireframe.svg",
+    "doc/migration/005-gantt-vanilla-migration.md",
+    "doc/migration",
+    "task/002-task-structure.md",
     "task/001-unionizing-ui.md",
     "Pasted image 20260813161841.png",
     "Pasted image 20260813161608.png",
-    "task/STD-HCI.md",
     "md-templates/prescriptive-cognitive.md",
-    "task/002-task-structure.md",
     "md-templates/template-test-nextjs.md",
     "md-templates"
   ]

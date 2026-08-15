@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Bell, Settings, GanttChart, Moon, Sun, Sparkles, Upload } from 'lucide-react'
+import { Search, Bell, Settings, GanttChart, Moon, Sun, LineChart, Upload } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -39,9 +39,15 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
     setLogoPreview(window.localStorage.getItem(`pmis-project-logo:${currentProjectId}`))
     const savedCrop = window.localStorage.getItem(`pmis-project-logo-crop:${currentProjectId}`)
     if (savedCrop) {
-      const crop = JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number }
-      setLogoScale(crop.scale ?? 1)
-      setLogoOffset({ x: crop.x ?? 0, y: crop.y ?? 0 })
+      try {
+        const crop = JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number }
+        setLogoScale(crop.scale ?? 1)
+        setLogoOffset({ x: crop.x ?? 0, y: crop.y ?? 0 })
+      } catch {
+        window.localStorage.removeItem(`pmis-project-logo-crop:${currentProjectId}`)
+        setLogoScale(1)
+        setLogoOffset({ x: 0, y: 0 })
+      }
     } else {
       setLogoScale(1)
       setLogoOffset({ x: 0, y: 0 })
@@ -70,7 +76,12 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
     if (currentProjectId) {
       setLogoPreview(window.localStorage.getItem(`pmis-project-logo:${currentProjectId}`))
       const savedCrop = window.localStorage.getItem(`pmis-project-logo-crop:${currentProjectId}`)
-      const crop = savedCrop ? JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number } : null
+      let crop: { scale?: number; x?: number; y?: number } | null = null
+      try {
+        crop = savedCrop ? JSON.parse(savedCrop) as { scale?: number; x?: number; y?: number } : null
+      } catch {
+        if (currentProjectId) window.localStorage.removeItem(`pmis-project-logo-crop:${currentProjectId}`)
+      }
       setLogoScale(crop?.scale ?? 1)
       setLogoOffset({ x: crop?.x ?? 0, y: crop?.y ?? 0 })
     }
@@ -186,8 +197,8 @@ export function TopNav({ onOpenPlanning }: { onOpenPlanning: () => void }) {
 
         {currentProjectId && (
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onOpenPlanning}>
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Planning</span>
+            <LineChart className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Planning Intelligence</span>
           </Button>
         )}
 

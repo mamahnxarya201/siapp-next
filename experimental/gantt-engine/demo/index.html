@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PMIS Vanilla Gantt Engine</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main id="gantt-application" class="gantt-application" aria-label="Project timeline">
+      <header class="gantt-toolbar">
+        <div class="gantt-toolbar__title">
+          <span class="gantt-toolbar__product">PMIS</span>
+          <span class="gantt-toolbar__subtitle">Vanilla Gantt Engine</span>
+        </div>
+        <fieldset class="scale-control" aria-label="Timeline scale">
+          <legend class="visually-hidden">Timeline scale</legend>
+          <label><input type="radio" name="scale" value="day" data-action="timeline.set-scale" /> Day</label>
+          <label><input type="radio" name="scale" value="week" data-action="timeline.set-scale" checked /> Week</label>
+          <label><input type="radio" name="scale" value="month" data-action="timeline.set-scale" /> Month</label>
+        </fieldset>
+        <fieldset class="theme-control" aria-label="Theme">
+          <legend class="visually-hidden">Theme</legend>
+          <label><input type="radio" name="theme" value="light" data-action="theme.set" /> Light</label>
+          <label><input type="radio" name="theme" value="dark" data-action="theme.set" checked /> Dark</label>
+          <label><input type="radio" name="theme" value="editorial" data-action="theme.set" /> Editorial</label>
+        </fieldset>
+        <div class="gantt-toolbar__actions">
+          <button type="button" class="toolbar-button" data-action="timeline.scroll-left" aria-label="Scroll timeline left">←</button>
+          <button type="button" class="toolbar-button" data-action="timeline.scroll-right" aria-label="Scroll timeline right">→</button>
+          <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-all" /><span>All dependencies</span></label>
+          <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-critical" /><span>Critical path</span></label>
+          <button type="button" class="toolbar-button toolbar-button--text" data-action="schedule.reload">Reload schedule</button>
+        </div>
+      </header>
+      <section class="gantt-workspace">
+        <aside class="task-panel" aria-label="Project tasks">
+          <div class="task-panel__heading"><span class="task-panel__index-heading"></span><span>Activity</span><span>Resource</span><span>Status</span><span class="task-panel__calendar-heading"><span aria-hidden="true">▦</span><span id="task-count" class="visually-hidden" aria-live="polite"></span></span></div>
+          <div id="task-list" class="task-list" tabindex="0"></div>
+        </aside>
+        <section class="timeline-panel" aria-label="Gantt timeline">
+          <div id="timeline-viewport" class="timeline-viewport" tabindex="0"></div>
+        </section>
+      </section>
+      <footer class="status-bar">
+        <span id="application-status" role="status" aria-live="polite">Ready</span>
+        <span id="selection-status">No task selected</span>
+      </footer>
+      <div id="context-menu" class="gantt-context-menu" role="menu" hidden>
+        <button type="button" data-action="timeline.add-bar" data-context-action="add-bar" role="menuitem">Add task bar here</button>
+        <button type="button" data-action="dependency.begin-connect" data-context-action="connect" role="menuitem">Connect to another task</button>
+        <button type="button" data-action="dependency.remove" data-context-action="remove" role="menuitem">Remove dependency</button>
+        <button type="button" data-action="context.cancel" data-context-action="cancel" role="menuitem">Cancel</button>
+      </div>
+    </main>
+    <script type="module" src="/demo/demo.js"></script>
+  </body>
+</html>

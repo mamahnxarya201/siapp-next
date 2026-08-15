@@ -1247,12 +1247,12 @@ export function GanttChart({
                 aria-label="Project timeline settings"
               >
                 <Settings2 className="h-3.5 w-3.5" />
-                <span className="text-xs">Project timeline</span>
+                <span className="text-xs">Timeline Settings</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[min(680px,calc(100vh-2rem))] overflow-y-auto sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Project timeline settings</DialogTitle>
+                <DialogTitle>Timeline Settings</DialogTitle>
                 <DialogDescription>
                   These display preferences apply only to {currentProject?.name ?? 'this project'} and do not change stored task dates.
                 </DialogDescription>

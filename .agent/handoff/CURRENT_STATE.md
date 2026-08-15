@@ -419,3 +419,120 @@ adapter work waits for DBA schema and authentication decisions.
   dashboard now exposes projects as directly clickable cards. The helper now
   clicks the requested project card; all three E2E scenarios completed
   successfully afterward.
+
+## Routing (2026-08-14)
+
+- Replaced the single SPA entry behavior with App Router routes: `/` redirects
+  to `/dashboard`, and `/project/timeline/[projectId]` renders a validated
+  project timeline deep link.
+- Dashboard project cards now navigate with the project URL while preserving
+  the existing three-panel timeline and Zustand workspace behavior.
+- Added route-focused Playwright coverage and documented the current/future
+  sitemap in `.agents/docs/ROUTING.md`.
+- Removed build-time `next/font/google` downloads from the root layout so local
+  test/server startup does not hang when outbound Google Fonts access is
+  unavailable; the existing CSS fallback font stack remains active.
+- Routing test runs reached passing assertions, but the local Playwright
+  command still experiences Windows child-process cleanup and occasional
+  retries when orphaned Next processes remain from prior runs.
+
+## Navigation layout (2026-08-14)
+
+- Renamed the Gantt display control to `Timeline Settings` while preserving its
+  settings icon and behavior.
+- Renamed the header planning action to `Planning Intelligence` and changed its
+  icon to a line chart. The existing Forecast, History, Scenarios, Baselines,
+  and Proposals sheet remains unchanged in scope.
+- Added editable task labels with add/edit/delete controls in the existing task
+  edit form; labels are stored in the same in-memory Zustand workspace and are
+  shown in the read-only inspector.
+- Checklist delete controls now have a destructive red border/background cue.
+- Save now calls the edit form's `requestSubmit()` explicitly, fixing reliance
+  on an external button `form` attribute.
+- Strict TypeScript validation and unit tests pass. The focused Playwright run
+  was attempted but the reused localhost dev server again emitted HMR
+  `ERR_INVALID_HTTP_RESPONSE` errors before completion.
+
+- Follow-up verification fixed the route-hydration failure (`Router action
+  dispatched before initialization`) by using native project anchors, hardened
+  malformed project-logo crop storage parsing, corrected label test naming, and
+  made workstream-menu activation deterministic after route hydration.
+- Full Playwright coverage now reports all four scenarios passed with zero
+  retries: routing, task edit/save and labels, workstream continuation, and
+  weighted checklist behavior. The Windows shell still retains Next child
+  processes after reporting the passing scenarios, so the final summary line
+  is not emitted before manual interruption.
+
+## Isolated vanilla Gantt experiment (2026-08-15)
+
+- Implemented migration tasks 005 and 006 under `experimental/gantt-engine/` without
+  changing the React PMIS implementation.
+- Added a minimal event-oriented application shell with named commands, root action
+  delegation, explicit invalidation/refresh, cancellable scheduling, and deterministic
+  lifecycle cleanup. Its control flow is documented for WinForms/Delphi/Qt/GTK-era
+  auditors in `experimental/gantt-engine/docs/ARCHITECTURE.md`.
+- Added an application-facing `Gateway` and separate in-memory/fetch transports. The
+  future PHP boundary is documented in
+  `experimental/gantt-engine/docs/PHP_BRIDGE_CONTRACT.md`; no PHP endpoint or
+  production persistence was added.
+- Implemented the task-list/DOM and timeline/SVG Gantt slice: scales, scroll sync,
+  range growth/compaction, group collapse, milestones, task gestures, progressive
+  dependencies, adaptive routes, forward-only recursive propagation, and PERT/CPM.
+- Runtime dependencies remain zero. `@playwright/test` is the only development
+  dependency and is recorded in `experimental/gantt-engine/docs/BILL_OF_MANIFEST.md`.
+- Verification: `npm.cmd test` in `experimental/gantt-engine` completed cleanly with
+  45 Node tests and 6 Chrome/Playwright scenarios. Unlike the main Next.js E2E issue
+  above, the experiment's test wrapper owns and terminates its static server process.
+- This experiment does not authorize replacing or integrating the React Gantt. That
+  remains a separate user-approved task.
+
+### Demo root-route rendering fix (2026-08-15)
+
+- Fixed the standalone demo asset URLs in `experimental/gantt-engine/demo/index.html`.
+  The test server serves the same document at `/`, so relative `./demo.js` resolved to
+  a nonexistent `/demo.js` and left the shell empty even though the page had no console
+  error visible in the shell.
+- Stylesheet and module paths now use `/src/styles.css` and `/demo/demo.js`, which work
+  from both `/` and `/demo/index.html`.
+- The browser suite now opens `/` in its setup, covering the user-facing entry point.
+  Both routes were manually inspected: 11 task rows, 11 Gantt bars, and no console
+  warnings/errors. Unit tests (45) and browser scenarios (6) pass.
+
+### Vanilla Year 0 interaction/theme slice (2026-08-15)
+
+- The isolated `experimental/gantt-engine` demo now supports direct task creation
+  and renaming in the activity panel, scoped right-click task-bar creation, and
+  right-click dependency connect/remove with a live preview connector.
+- The demo suppresses the browser context menu only inside its Gantt root and
+  supports `dark`, `light`, and `editorial` themes through semantic CSS tokens.
+  The layout keeps the wireframe-inspired Activity/Resource/Status grid; the React
+  application was not changed.
+- Dependency authoring updates both canonical `predecessorIds` and UI-facing
+  `dependencies` before normalization, preserving the model contract.
+- Durable behavior is documented in
+  `experimental/gantt-engine/docs/THEME_AND_INTERACTION_CONTRACT.md`.
+- Verification after this slice: 45 Node tests and 8 Chrome/Playwright scenarios
+  pass, including task/bar creation, theme switching, dependency preview/commit,
+  and the prior scheduling, scroll, and forecast coverage.
+
+### Wireframe UI replacement (2026-08-15)
+
+- Replaced the isolated demo’s dark product-shell presentation with the supplied
+  `.agent/rendered wireframe.png` geometry: a 350px activity pane, 72px calendar
+  header, orange workstream bands, white spreadsheet canvas, hairline date grid,
+  and synchronized scroll surfaces.
+- Kept the existing command, task authoring, drag/resize, dependency, forecast, and
+  gateway behavior behind the new presentation. React PMIS remains unchanged.
+- Verification: 45 unit tests and 8 browser scenarios pass against the replacement
+  UI.
+
+### Tom’s Planner-style cell grid/sidebar refinement (2026-08-15)
+
+- Refined the wireframe replacement to match the supplied example: 454px numbered
+  Activity/Resource/Status sidebar, numbered workstreams and tasks, calendar glyph,
+  centered year/month/day header bands, and explicit horizontal plus vertical cell
+  lines across the Gantt surface.
+- Added `experimental/gantt-engine/src/grid.js` as the adjustable grid-settings seam.
+  It currently controls line visibility, major/minor/row colors, and group/task
+  fills through `settings.grid`.
+- Verification: 45 unit tests and 8 browser scenarios pass after the refinement.

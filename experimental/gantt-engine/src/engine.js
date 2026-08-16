@@ -7,6 +7,7 @@ import { normalizeTasks } from "./model.js";
 import { renderTaskList, renderTimeline } from "./renderer.js";
 import {
   ALL_WEEKDAYS,
+  HEADER_HEIGHT,
   buildVisibleRows,
   computeTaskPositions,
   computeTimelineData,
@@ -50,7 +51,7 @@ export function createGanttEngine(options) {
     selectedTaskId: null,
     hoveredTaskId: null,
     scale: options.settings?.scale ?? "week",
-    theme: options.settings?.theme ?? "dark",
+    theme: options.settings?.theme ?? "light",
     grid: normalizeGridSettings(options.settings?.grid),
     showAllDependencies: false,
     showCriticalPath: false,
@@ -212,6 +213,48 @@ export function createGanttEngine(options) {
     );
     setStatus(`Renamed ${nextName}`);
   }
+  function createWorkstream(label) {
+    const normalizedLabel = String(label ?? "").trim();
+    if (!normalizedLabel) return false;
+    const idBase = normalizedLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "workstream";
+    let id = idBase;
+    let suffix = 2;
+    while (state.workstreams.some((item) => item.id === id)) id = `${idBase}-${suffix++}`;
+    const colors = ["#287984", "#32765e", "#8a5a0a", "#ad4848", "#66548f"];
+    state.workstreams = [
+      ...state.workstreams,
+      { id, label: normalizedLabel, color: colors[state.workstreams.length % colors.length], icon: "foundation" },
+    ];
+    state.expandedWorkstreams.add(id);
+    invalidate("workstream created");
+    setStatus(`Created workstream ${normalizedLabel}`);
+    return id;
+  }
+  function renameWorkstream(id, label) {
+    const normalizedLabel = String(label ?? "").trim();
+    if (!normalizedLabel) return false;
+    const workstream = state.workstreams.find((item) => item.id === id);
+    if (!workstream) return false;
+    state.workstreams = state.workstreams.map((item) =>
+      item.id === id ? { ...item, label: normalizedLabel } : item,
+    );
+    invalidate("workstream renamed");
+    setStatus(`Renamed workstream ${normalizedLabel}`);
+    return true;
+  }
+  function deleteWorkstream(id) {
+    const workstream = state.workstreams.find((item) => item.id === id);
+    if (!workstream) return false;
+    if (state.tasks.some((task) => (task.groupName ?? task.workstreamId) === id)) {
+      setStatus("Reassign tasks before deleting this workstream.");
+      return false;
+    }
+    state.workstreams = state.workstreams.filter((item) => item.id !== id);
+    state.expandedWorkstreams.delete(id);
+    invalidate("workstream deleted");
+    setStatus(`Deleted workstream ${workstream.label}`);
+    return true;
+  }
   function addDependency(fromTaskId, toTaskId) {
     if (!fromTaskId || !toTaskId || fromTaskId === toTaskId) return false;
     const target = state.tasks.find((task) => task.id === toTaskId);
@@ -271,7 +314,7 @@ export function createGanttEngine(options) {
     const rect = timeline.getBoundingClientRect();
     const x = event.clientX - rect.left + timeline.scrollLeft;
     const y = event.clientY - rect.top + timeline.scrollTop;
-    const rowY = y - 72;
+    const rowY = y - HEADER_HEIGHT;
     const row = snapshot?.rows.find(
       (item) => rowY >= item.y && rowY < item.y + item.height,
     );
@@ -460,6 +503,11 @@ export function createGanttEngine(options) {
       invalidate("theme changed");
     }
   });
+  application.registerCommand("theme.toggle", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = state.theme;
+    invalidate("theme toggled");
+  });
   application.registerCommand("timeline.scroll-left", () =>
     timeline.scrollBy({ left: -200, behavior: "smooth" }),
   );
@@ -481,6 +529,35 @@ export function createGanttEngine(options) {
     else state.expandedWorkstreams.add(id);
     invalidate("workstream toggled");
   });
+  application.registerCommand("workstream.create", () => {
+    const label = window.prompt("New workstream name");
+    if (label !== null) createWorkstream(label);
+  });
+  application.registerCommand("workstream.manage", ({ source, event }) => {
+    showContextMenu(event, {
+      kind: "workstream",
+      workstreamId: source.dataset.workstreamId ?? source.dataset.groupId,
+    });
+  });
+  application.registerCommand("workstream.rename", () => {
+    if (!contextMenuState?.workstreamId) return;
+    const workstream = state.workstreams.find((item) => item.id === contextMenuState.workstreamId);
+    if (!workstream) return;
+    const label = window.prompt("Rename workstream", workstream.label);
+    hideContextMenu();
+    if (label !== null) renameWorkstream(workstream.id, label);
+  });
+  application.registerCommand("workstream.delete", () => {
+    if (!contextMenuState?.workstreamId) return;
+    const workstream = state.workstreams.find((item) => item.id === contextMenuState.workstreamId);
+    hideContextMenu();
+    if (!workstream) return;
+    if (state.tasks.some((task) => (task.groupName ?? task.workstreamId) === workstream.id)) {
+      setStatus("Reassign tasks before deleting this workstream.");
+      return;
+    }
+    if (window.confirm(`Delete ${workstream.label}?`)) deleteWorkstream(workstream.id);
+  });
   application.registerCommand("task.select", ({ source }) =>
     select(source.dataset.taskId),
   );
@@ -496,6 +573,19 @@ export function createGanttEngine(options) {
         effects: [{ cause: "created", taskId: created.id }],
       });
     }
+  });
+  application.registerCommand("task.create-workstream", ({ source }) => {
+    const groupName = source.dataset.workstreamId ?? source.dataset.groupId;
+    const workstream = state.workstreams.find((item) => item.id === groupName);
+    const created = createTask({
+      name: "New task",
+      groupName: groupName ?? state.workstreams[0]?.id ?? "ungrouped",
+    });
+    setStatus(`Created task in ${workstream?.label ?? "workstream"}`);
+    void persist({
+      tasks: state.tasks,
+      effects: [{ cause: "created", taskId: created.id, groupName }],
+    });
   });
   application.registerCommand("task.rename", ({ source }) => {
     renameTask(source.dataset.editTaskId, source.value);

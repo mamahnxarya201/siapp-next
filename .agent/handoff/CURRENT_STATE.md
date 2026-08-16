@@ -544,3 +544,113 @@ adapter work waits for DBA schema and authentication decisions.
   scheduling, timeline, bridge, and framework layers plus the demo entrypoint.
 - Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios;
   `git diff --check` passes.
+
+### Ndang Lulus UI port (2026-08-15)
+
+- Reworked the isolated experiment's presentation to follow the reference Svelte
+  app at `D:/siapp-labs/ndang-lulus`: compact command strip, white spreadsheet
+  canvas, 358px label pane, 64px calendar header, orange workstream bands,
+  compact Activity/Resource/Status columns, and neutral Gantt bar colors.
+- Kept the experiment's existing SVG renderer, progressive dependency disclosure,
+  adaptive routing, drag/resize scheduling, context menus, gateway, and lifecycle
+  behavior unchanged.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios.
+
+### Ndang Lulus exact geometry pass (2026-08-15)
+
+- Aligned the experiment's engine geometry with the Svelte reference rather than
+  only approximating it in CSS: 42px command strip, 358px label pane, 64px
+  calendar header, 24px rows, 16px bars with 4px inset, and 25px default day
+  cells.
+- Updated the geometry assertions and the engine's header hit-testing offset to
+  match the new dimensions.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios;
+  `git diff --check` passes.
+
+### Settled spreadsheet layout contract (2026-08-16)
+
+- Documented the finalized experiment geometry and its CSS/JavaScript token
+  ownership in `experimental/gantt-engine/docs/LAYOUT_CONTRACT.md`.
+- The contract records the 42px command strip, 358px activity pane, 64px
+  calendar header, 24px group/task rows, 16px bars with 4px inset, and the
+  50/25/20 day/week/month scale widths.
+
+### React project-view layout alignment (2026-08-16)
+
+- The task brief was refined to make the current React project execution view
+  the visual source of truth. The experiment is being moved away from the prior
+  wireframe/Ndang-Lulus presentation.
+- The in-progress alignment uses React's 56px top navigation, center-only 48px
+  timeline toolbar, 320px default activity pane, 72px calendar header, 40px
+  workstream rows, 36px task rows, 24px bars, and 60/32/20 day/week/month
+  scale widths.
+- Live geometry verification confirms the experiment now places the 56px top
+  navigation at y=0, the task pane directly below it at y=56, and the 48px
+  timeline toolbar only over the center panel. The Tasks header is 72px and the
+  default activity pane is 320px, matching the live React route at a 1280x720
+  viewport.
+- Verification: 45 unit tests, 8 clean Chrome/Playwright scenarios, and
+  `git diff --check` pass. The experiment still intentionally keeps its own
+  fixture and mini-framework boundary; navigation and the React right inspector
+  remain outside this timeline-focused experiment scope.
+
+### React hover-row parity correction (2026-08-16)
+
+- Re-read the React task-list, project-view, Gantt chart, store, theme, and
+  layout sources after visual comparison against the supplied screenshots.
+- Replaced the experiment's task-panel header composition with the React Tasks
+  header and removed the prior Activity/Resource/Status spreadsheet header.
+- Added the missing shared hover state: hovering a task row now marks both the
+  sidebar row and a full-width SVG timeline row with the React-equivalent
+  accent cue. Selected rows use the separate primary tint.
+- Added an E2E assertion covering the full-width `.timeline-row--hovered`
+  element. The final verification remains 45 unit tests, 8 Playwright scenarios,
+  and `git diff --check` passing.
+- It explicitly preserves the separation between presentation grouping and SVG
+  dependency rendering, and gives the required verification checklist for future
+  geometry changes.
+- Live visual inspection confirmed the root demo renders 11 task rows and 11
+  bars with aligned sidebar/timeline rows and synchronized scroll surfaces.
+
+### React sidebar parity implementation (2026-08-16)
+
+- Replaced the experiment's grouped sidebar markup with React-shaped workstream
+  headers and task rows. Group headers now have an isolated collapse control,
+  hover/focus-revealed add/manage affordances, workstream icon boxes, task
+  counts, and blocked/active/done summaries.
+- Added deterministic fixture metadata for assignee initials/colors, team,
+  priority, blockers, and critical-path flags. Task rows now render the status
+  dot, editable name, avatar, compact dependency count, and wide-panel team and
+  status badges while preserving the current task selection/rename behavior.
+- Compact sidebar behavior is container-based rather than viewport-based, so
+  the 280-320px panel keeps the name column readable while the same row contract
+  can expose badges in a wider host panel.
+- Added workstream-scoped task creation and explicit manage feedback through the
+  existing delegated command bus. No dependency or schedule rules were changed.
+- Live verification at the compact panel width reports five workstreams, eleven
+  task rows, hidden compact team/status chips, visible avatars, and a single
+  full-width SVG hover row (`width=4224px`). Verification: 45 unit tests and 9
+  Playwright scenarios pass; `git diff --check` passes.
+- Sidebar workstream/action icons use vendored Lucide 0.564.0 SVG path geometry;
+  the experiment BOM records the ISC source, rationale, and replacement path.
+
+### React p3 parity completion (2026-08-16)
+
+- Completed the React `p3` fixture port in the isolated experiment: 240
+  deterministic tasks across five workstreams, including assignee initials,
+  teams, statuses, milestones, blockers, critical-path metadata, and
+  forward-scheduled dependency dates.
+- Completed the React project-view shell: 56px top navigation, center-only
+  48px timeline toolbar, 320px activity pane, 72px three-tier calendar header,
+  40px workstream rows, 36px task rows, 24px bars, hidden compact gutters, and
+  no experiment-only footer space.
+- Completed the sidebar interaction parity pass: isolated collapse control,
+  hover/focus group actions, Lucide-derived SVG icons, task avatars/team and
+  status metadata, dependency counts, selection, and full-width horizontal
+  hover cue synchronized with the timeline row.
+- The Bill of Manifest now records the vendored Lucide 0.564.0 ISC geometry,
+  Playwright development dependency, and replacement strategy. The React app
+  remains unchanged; this work is isolated to `experimental/gantt-engine`.
+- Final verification: `npm.cmd test` passes 45 unit tests and 9 Playwright
+  scenarios; `git diff --check` passes; live root demo inspection shows 240
+  tasks/bars, five groups, and matching month/weekday/date header tiers.

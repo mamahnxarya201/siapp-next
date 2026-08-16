@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "task/007-vision-opened-year-0.md",
+                "file": "task/008-settling-the-layout.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "007-vision-opened-year-0"
+              "title": "008-settling-the-layout"
             }
           }
         ]
@@ -190,6 +190,8 @@
   },
   "active": "f914be581a5adaf1",
   "lastOpenFiles": [
+    "task/007-vision-opened-year-0.md",
+    "task/008-settling-the-layout.md",
     "task/006-road-to-the-year-0.md",
     "task/STD-COC.md",
     "task/STD-HCI.md",
@@ -197,7 +199,6 @@
     "task/003-routing-sane.md",
     "task/004-navigation-layout.md",
     "task/005-preparing-the-purge.md",
-    "task/007-vision-opened-year-0.md",
     "rendered wireframe.png",
     "loosely-shapes-wireframe.svg",
     "doc/migration/005-gantt-vanilla-migration.md",

@@ -25,7 +25,9 @@ dependency and is documented in [Bill of Manifest](./docs/BILL_OF_MANIFEST.md).
 - explicit view invalidation and coalesced refresh passes;
 - cancellable microtask, animation-frame, timer, and async scheduling;
 - a strict `Gateway` port with in-memory and future HTTP/PHP transports;
-- compact workstream/task list plus an SVG day/week/month timeline;
+- React-aligned p3 workstream/task sidebar with 240 deterministic tasks,
+  compact metadata, hover-revealed group actions, and an SVG day/week/month
+  timeline;
 - milestones, progress, selection, hover, collapse, and critical-path display;
 - progressive dependency disclosure and adaptive continuous connector routes;
 - move/start-resize/end-resize preview with one atomic commit;
@@ -57,6 +59,8 @@ Start with [Architecture](./docs/ARCHITECTURE.md), then read the
 [PHP bridge contract](./docs/PHP_BRIDGE_CONTRACT.md) before adding a PHP endpoint.
 The [theme and interaction contract](./docs/THEME_AND_INTERACTION_CONTRACT.md)
 defines the Year 0 authoring and context-menu behavior.
+The [spreadsheet layout contract](./docs/LAYOUT_CONTRACT.md) defines the settled
+geometry, design-token seam, and sidebar/SVG alignment rules.
 The [testing manual](./docs/TESTING.md) defines the clean-exit completion rule.
 
 ## Public engine boundary

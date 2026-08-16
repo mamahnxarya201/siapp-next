@@ -1,157 +1,161 @@
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const teamMembers = [
+  { id: "u1", name: "Alex Chen", initials: "AC", color: "#dcecef" },
+  { id: "u2", name: "Sarah Miller", initials: "SM", color: "#e6eef5" },
+  { id: "u3", name: "James Wilson", initials: "JW", color: "#e8e9f6" },
+  { id: "u4", name: "Emma Davis", initials: "ED", color: "#e9f1e8" },
+  { id: "u5", name: "Michael Brown", initials: "MB", color: "#f1eadf" },
+  { id: "u6", name: "Lisa Johnson", initials: "LJ", color: "#f2e4ed" },
+  { id: "u7", name: "David Kim", initials: "DK", color: "#e7edf0" },
+  { id: "u8", name: "Rachel Green", initials: "RG", color: "#eee9df" },
+];
+
 export const demoWorkstreams = [
-  { id: "foundation", label: "Foundation" },
-  { id: "core-platform", label: "Core Platform" },
-  { id: "execution-ui", label: "Execution UI" },
-  { id: "validation", label: "Validation" },
-  { id: "release", label: "Release" },
+  { id: "gateway-foundation", label: "Gateway Foundation", color: "#287984", icon: "foundation" },
+  { id: "service-migration", label: "Service Migration", color: "#287984", icon: "core-platform" },
+  { id: "traffic-transition", label: "Traffic Transition", color: "#32765e", icon: "execution-ui" },
+  { id: "resilience-validation", label: "Resilience Validation", color: "#8a5a0a", icon: "validation" },
+  { id: "regional-rollout", label: "Regional Rollout", color: "#66548f", icon: "release" },
 ];
 
-const task = (
-  id,
-  name,
-  groupName,
-  status,
-  progress,
-  startDate,
-  endDate,
-  dependencies = [],
-  extra = {},
-) => ({
-  id,
-  name,
-  groupName,
-  status,
-  progress,
-  startDate,
-  endDate,
-  dependencies,
-  isMilestone: false,
-  optimisticDays: 2,
-  estimatedDays: 4,
-  pessimisticDays: 7,
-  ...extra,
-});
-
-export const demoTasks = [
-  task(
-    "foundation-schema",
-    "Planning schema",
-    "foundation",
-    "done",
-    100,
-    "2026-08-03",
-    "2026-08-06",
-  ),
-  task(
-    "foundation-adapter",
-    "PMIS model adapter",
-    "foundation",
-    "in-progress",
-    65,
-    "2026-08-06",
-    "2026-08-11",
-    ["foundation-schema"],
-  ),
-  task(
-    "core-scheduling",
-    "Forward schedule kernel",
-    "core-platform",
-    "in-progress",
-    45,
-    "2026-08-11",
-    "2026-08-17",
-    ["foundation-adapter"],
-    { estimatedDays: 6, pessimisticDays: 9 },
-  ),
-  task(
-    "core-forecast",
-    "CPM and PERT forecast",
-    "core-platform",
-    "todo",
-    0,
-    "2026-08-11",
-    "2026-08-16",
-    ["foundation-adapter"],
-    { estimatedDays: 5, pessimisticDays: 8 },
-  ),
-  task(
-    "ui-task-list",
-    "Grouped task list",
-    "execution-ui",
-    "done",
-    100,
-    "2026-08-06",
-    "2026-08-10",
-    ["foundation-schema"],
-  ),
-  task(
-    "ui-svg",
-    "SVG timeline renderer",
-    "execution-ui",
-    "in-progress",
-    55,
-    "2026-08-17",
-    "2026-08-23",
-    ["core-scheduling", "ui-task-list"],
-    { estimatedDays: 6, pessimisticDays: 9 },
-  ),
-  task(
-    "ui-interaction",
-    "Drag and resize controller",
-    "execution-ui",
-    "todo",
-    0,
-    "2026-08-23",
-    "2026-08-29",
-    ["ui-svg"],
-    { estimatedDays: 6, pessimisticDays: 10 },
-  ),
-  task(
-    "validation-unit",
-    "Kernel unit tests",
-    "validation",
-    "in-progress",
-    30,
-    "2026-08-17",
-    "2026-08-21",
-    ["core-scheduling", "core-forecast"],
-  ),
-  task(
-    "validation-e2e",
-    "Browser interaction tests",
-    "validation",
-    "todo",
-    0,
-    "2026-08-29",
-    "2026-09-03",
-    ["ui-interaction", "validation-unit"],
-    { estimatedDays: 5, pessimisticDays: 8 },
-  ),
-  task(
-    "release-audit",
-    "Architecture audit",
-    "release",
-    "todo",
-    0,
-    "2026-09-03",
-    "2026-09-05",
-    ["validation-e2e"],
-    { optimisticDays: 1, estimatedDays: 2, pessimisticDays: 4 },
-  ),
-  task(
-    "release-ready",
-    "Vanilla engine ready",
-    "release",
-    "todo",
-    0,
-    "2026-09-05",
-    "2026-09-06",
-    ["release-audit"],
-    {
-      isMilestone: true,
-      optimisticDays: 1,
-      estimatedDays: 1,
-      pessimisticDays: 1,
-    },
-  ),
+const performanceTaskNames = [
+  "Define route contract",
+  "Migrate service adapter",
+  "Configure traffic policy",
+  "Run resilience validation",
+  "Complete regional rollout",
 ];
+
+const performanceTeams = [
+  "infrastructure",
+  "backend",
+  "deployment",
+  "qa",
+  "management",
+];
+
+const teamLabels = {
+  infrastructure: "Infra",
+  backend: "Backend",
+  deployment: "Deployment",
+  qa: "QA",
+  management: "Management",
+};
+
+const teamColors = {
+  infrastructure: "#287984",
+  backend: "#287984",
+  deployment: "#66548f",
+  qa: "#8a5a0a",
+  management: "#60747c",
+};
+
+function addDays(value, days) {
+  const result = new Date(value);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function startOfToday() {
+  const result = new Date();
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function performanceSpecs() {
+  return Array.from({ length: 240 }, (_, index) => {
+    const lane = index % demoWorkstreams.length;
+    const wave = Math.floor(index / demoWorkstreams.length);
+    const dependencies = new Set();
+
+    if (wave > 0) dependencies.add(`performance-${index - demoWorkstreams.length + 1}`);
+    if (lane > 0) dependencies.add(`performance-${index}`);
+    if (wave > 1 && lane > 0 && wave % 3 === 0)
+      dependencies.add(`performance-${index - demoWorkstreams.length}`);
+
+    const blocked = index > 20 && index % 47 === 0;
+    const status = blocked
+      ? "blocked"
+      : wave < 9
+        ? "done"
+        : wave < 18
+          ? "in-progress"
+          : "todo";
+    const duration = 1 + (index % 3);
+
+    return {
+      id: `performance-${index + 1}`,
+      name: `${performanceTaskNames[lane]} — migration wave ${String(wave + 1).padStart(2, "0")}`,
+      groupName: demoWorkstreams[lane].id,
+      teamName: performanceTeams[lane],
+      startDate: addDays(startOfToday(), -28 + wave * 3 + lane),
+      endDate: addDays(startOfToday(), -28 + wave * 3 + lane + duration),
+      dependencies: [...dependencies],
+      status,
+      progress: status === "done" ? 100 : status === "in-progress" ? 25 + (index * 7) % 70 : 0,
+      priority: index % 29 === 0 ? "critical" : index % 7 === 0 ? "high" : "medium",
+      assignee: teamMembers[index % teamMembers.length],
+      isMilestone: index > 0 && index % 40 === 0,
+      isCriticalPath: lane === demoWorkstreams.length - 1,
+      blockers: blocked ? ["Migration approval is waiting on the owning service team."] : [],
+      riskLevel: blocked ? "high" : index % 11 === 0 ? "medium" : "low",
+      estimatedDays: duration,
+      optimisticDays: Math.max(1, duration - 1),
+      pessimisticDays: duration + 2,
+      createdAt: addDays(startOfToday(), -240 + index),
+      plannedStart: addDays(startOfToday(), -28 + wave * 3 + lane),
+      plannedEnd: addDays(startOfToday(), -28 + wave * 3 + lane + duration),
+      earliestStart: addDays(startOfToday(), -28 + wave * 3 + lane),
+      description: `Performance fixture task ${index + 1} of 240.`,
+      checklist: [],
+      linkedChangeRequests: [],
+      labels: [],
+      comments: [],
+    };
+  });
+}
+
+function schedulePerformanceTasks(specs) {
+  const byId = new Map(specs.map((task) => [task.id, task]));
+  const scheduled = new Map();
+  const visiting = new Set();
+
+  function schedule(id) {
+    if (scheduled.has(id)) return scheduled.get(id);
+    if (visiting.has(id)) throw new Error(`Circular fixture dependency: ${id}`);
+    const task = byId.get(id);
+    if (!task) throw new Error(`Unknown fixture dependency: ${id}`);
+    visiting.add(id);
+    const predecessors = task.dependencies.map(schedule);
+    visiting.delete(id);
+
+    const minimumStart = predecessors.reduce(
+      (latest, predecessor) =>
+        !latest || predecessor.endDate > latest ? predecessor.endDate : latest,
+      null,
+    );
+    const startDate =
+      minimumStart && task.startDate < minimumStart
+        ? new Date(minimumStart)
+        : new Date(task.startDate);
+    const duration = Math.max(DAY_MS, task.endDate.getTime() - task.startDate.getTime());
+    const result = {
+      ...task,
+      startDate,
+      endDate: new Date(startDate.getTime() + duration),
+      earliestStart: minimumStart ? new Date(minimumStart) : new Date(startDate),
+      group: task.teamName,
+      teamName: teamLabels[task.teamName] ? task.teamName : "management",
+      teamLabel: teamLabels[task.teamName] ?? "Management",
+      teamColor: teamColors[task.teamName] ?? teamColors.management,
+    };
+    scheduled.set(id, result);
+    return result;
+  }
+
+  return specs.map((task) => schedule(task.id));
+}
+
+// This is the same deterministic 240-task performance fixture used by React's p3 route.
+export const demoTasks = schedulePerformanceTasks(performanceSpecs());

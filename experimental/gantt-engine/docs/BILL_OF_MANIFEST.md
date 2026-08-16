@@ -11,6 +11,26 @@ view invalidation, scheduled work, strict transport envelopes, DOM task rows, an
 timeline rendering. A general UI framework would add lifecycle and abstraction surface
 that this migration does not need.
 
+## Vendored icon asset set: Lucide
+
+- Source: `lucide-react` 0.564.0 already present in the parent PMIS project.
+- License: ISC.
+- Used icons: `Blocks`, `ServerCog`, `PanelsTopLeft`, `ShieldCheck`, `Rocket`,
+  `ChevronDown`, `ChevronRight`, `Plus`, `MoreHorizontal`, `GitBranch`,
+  `ListTodo`, `CircleAlert`, `Activity`, `CheckCircle2`, `Menu`, `Moon`,
+  `Bell`, `Settings2`, and chart geometry.
+- Location: the small namespace-aware SVG path map in `src/renderer.js`
+  (`sidebarIconPaths`).
+- Reason: the experiment is a browser-native vanilla module and cannot import
+  the React component package without pulling React and a bundler into the
+  isolated runtime. The selected Lucide path data is vendored as SVG geometry
+  so the sidebar matches the React icon proportions and stroke treatment.
+- Runtime impact: no package download, bundle, or module-resolution change;
+  icons are created with `document.createElementNS` during sidebar rendering.
+- Replacement strategy: if the experiment later gains a bundler, replace the
+  local path map with official Lucide imports and keep the same icon names and
+  14px/1.8px stroke contract.
+
 ## Development dependency: `@playwright/test`
 
 - Declared version: `^1.62.1` in the experimental `package.json`.
@@ -53,9 +73,10 @@ The following are not third-party manifest entries:
 
 ## Third-party code inspiration
 
-No third-party source code was copied into the mini-framework. The implementation uses
-ordinary platform patterns: root event delegation, a map-backed command registry,
-dirty-view scheduling, strict ports/adapters, and namespace-aware SVG creation.
+Apart from the explicitly listed Lucide icon paths, no third-party source code was
+copied into the mini-framework. The implementation uses ordinary platform patterns:
+root event delegation, a map-backed command registry, dirty-view scheduling, strict
+ports/adapters, and namespace-aware SVG creation.
 
 ## Approval rule for future dependencies
 

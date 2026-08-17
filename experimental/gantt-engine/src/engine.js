@@ -8,9 +8,11 @@ import { renderTaskList, renderTimeline } from "./renderer.js";
 import {
   ALL_WEEKDAYS,
   HEADER_HEIGHT,
+  TIMELINE_EDGE_BUFFER_CELLS,
   buildVisibleRows,
   computeTaskPositions,
   computeTimelineData,
+  getTimelineScale,
   shiftByVisibleUnits,
   snapIncrementUnits,
   xToDate,
@@ -77,6 +79,7 @@ export function createGanttEngine(options) {
   let contextMenuState = null,
     snapshot = null,
     rightLatched = false,
+    lastScrollLeft = 0,
     shrinkJob = null,
     syncing = false,
     disposed = false;
@@ -158,8 +161,9 @@ export function createGanttEngine(options) {
   }
   function createTask({
     name = "New task",
+    color = "#287984",
     startDate = state.tasks[0]?.startDate ?? new Date(),
-    groupName = state.workstreams[0]?.id ?? "ungrouped",
+    groupName = null,
   } = {}) {
     const start = xToDate(
       0,
@@ -188,6 +192,7 @@ export function createGanttEngine(options) {
       estimatedDays: 1,
       pessimisticDays: 2,
       resource: "Unassigned",
+      color,
     };
     replaceTasks([...state.tasks, task], "task created");
     select(task.id);
@@ -212,6 +217,52 @@ export function createGanttEngine(options) {
       "task renamed",
     );
     setStatus(`Renamed ${nextName}`);
+  }
+  function deleteTask(taskId) {
+    const task = state.tasks.find((item) => item.id === taskId);
+    if (!task) return false;
+    const nextTasks = state.tasks
+      .filter((item) => item.id !== taskId)
+      .map((item) => ({
+        ...item,
+        dependencies: item.dependencies.filter((dependencyId) => dependencyId !== taskId),
+        predecessorIds: item.predecessorIds.filter((dependencyId) => dependencyId !== taskId),
+      }));
+    replaceTasks(nextTasks, "task deleted");
+    if (state.selectedTaskId === taskId) state.selectedTaskId = null;
+    if (state.hoveredTaskId === taskId) state.hoveredTaskId = null;
+    invalidate("task deleted");
+    setStatus(`Deleted task ${task.name}`);
+    return true;
+  }
+  function removeTaskDependencies(taskId) {
+    const task = state.tasks.find((item) => item.id === taskId);
+    if (!task) return false;
+    const nextTasks = state.tasks.map((item) => ({
+      ...item,
+      dependencies: item.dependencies.filter((dependencyId) =>
+        item.id !== taskId && dependencyId !== taskId,
+      ),
+      predecessorIds: item.predecessorIds.filter((dependencyId) =>
+        item.id !== taskId && dependencyId !== taskId,
+      ),
+    }));
+    if (nextTasks.every((item, index) => item.dependencies.length === state.tasks[index].dependencies.length))
+      return false;
+    replaceTasks(nextTasks, "task dependencies removed");
+    setStatus(`Removed dependencies for ${task.name}`);
+    return true;
+  }
+  function updateTaskColor(taskId, color) {
+    if (!/^#[0-9a-f]{6}$/i.test(color)) return false;
+    const task = state.tasks.find((item) => item.id === taskId);
+    if (!task) return false;
+    replaceTasks(
+      state.tasks.map((item) => item.id === taskId ? { ...item, color } : item),
+      "task color changed",
+    );
+    setStatus(`Changed color for ${task.name}`);
+    return true;
   }
   function createWorkstream(label) {
     const normalizedLabel = String(label ?? "").trim();
@@ -303,12 +354,28 @@ export function createGanttEngine(options) {
       button.hidden =
         button.dataset.contextAction !== menuState.kind &&
         button.dataset.contextAction !== "cancel";
+    const task = menuState.taskId
+      ? state.tasks.find((item) => item.id === menuState.taskId)
+      : null;
+    menuState.color = task?.color ?? menuState.color ?? "#287984";
+    for (const colorInput of contextMenu.querySelectorAll("input[type='color']"))
+      colorInput.value = menuState.color;
+    for (const swatch of contextMenu.querySelectorAll("[data-color]"))
+      swatch.classList.toggle("is-selected", swatch.dataset.color === menuState.color);
+    const taskRemoveDependency = contextMenu.querySelector('[data-action="task.remove-dependencies"]');
+    if (taskRemoveDependency)
+      taskRemoveDependency.hidden = menuState.kind !== "task" || !task ||
+        (task.dependencies.length === 0 && !state.tasks.some((item) => item.dependencies.includes(task.id)));
+    // Measure the visible menu. Hidden elements report zero dimensions, which
+    // allowed menus opened from lower sidebar rows to render below the viewport.
+    contextMenu.hidden = false;
     const maxX = Math.max(8, window.innerWidth - contextMenu.offsetWidth - 8),
       maxY = Math.max(8, window.innerHeight - contextMenu.offsetHeight - 8);
     contextMenu.style.left = `${Math.min(event.clientX, maxX)}px`;
     contextMenu.style.top = `${Math.min(event.clientY, maxY)}px`;
-    contextMenu.hidden = false;
-    contextMenu.querySelector("button:not([hidden])")?.focus();
+    if (menuState.kind === "add-bar")
+      contextMenu.querySelector("#context-task-name")?.focus();
+    else contextMenu.querySelector("button:not([hidden])")?.focus();
   }
   function timelinePoint(event) {
     const rect = timeline.getBoundingClientRect();
@@ -328,7 +395,7 @@ export function createGanttEngine(options) {
         state.visibleWeekdays,
         state.snapIncrement,
       ),
-      groupName: row?.group ?? state.workstreams[0]?.id ?? "ungrouped",
+      groupName: row?.group ?? null,
     };
   }
   function taskElementFromEvent(event) {
@@ -364,10 +431,35 @@ export function createGanttEngine(options) {
       });
       return;
     }
+    const sidebarTask =
+      event.target instanceof Element
+        ? event.target.closest("[data-task-id]")
+        : null;
+    if (sidebarTask && taskList.contains(sidebarTask)) {
+      showContextMenu(event, {
+        kind: "task",
+        taskId: sidebarTask.dataset.taskId,
+      });
+      return;
+    }
     if (taskElement) {
       showContextMenu(event, {
-        kind: "connect",
+        kind: "task",
         taskId: taskElement.dataset.taskId,
+      });
+      return;
+    }
+    const workstreamElement =
+      event.target instanceof Element
+        ? event.target.closest("[data-workstream-id]") ??
+          event.target.closest("[data-group-id]")
+        : null;
+    if (workstreamElement) {
+      showContextMenu(event, {
+        kind: "workstream",
+        workstreamId:
+          workstreamElement.dataset.workstreamId ??
+          workstreamElement.dataset.groupId,
       });
       return;
     }
@@ -430,8 +522,13 @@ export function createGanttEngine(options) {
   function addBarAtContext() {
     if (!contextMenuState) return;
     const point = contextMenuState;
+    const nameInput = contextMenu?.querySelector("#context-task-name");
+    const name = nameInput?.value?.trim() || "New task";
+    const color = contextMenuState.color ?? "#287984";
     hideContextMenu();
     const created = createTask({
+      name,
+      color,
       startDate: point.date,
       groupName: point.groupName,
     });
@@ -547,6 +644,14 @@ export function createGanttEngine(options) {
     hideContextMenu();
     if (label !== null) renameWorkstream(workstream.id, label);
   });
+  application.registerCommand("workstream.collapse", () => {
+    const id = contextMenuState?.workstreamId;
+    if (!id) return;
+    hideContextMenu();
+    if (state.expandedWorkstreams.has(id)) state.expandedWorkstreams.delete(id);
+    else state.expandedWorkstreams.add(id);
+    invalidate("workstream toggled");
+  });
   application.registerCommand("workstream.delete", () => {
     if (!contextMenuState?.workstreamId) return;
     const workstream = state.workstreams.find((item) => item.id === contextMenuState.workstreamId);
@@ -558,28 +663,65 @@ export function createGanttEngine(options) {
     }
     if (window.confirm(`Delete ${workstream.label}?`)) deleteWorkstream(workstream.id);
   });
+  application.registerCommand("task.delete", () => {
+    const taskId = contextMenuState?.taskId;
+    hideContextMenu();
+    if (deleteTask(taskId))
+      void persist({
+        tasks: state.tasks,
+        effects: [{ cause: "deleted", taskId }],
+      });
+  });
+  application.registerCommand("task.remove-dependencies", () => {
+    const taskId = contextMenuState?.taskId;
+    hideContextMenu();
+    if (removeTaskDependencies(taskId))
+      void persist({
+        tasks: state.tasks,
+        effects: [{ cause: "dependencies-removed", taskId }],
+      });
+  });
+  application.registerCommand("task.color-select", ({ source }) => {
+    const color = source.dataset.color;
+    if (!contextMenuState || !color) return;
+    contextMenuState.color = color;
+    for (const swatch of contextMenu.querySelectorAll("[data-color]"))
+      swatch.classList.toggle("is-selected", swatch.dataset.color === color);
+    if (contextMenuState.kind === "task") {
+      const taskId = contextMenuState.taskId;
+      hideContextMenu();
+      if (updateTaskColor(taskId, color))
+        void persist({
+          tasks: state.tasks,
+          effects: [{ cause: "color-changed", taskId, color }],
+        });
+    }
+  });
+  application.registerCommand("task.color-input", ({ source }) => {
+    const color = source.value;
+    if (!contextMenuState || !color) return;
+    contextMenuState.color = color;
+    for (const swatch of contextMenu.querySelectorAll("[data-color]"))
+      swatch.classList.toggle("is-selected", swatch.dataset.color === color);
+    if (contextMenuState.kind === "task") {
+      const taskId = contextMenuState.taskId;
+      hideContextMenu();
+      if (updateTaskColor(taskId, color))
+        void persist({
+          tasks: state.tasks,
+          effects: [{ cause: "color-changed", taskId, color }],
+        });
+    }
+  });
   application.registerCommand("task.select", ({ source }) =>
     select(source.dataset.taskId),
   );
-  application.registerCommand("task.create", ({ source }) => {
-    if (source.value.trim()) {
-      const created = createTask({
-        name: source.value,
-        groupName: state.workstreams[0]?.id ?? "ungrouped",
-      });
-      source.value = "";
-      void persist({
-        tasks: state.tasks,
-        effects: [{ cause: "created", taskId: created.id }],
-      });
-    }
-  });
   application.registerCommand("task.create-workstream", ({ source }) => {
     const groupName = source.dataset.workstreamId ?? source.dataset.groupId;
     const workstream = state.workstreams.find((item) => item.id === groupName);
     const created = createTask({
       name: "New task",
-      groupName: groupName ?? state.workstreams[0]?.id ?? "ungrouped",
+      groupName: groupName ?? null,
     });
     setStatus(`Created task in ${workstream?.label ?? "workstream"}`);
     void persist({
@@ -659,18 +801,29 @@ export function createGanttEngine(options) {
   }
   const taskScroll = () => sync(taskList, timeline);
   function timelineScroll() {
+    const previousScrollLeft = lastScrollLeft;
+    const horizontalDelta = timeline.scrollLeft - previousScrollLeft;
+    lastScrollLeft = timeline.scrollLeft;
     sync(timeline, taskList);
+    const edgeBuffer = getTimelineScale(state.scale).dayWidth * TIMELINE_EDGE_BUFFER_CELLS;
     const remaining =
       timeline.scrollWidth - timeline.clientWidth - timeline.scrollLeft;
-    if (remaining < 400 && !rightLatched) {
-      rightLatched = true;
-      state.futureDays += 180;
-      invalidate("timeline extended");
-    } else if (remaining > 800) rightLatched = false;
-    if (timeline.scrollLeft < 400 && state.futureDays > 90) {
+    // Vertical synchronization must never extend the horizontal timeline.
+    // Only a horizontal movement that reaches the final two cells may grow it.
+    if (horizontalDelta > 0) {
+      if (remaining <= edgeBuffer && !rightLatched) {
+        rightLatched = true;
+        state.futureDays += 180;
+        invalidate("timeline extended");
+      }
+      if (remaining > edgeBuffer * 2) rightLatched = false;
+    } else if (horizontalDelta < 0 && remaining > edgeBuffer * 2) {
+      rightLatched = false;
+    }
+    if (horizontalDelta !== 0 && timeline.scrollLeft < edgeBuffer * 2 && state.futureDays > 90) {
       shrinkJob?.cancel();
       shrinkJob = application.scheduler.scheduleDelay(() => {
-        if (timeline.scrollLeft < 400) {
+        if (timeline.scrollLeft < edgeBuffer * 2) {
           state.futureDays = 90;
           rightLatched = false;
           invalidate("timeline compacted");
@@ -692,23 +845,17 @@ export function createGanttEngine(options) {
       return;
     }
     if (event.key !== "Enter") return;
+    if (event.target instanceof Element && event.target.id === "context-task-name" && contextMenuState?.kind === "add-bar") {
+      event.preventDefault();
+      addBarAtContext();
+      return;
+    }
     const source =
       event.target instanceof Element
         ? event.target.closest("[data-action]")
         : null;
     if (!source) return;
     event.preventDefault();
-    if (source.dataset.action === "task.create" && source.value?.trim()) {
-      const created = createTask({
-        name: source.value,
-        groupName: state.workstreams[0]?.id ?? "ungrouped",
-      });
-      source.value = "";
-      void persist({
-        tasks: state.tasks,
-        effects: [{ cause: "created", taskId: created.id }],
-      });
-    }
     if (source.dataset.action === "task.rename") {
       renameTask(source.dataset.editTaskId, source.value);
       void persist({

@@ -7,9 +7,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('creates tasks and bars and switches themes through the project chrome', async ({ page }) => {
-  const taskInput = page.locator('[data-action="task.create"]');
-  await taskInput.fill('Year 0 task');
-  await taskInput.press('Enter');
+  await expect(page.locator('.task-create-row')).toHaveCount(0);
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
+  await page.locator('#context-task-name').fill('Year 0 task');
+  await page.locator('#context-task-name').press('Enter');
   await expect(page.locator('.gantt-task')).toHaveCount(241);
   expect(await page.locator('.task-row__name').evaluateAll((inputs) => inputs.filter((input) => input.value === 'Year 0 task').length)).toBe(1);
 
@@ -17,22 +19,87 @@ test('creates tasks and bars and switches themes through the project chrome', as
   await page.getByRole('button', { name: 'Switch theme' }).click();
   await expect(page.locator('.gantt-application')).toHaveAttribute('data-theme', 'dark');
 
-  const viewport = await page.locator('#timeline-viewport').boundingBox();
   await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
-  await page.getByRole('menuitem', { name: 'Add task bar here' }).click();
+  await page.locator('#context-task-name').fill('Second context task');
+  await page.getByRole('menuitem', { name: 'Add task' }).click();
   await expect(page.locator('.gantt-task')).toHaveCount(242);
 
 });
 
 test('previews and commits a dependency through the scoped context menu', async ({ page }) => {
   await page.locator('.gantt-task[data-task-id="performance-1"]').click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Connect to another task' }).click();
+  await page.getByRole('menuitem', { name: 'Add dependency' }).click();
   const target = await page.locator('.gantt-task[data-task-id="performance-3"]').boundingBox();
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2);
   await expect(page.locator('.dependency-line--preview')).toHaveCount(1);
   await page.locator('.gantt-task[data-task-id="performance-3"]').click();
   await expect(page.locator('.dependency-line--preview')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks.find((task) => task.id === 'performance-3').dependencies)).toContain('performance-1');
+});
+
+test('task context menus change color, remove dependencies, and delete from either surface', async ({ page }) => {
+  await page.locator('.gantt-task[data-task-id="performance-6"]').click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Add dependency' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Delete task' })).toBeVisible();
+  await page.locator('.context-menu__form[data-context-action="task"] [data-color="#66548f"]').click();
+  await expect(page.locator('.gantt-task[data-task-id="performance-6"] .gantt-bar')).toHaveAttribute('style', /#66548f/);
+
+  await page.locator('#task-list [data-task-id="performance-6"]').click({ button: 'right' });
+  const taskRemoveDependencies = page.locator('.context-menu__form[data-context-action="task"] [data-action="task.remove-dependencies"]');
+  await expect(taskRemoveDependencies).toBeVisible();
+  await taskRemoveDependencies.click();
+  await expect.poll(() => page.evaluate(() => {
+    const task = globalThis.ganttDemo.getState().tasks.find((item) => item.id === 'performance-6');
+    return task.dependencies.length;
+  })).toBe(0);
+
+  await page.locator('#task-list [data-task-id="performance-6"]').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Delete task' }).click();
+  await expect(page.locator('.gantt-task[data-task-id="performance-6"]')).toHaveCount(0);
+  await expect(page.locator('#task-list [data-task-id="performance-6"]')).toHaveCount(0);
+});
+
+test('context menu only reveals items for the hovered surface', async ({ page }) => {
+  // Task bar -> task menu only; every other surface must stay hidden.
+  await page.locator('.gantt-task[data-task-id="performance-1"]').click({ button: 'right' });
+  await expect(page.locator('.context-menu__form[data-context-action="task"]')).toBeVisible();
+  await expect(page.locator('[data-action="task.delete"]')).toBeVisible();
+  await expect(page.locator('[data-action="dependency.begin-connect"]')).toBeVisible();
+  await expect(page.locator('[data-action="dependency.remove"]')).toBeHidden();
+  await expect(page.locator('[data-action="workstream.delete"]')).toBeHidden();
+  await expect(page.locator('#context-task-name')).toBeHidden();
+  await expect(page.locator('.context-menu__form[data-context-action="add-bar"]')).toBeHidden();
+  await page.keyboard.press('Escape');
+
+  // Empty grid -> add-bar form only.
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
+  await expect(page.locator('#context-task-name')).toBeVisible();
+  await expect(page.locator('.context-menu__form[data-context-action="add-bar"]')).toBeVisible();
+  await expect(page.locator('[data-action="task.delete"]')).toBeHidden();
+  await expect(page.locator('[data-action="workstream.delete"]')).toBeHidden();
+  await expect(page.locator('[data-action="dependency.remove"]')).toBeHidden();
+  await page.keyboard.press('Escape');
+
+  // Workstream header (timeline) -> workstream menu only.
+  await page.locator('[data-workstream-id]').first().click({ button: 'right' });
+  await expect(page.locator('[data-action="workstream.delete"]')).toBeVisible();
+  await expect(page.locator('[data-action="workstream.rename"]')).toBeVisible();
+  await expect(page.locator('[data-action="workstream.collapse"]')).toBeVisible();
+  await expect(page.locator('#context-task-name')).toBeHidden();
+  await expect(page.locator('[data-action="task.delete"]')).toBeHidden();
+  await expect(page.locator('[data-action="dependency.remove"]')).toBeHidden();
+  await page.keyboard.press('Escape');
+
+  // Dependency link -> remove-dependency only.
+  await page.locator('#task-list [data-task-id="performance-6"]').hover();
+  await expect(page.locator('.dependency-line')).toHaveCount(3);
+  await page.locator('.dependency-line').first().dispatchEvent('contextmenu');
+  await expect(page.locator('[data-action="dependency.remove"]')).toBeVisible();
+  await expect(page.locator('[data-action="task.delete"]')).toBeHidden();
+  await expect(page.locator('[data-action="workstream.delete"]')).toBeHidden();
+  await expect(page.locator('#context-task-name')).toBeHidden();
+  await page.keyboard.press('Escape');
 });
 
 test('delegated controls update scale and dependency disclosure', async ({ page }) => {
@@ -74,6 +141,29 @@ test('sidebar keeps React task metadata and workstream affordances', async ({ pa
   await page.getByRole('menuitem', { name: 'Cancel' }).click();
 });
 
+test('deletes an empty workstream from its context menu and protects populated workstreams', async ({ page }) => {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('prompt');
+    await dialog.accept('Temporary lane');
+  });
+  await page.getByRole('button', { name: 'Add workstream' }).click();
+  await expect(page.locator('.task-group')).toHaveCount(6);
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    await dialog.accept();
+  });
+  await page.getByRole('button', { name: 'Manage Temporary lane' }).click();
+  await page.getByRole('menuitem', { name: 'Delete workstream' }).click();
+  await expect(page.locator('.task-group')).toHaveCount(5);
+  await expect(page.locator('#application-status')).toHaveText('Deleted workstream Temporary lane');
+
+  await page.getByRole('button', { name: 'Manage Gateway Foundation' }).click();
+  await page.getByRole('menuitem', { name: 'Delete workstream' }).click();
+  await expect(page.locator('.task-group')).toHaveCount(5);
+  await expect(page.locator('#application-status')).toHaveText('Reassign tasks before deleting this workstream.');
+});
+
 test('workstream collapse removes matching rows, bars, and connector endpoints', async ({ page }) => {
   await page.locator('input[data-action="dependencies.toggle-all"]').check({ force: true });
   const initialConnectorCount = await page.locator('.dependency-line').count();
@@ -85,6 +175,8 @@ test('workstream collapse removes matching rows, bars, and connector endpoints',
 });
 
 test('drag commits once and recursively pushes violating dependents', async ({ page }) => {
+  const timeline = page.locator('#timeline-viewport');
+  const scrollLeftBefore = await timeline.evaluate((element) => element.scrollLeft);
   const before = await page.evaluate(() => {
     const tasks = globalThis.ganttDemo.getState().tasks;
     return Object.fromEntries(tasks.map((task) => [task.id, {
@@ -113,6 +205,7 @@ test('drag commits once and recursively pushes violating dependents', async ({ p
   expect(Date.parse(after['performance-6'].start)).toBeGreaterThan(Date.parse(before['performance-6'].start));
   expect(Date.parse(after['performance-7'].start)).toBeGreaterThan(Date.parse(before['performance-7'].start));
   expect(after['performance-2']).toEqual(before['performance-2']);
+  await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(scrollLeftBefore);
 });
 
 test('moving a predecessor earlier never pulls its child backward', async ({ page }) => {
@@ -145,6 +238,18 @@ test('scrolling stays synchronized and the future range grows then compacts', as
   await expect.poll(() => timeline.evaluate((element) => element.scrollTop)).toBe(20);
 
   await timeline.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth - element.clientWidth - 65;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().futureDays)).toBe(90);
+
+  await timeline.evaluate((element) => {
+    element.scrollTop = 40;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().futureDays)).toBe(90);
+
+  await timeline.evaluate((element) => {
     element.scrollLeft = element.scrollWidth;
     element.dispatchEvent(new Event('scroll'));
   });
@@ -162,4 +267,21 @@ test('gateway command reloads through the application scheduler', async ({ page 
   await page.evaluate(() => globalThis.ganttDemo.reloadSchedule());
   await expect(page.locator('#application-status')).toHaveText('Schedule loaded');
   await expect(page.locator('.gantt-task')).toHaveCount(240);
+});
+
+test('empty entry point keeps the React shell without fixture rows or bars', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await expect(page.locator('#task-count')).toHaveText('0 total');
+  await expect(page.locator('.task-group')).toHaveCount(0);
+  await expect(page.locator('.gantt-task')).toHaveCount(0);
+  await expect(page.locator('.timeline-header')).toBeVisible();
+  await expect(page.locator('.timeline-row--hovered')).toHaveCount(0);
+
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  await page.mouse.click(viewport.x + 110, viewport.y + 100, { button: 'right' });
+  await page.locator('#context-task-name').fill('Unassigned task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.task-group')).toHaveCount(0);
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks[0].groupName)).toBe(null);
 });

@@ -71,6 +71,15 @@ The following are not third-party manifest entries:
 - browser DOM, SVG, Pointer Events, `ResizeObserver`-compatible layout, and
   `requestAnimationFrame`.
 
+## Demo entry points
+
+- `demo/index.html` + `demo/demo.js`: React-aligned 240-task `p3` fixture used
+  for the populated timeline demo and browser scenarios.
+- `demo/empty.html` + `demo/empty.js`: the same shell, controls, tokens, and
+  engine boundary initialized with empty task and workstream arrays. It is a
+  separate entry point so empty-state work can be tested without changing the
+  populated demo fixture.
+
 ## Third-party code inspiration
 
 Apart from the explicitly listed Lucide icon paths, no third-party source code was

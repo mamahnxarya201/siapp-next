@@ -73,9 +73,35 @@
         <span id="selection-status">No task selected</span>
       </footer>
       <div id="context-menu" class="gantt-context-menu" role="menu" hidden>
-        <button type="button" data-action="timeline.add-bar" data-context-action="add-bar" role="menuitem">Add task bar here</button>
-        <button type="button" data-action="dependency.begin-connect" data-context-action="connect" role="menuitem">Connect to another task</button>
+        <div class="context-menu__form" data-context-action="add-bar">
+          <label class="context-menu__field">Task name<input id="context-task-name" type="text" placeholder="Task name" autocomplete="off" /></label>
+          <span class="context-menu__label">Bar color</span>
+          <div class="context-menu__palette" aria-label="Task color">
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#287984" aria-label="Teal" title="Teal"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#32765e" aria-label="Green" title="Green"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#66548f" aria-label="Purple" title="Purple"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#8a5a0a" aria-label="Amber" title="Amber"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#ad4848" aria-label="Red" title="Red"></button>
+            <label class="context-menu__advanced-color" title="Advanced color picker">Advanced<input id="context-task-color" type="color" value="#287984" data-action="task.color-input" /></label>
+          </div>
+          <button type="button" class="context-menu__primary" data-action="timeline.add-bar" role="menuitem">Add task</button>
+        </div>
+        <div class="context-menu__form" data-context-action="task">
+          <button type="button" data-action="dependency.begin-connect" data-context-action="task" role="menuitem">Add dependency</button>
+          <button type="button" data-action="task.remove-dependencies" data-context-action="task" role="menuitem">Remove dependency</button>
+          <span class="context-menu__label">Change color</span>
+          <div class="context-menu__palette" aria-label="Change task color">
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#287984" aria-label="Teal" title="Teal"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#32765e" aria-label="Green" title="Green"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#66548f" aria-label="Purple" title="Purple"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#8a5a0a" aria-label="Amber" title="Amber"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#ad4848" aria-label="Red" title="Red"></button>
+            <label class="context-menu__advanced-color" title="Advanced color picker">Advanced<input id="context-bar-color" type="color" value="#287984" data-action="task.color-input" /></label>
+          </div>
+          <button type="button" class="context-menu__danger" data-action="task.delete" data-context-action="task" role="menuitem">Delete task</button>
+        </div>
         <button type="button" data-action="dependency.remove" data-context-action="remove" role="menuitem">Remove dependency</button>
+        <button type="button" data-action="workstream.collapse" data-context-action="workstream" role="menuitem">Collapse workstream</button>
         <button type="button" data-action="workstream.rename" data-context-action="workstream" role="menuitem">Rename workstream</button>
         <button type="button" data-action="workstream.delete" data-context-action="workstream" role="menuitem">Delete workstream</button>
         <button type="button" data-action="context.cancel" data-context-action="cancel" role="menuitem">Cancel</button>

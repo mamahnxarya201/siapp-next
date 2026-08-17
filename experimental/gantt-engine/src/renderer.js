@@ -336,14 +336,6 @@ export function renderTaskList(root, state, rows) {
     fragment.append(taskRow);
   }
 
-  const createRow = sidebarElement("div", "task-create-row");
-  const createInput = document.createElement("input");
-  createInput.type = "text";
-  createInput.placeholder = "Add task...";
-  createInput.dataset.action = "task.create";
-  createInput.setAttribute("aria-label", "Add task");
-  createRow.append(createInput);
-  fragment.append(createRow);
   root.replaceChildren(fragment);
 }
 
@@ -648,6 +640,7 @@ function bar(target, task, pos, state) {
       height: BAR_HEIGHT,
       rx: 2,
       class: `gantt-bar gantt-bar--${critical ? "critical" : safeStatus(task.status)}`,
+      style: task.color ? `fill: ${task.color};` : undefined,
       "data-interaction-mode": "move",
     }),
   );

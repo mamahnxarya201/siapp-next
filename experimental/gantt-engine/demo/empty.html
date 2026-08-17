@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PMIS Vanilla Gantt Engine — Empty</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main id="gantt-application" class="gantt-application" aria-label="Empty project timeline">
+      <header class="project-top-nav">
+        <div class="project-top-nav__brand">
+          <span class="project-top-nav__logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg></span>
+          <span>API Gateway Migration</span>
+        </div>
+        <label class="project-top-nav__search">
+          <span class="visually-hidden">Search tasks and projects</span>
+          <input type="search" placeholder="Search tasks, projects..." />
+        </label>
+        <div class="project-top-nav__actions">
+          <button type="button" class="toolbar-button project-top-nav__theme" data-action="theme.toggle" aria-label="Switch theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.7 6.7 0 0 0 21 12.8Z" /></svg></button>
+          <button type="button" class="toolbar-button project-top-nav__planning" aria-label="Planning Intelligence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M7 15l3-3 3 2 5-6" /></svg><span>Planning Intelligence</span></button>
+          <button type="button" class="toolbar-button project-top-nav__notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" /></svg><span class="notification-count">3</span></button>
+          <button type="button" class="toolbar-button project-top-nav__settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /><path d="M3 12h2m14 0h2M12 3v2m0 14v2m-6.4-2.6 1.4-1.4m10-10 1.4-1.4m0 14.8-1.4-1.4m-10-10L5.6 5.6" /></svg></button>
+          <button type="button" class="project-top-nav__avatar" aria-label="Account">AC</button>
+        </div>
+      </header>
+      <section class="gantt-workspace">
+        <aside class="task-panel" aria-label="Project tasks">
+          <div class="project-panel-toolbar">
+            <span class="project-panel-toolbar__people" aria-label="People in project"></span>
+            <button type="button" class="toolbar-button" aria-label="People in Project">›</button>
+          </div>
+          <div class="task-panel__heading">
+            <h2>Tasks</h2>
+            <div class="task-panel__heading-actions">
+              <span id="task-count" aria-live="polite">0 total</span>
+              <button type="button" class="toolbar-button" data-action="workstream.create" aria-label="Add workstream">+</button>
+              <button type="button" class="toolbar-button" aria-label="Hide task list">▣</button>
+            </div>
+          </div>
+          <div id="task-list" class="task-list" tabindex="0"></div>
+        </aside>
+        <section class="timeline-panel" aria-label="Gantt timeline">
+          <header class="gantt-toolbar" aria-label="Timeline controls">
+            <div class="gantt-toolbar__left">
+              <fieldset class="scale-control" aria-label="Timeline scale">
+                <legend class="visually-hidden">Timeline scale</legend>
+                <label><input type="radio" name="scale" value="day" data-action="timeline.set-scale" /> Day</label>
+                <label><input type="radio" name="scale" value="week" data-action="timeline.set-scale" checked /> Week</label>
+                <label><input type="radio" name="scale" value="month" data-action="timeline.set-scale" /> Month</label>
+              </fieldset>
+              <div class="gantt-toolbar__history">
+                <button type="button" class="toolbar-button" aria-label="Undo last workspace change" disabled>↶</button>
+                <button type="button" class="toolbar-button" aria-label="Redo last workspace change" disabled>↷</button>
+              </div>
+            </div>
+            <div class="gantt-toolbar__actions">
+              <button type="button" class="toolbar-button" data-action="timeline.scroll-left" aria-label="Scroll timeline left">←</button>
+              <button type="button" class="toolbar-button" data-action="timeline.scroll-right" aria-label="Scroll timeline right">→</button>
+              <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-all" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0-3-3M6 15a3 3 0 1 0 3 3M15 6H9a3 3 0 0 0-3 3" /></svg><span>All Deps</span></label>
+              <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-critical" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 18H3L12 3Z" /><path d="M12 9v4M12 17h.01" /></svg><span>Critical Path</span></label>
+              <button type="button" class="toolbar-button toolbar-button--text" aria-label="Project timeline settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg><span>Timeline Settings</span></button>
+            </div>
+          </header>
+          <div id="timeline-viewport" class="timeline-viewport" tabindex="0"></div>
+        </section>
+      </section>
+      <footer class="status-bar">
+        <span id="application-status" role="status" aria-live="polite">Ready</span>
+        <span id="selection-status">No task selected</span>
+      </footer>
+      <div id="context-menu" class="gantt-context-menu" role="menu" hidden>
+        <div class="context-menu__form" data-context-action="add-bar">
+          <label class="context-menu__field">Task name<input id="context-task-name" type="text" placeholder="Task name" autocomplete="off" /></label>
+          <span class="context-menu__label">Bar color</span>
+          <div class="context-menu__palette" aria-label="Task color">
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#287984" aria-label="Teal" title="Teal"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#32765e" aria-label="Green" title="Green"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#66548f" aria-label="Purple" title="Purple"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#8a5a0a" aria-label="Amber" title="Amber"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#ad4848" aria-label="Red" title="Red"></button>
+            <label class="context-menu__advanced-color" title="Advanced color picker">Advanced<input id="context-task-color" type="color" value="#287984" data-action="task.color-input" /></label>
+          </div>
+          <button type="button" class="context-menu__primary" data-action="timeline.add-bar" role="menuitem">Add task</button>
+        </div>
+        <div class="context-menu__form" data-context-action="task">
+          <button type="button" data-action="dependency.begin-connect" data-context-action="task" role="menuitem">Add dependency</button>
+          <button type="button" data-action="task.remove-dependencies" data-context-action="task" role="menuitem">Remove dependency</button>
+          <span class="context-menu__label">Change color</span>
+          <div class="context-menu__palette" aria-label="Change task color">
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#287984" aria-label="Teal" title="Teal"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#32765e" aria-label="Green" title="Green"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#66548f" aria-label="Purple" title="Purple"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#8a5a0a" aria-label="Amber" title="Amber"></button>
+            <button type="button" class="context-color-swatch" data-action="task.color-select" data-color="#ad4848" aria-label="Red" title="Red"></button>
+            <label class="context-menu__advanced-color" title="Advanced color picker">Advanced<input id="context-bar-color" type="color" value="#287984" data-action="task.color-input" /></label>
+          </div>
+          <button type="button" class="context-menu__danger" data-action="task.delete" data-context-action="task" role="menuitem">Delete task</button>
+        </div>
+        <button type="button" data-action="dependency.remove" data-context-action="remove" role="menuitem">Remove dependency</button>
+        <button type="button" data-action="workstream.collapse" data-context-action="workstream" role="menuitem">Collapse workstream</button>
+        <button type="button" data-action="workstream.rename" data-context-action="workstream" role="menuitem">Rename workstream</button>
+        <button type="button" data-action="workstream.delete" data-context-action="workstream" role="menuitem">Delete workstream</button>
+        <button type="button" data-action="context.cancel" data-context-action="cancel" role="menuitem">Cancel</button>
+      </div>
+    </main>
+    <script type="module" src="/demo/empty.js"></script>
+  </body>
+</html>

@@ -8,6 +8,8 @@ React PMIS application is unchanged and remains the production implementation.
 ## Run it
 
 Serve this directory with any static HTTP server and open `demo/index.html`. The
+empty project shell is available at `demo/empty.html`; it uses the same layout
+and controls without loading fixture workstreams or tasks. The
 automated browser suite includes a dependency-free server, so the complete verification
 gate is simply:
 
@@ -34,8 +36,9 @@ dependency and is documented in [Bill of Manifest](./docs/BILL_OF_MANIFEST.md).
 - direct-predecessor clamps and recursive forward-only propagation;
 - two-way vertical scroll sync and dynamic future-range extension/compaction;
 - PERT expected duration and CPM earliest/latest/slack/critical calculations;
-- editable task creation and renaming from the activity panel;
-- scoped right-click task-bar creation and dependency connect/remove flows;
+- editable task renaming from the activity panel;
+- context-menu task creation with name/color selection, task deletion, color
+  changes, and dependency connect/remove flows;
 - swappable dark, light, and editorial visual themes;
 - Node contract tests and real Chrome/Playwright interaction tests.
 
@@ -52,7 +55,7 @@ navigation, authentication, persistence, and React replacement are explicit non-
 | Transport adapters | `src/bridge/transports.mjs` | In-memory demo/test adapter and future fetch/PHP adapter. |
 | Pure Gantt kernel | `src/model.js`, `timeline.js`, `dependencies.js`, `scheduling.js`, `forecast.js` | Validation, geometry, routing, propagation, and forecast calculations. |
 | Browser UI | `src/renderer.js`, `interaction.js`, `styles.css` | DOM/SVG paint and pointer/scroll/keyboard control. |
-| Standalone host | `demo/index.html`, `demo/demo.js` | Deterministic fixture and injected in-memory gateway. |
+| Standalone host | `demo/index.html`, `demo/empty.html` | Populated and empty-shell hosts with injected in-memory gateways. |
 | Verification | `tests/` | Framework, kernel, bridge, and browser behavior. |
 
 Start with [Architecture](./docs/ARCHITECTURE.md), then read the

@@ -16,6 +16,7 @@ export const TASK_ROW_HEIGHT = 36;
 export const HEADER_HEIGHT = 72;
 export const BAR_HEIGHT = 24;
 export const BAR_PADDING = (TASK_ROW_HEIGHT - BAR_HEIGHT) / 2;
+export const TIMELINE_EDGE_BUFFER_CELLS = 2;
 
 export const DEFAULT_TIMELINE_RANGE = Object.freeze({
   pastDays: 7,
@@ -230,7 +231,7 @@ export function snapPixelDelta(
 }
 
 function workstreamIdOf(task) {
-  return task.groupName ?? task.workstreamId ?? task.group ?? "ungrouped";
+  return task.groupName ?? task.workstreamId ?? task.group ?? null;
 }
 
 function taskSortDate(task) {
@@ -282,6 +283,7 @@ function normalizeWorkstreams(workstreams, tasks) {
 
   for (const task of tasks) {
     const id = workstreamIdOf(task);
+    if (id === null) continue;
     if (!knownIds.has(id)) {
       knownIds.add(id);
       normalized.push(Object.freeze({ id, label: id }));
@@ -347,6 +349,19 @@ export function buildVisibleRows(
       );
       y += TASK_ROW_HEIGHT;
     }
+  }
+
+  const ungroupedTasks = tasks
+    .filter((task) => workstreamIdOf(task) === null)
+    .sort(compareTasks);
+  for (const task of ungroupedTasks) {
+    if (
+      normalizedQuery &&
+      !String(task.name ?? task.title).toLowerCase().includes(normalizedQuery) &&
+      !String(task.assignee?.name ?? "").toLowerCase().includes(normalizedQuery)
+    ) continue;
+    rows.push(Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }));
+    y += TASK_ROW_HEIGHT;
   }
 
   return Object.freeze(rows);

@@ -227,6 +227,21 @@ test('row building keeps workstreams independent from dependency edges and posit
   assert.equal(range.maxDate.getTime(), localDate(95).getTime())
 })
 
+test('ungrouped tasks remain bare rows without a synthetic ungrouped workstream', () => {
+  const tasks = [
+    task('grouped', 2, 4, { groupName: 'delivery' }),
+    task('free', 4, 5, { extra: { groupName: null, workstreamId: null } }),
+  ]
+  const rows = buildVisibleRows(tasks, [{ id: 'delivery', label: 'Delivery' }], ['delivery'])
+
+  assert.deepEqual(rows.map((row) => row.type === 'group-header' ? `group:${row.group}` : row.task.id), [
+    'group:delivery',
+    'grouped',
+    'free',
+  ])
+  assert.equal(rows.filter((row) => row.type === 'group-header').length, 1)
+})
+
 test('progressive dependency visibility handles default, hover, selection, all, critical, and hidden endpoints', () => {
   const tasks = [
     task('a', 1, 2, { isCriticalPath: true }),

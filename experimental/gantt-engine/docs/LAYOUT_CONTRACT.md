@@ -37,6 +37,8 @@ browser check for sidebar/SVG alignment.
 - week scale: 32px per visible day;
 - day scale: 60px per visible day;
 - month scale: 20px per visible day.
+- timeline extension edge: two visible day cells for the active scale; normal
+  bar dragging does not move the grid until this edge is reached.
 
 The activity pane keeps React's Tasks header, task rows, workstream rows, and
 team/status metadata. Dependency edges continue to render in the SVG layer and
@@ -63,6 +65,15 @@ remain progressively disclosed; grouping does not imply a dependency hierarchy.
   command/context-menu seam. Native prompt/confirm dialogs are the documented
   vanilla fallback for React's modal primitives; deleting a non-empty lane is
   rejected, matching the React guard.
+- The activity pane does not contain an inline task-entry field. Task creation
+  is contextual: right-clicking the grid opens a name/color form, Enter submits
+  it, and the same menu supports palette or advanced native color input.
+- Right-clicking a task bar or sidebar row exposes task actions for deletion,
+  color changes, dependency connection, and dependency-link removal. Right-
+  clicking a workstream action exposes rename, delete, and collapse. Deleting a
+  task removes its bar and cleans incoming/outgoing dependency references;
+  removing dependencies only removes links and never silently deletes another
+  task.
 - The isolated fixture now ports the React `p3` performance shape directly: 240
   tasks, five workstreams, deterministic assignees/teams/statuses, milestones,
   blockers, and forward-scheduled dependency dates. The renderer accepts the

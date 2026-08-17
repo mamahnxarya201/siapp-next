@@ -654,3 +654,36 @@ adapter work waits for DBA schema and authentication decisions.
 - Final verification: `npm.cmd test` passes 45 unit tests and 9 Playwright
   scenarios; `git diff --check` passes; live root demo inspection shows 240
   tasks/bars, five groups, and matching month/weekday/date header tiers.
+
+### Separate empty demo entry point (2026-08-16)
+
+- Added `experimental/gantt-engine/demo/empty.html` and `empty.js` as a
+  separate empty-state host. It reuses the same React-aligned HTML/CSS shell,
+  controls, gateway boundary, and engine, but starts with zero workstreams and
+  zero tasks so the timeline contains no bars or dependency connectors.
+- Added a browser regression scenario for `/demo/empty.html`; final verification
+  passes 45 unit tests and 10 Playwright scenarios.
+
+### Workstream context-menu deletion (2026-08-16)
+
+- Fixed context-menu positioning so menus opened from lower sidebar rows are
+  measured after becoming visible and clamped inside the viewport.
+- Verified the Delete workstream action: empty workstreams are confirmed and
+  removed from the sidebar/timeline; populated workstreams remain protected
+  with the `Reassign tasks before deleting this workstream.` status message.
+- Final verification: `npm.cmd test` passes 45 unit tests and 11 Playwright
+  scenarios.
+
+### Context-menu taskbar rework (2026-08-16)
+
+- Removed the inline sidebar task-entry field. Grid right-click now opens a
+  contextual task form with a task name, palette swatches, advanced native hex
+  color picker, and Enter submission.
+- Bar and sidebar task contexts now support Add dependency, Remove dependency,
+  Change color, and Delete task. Task deletion removes the task/bar and cleans
+  both incoming and outgoing dependency links; removing dependencies only
+  removes links.
+- Workstream context now supports Collapse, Rename, and Delete. The context
+  menu continues to clamp inside the viewport for lower rows.
+- Final verification: `npm.cmd test` passes 45 unit tests and 12 Playwright
+  scenarios; `git diff --check` passes.

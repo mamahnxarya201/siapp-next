@@ -1,5 +1,5 @@
 import { buildDependencyRoutes, routeDependency } from "./dependencies.js";
-import { BAR_HEIGHT, HEADER_HEIGHT } from "./timeline.js";
+import { BAR_HEIGHT, HEADER_HEIGHT, dateToX } from "./timeline.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const svg = (name, attrs = {}) => {
@@ -699,6 +699,68 @@ function bar(target, task, pos, state) {
   target.append(group);
 }
 
+export function renderProjectBrand(root, state) {
+  const fragment = document.createDocumentFragment();
+  const logo = document.createElement("button");
+  logo.type = "button";
+  logo.className = "project-top-nav__logo";
+  logo.dataset.action = "project.logo.open";
+  logo.setAttribute("aria-label", "Customize project logo");
+  logo.title = "Customize project logo";
+  const fallback = document.createElement("span");
+  fallback.className = "project-top-nav__logo-fallback";
+  fallback.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>';
+  const image = document.createElement("img");
+  image.className = "project-top-nav__logo-img";
+  image.alt = "";
+  if (state.logo?.dataUrl) {
+    const scale = 32 / 144;
+    image.src = state.logo.dataUrl;
+    image.hidden = false;
+    fallback.hidden = true;
+    if (state.logo.naturalWidth && state.logo.naturalHeight) {
+      image.style.width = `${state.logo.naturalWidth * state.logo.scale * scale}px`;
+      image.style.height = `${state.logo.naturalHeight * state.logo.scale * scale}px`;
+      image.style.transform = `translate(calc(-50% + ${state.logo.x * scale}px), calc(-50% + ${state.logo.y * scale}px))`;
+    } else {
+      image.style.objectFit = "cover";
+    }
+  } else {
+    image.hidden = true;
+  }
+  logo.append(fallback, image);
+  fragment.append(logo);
+
+  if (state.projectNameEditing) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "project-top-nav__name-input";
+    input.value = state.projectName;
+    input.dataset.action = "project.name.commit";
+    input.setAttribute("aria-label", "Project name");
+    fragment.append(input);
+  } else {
+    const name = document.createElement("button");
+    name.type = "button";
+    name.className = "project-top-nav__name";
+    name.dataset.action = "project.name.edit";
+    name.textContent = state.projectName || "Untitled project";
+    name.title = "Rename project";
+    fragment.append(name);
+  }
+
+  root.replaceChildren(fragment);
+
+  if (state.projectNameEditing) {
+    const input = root.querySelector(".project-top-nav__name-input");
+    queueMicrotask(() => {
+      input?.focus();
+      input?.select();
+    });
+  }
+}
+
 export function renderTimeline(root, snapshot) {
   const left = root.scrollLeft;
   const top = root.scrollTop;
@@ -735,6 +797,24 @@ export function renderTimeline(root, snapshot) {
   for (const pos of positions) {
     const task = byId.get(pos.taskId);
     if (task) bar(body, task, pos, state);
+  }
+  if (state.guide?.visible) {
+    body.append(
+      svg("line", {
+        class: "gantt-guide-line gantt-guide-line--v",
+        x1: state.guide.x,
+        y1: 0,
+        x2: state.guide.x,
+        y2: bodyHeight,
+      }),
+      svg("line", {
+        class: "gantt-guide-line gantt-guide-line--h",
+        x1: 0,
+        y1: state.guide.y,
+        x2: timelineData.totalWidth,
+        y2: state.guide.y,
+      }),
+    );
   }
   stage.append(body);
   root.replaceChildren(stage);

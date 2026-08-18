@@ -4,7 +4,7 @@ import { MiniApplication } from "./framework/index.mjs";
 import { GanttInteractionController } from "./interaction.js";
 import { normalizeGridSettings } from "./grid.js";
 import { normalizeTasks } from "./model.js";
-import { renderTaskList, renderTimeline } from "./renderer.js";
+import { renderProjectBrand, renderTaskList, renderTimeline } from "./renderer.js";
 import {
   ALL_WEEKDAYS,
   HEADER_HEIGHT,
@@ -16,7 +16,37 @@ import {
   shiftByVisibleUnits,
   snapIncrementUnits,
   xToDate,
+  dateToX,
 } from "./timeline.js";
+
+const LOGO_CROP_SIZE = 144;
+const LOGO_HEADER_SIZE = 32;
+const LOGO_MIN_SCALE = 0.5;
+const LOGO_MAX_SCALE = 3;
+
+const logoGeometry = (image) => ({
+  width: image.naturalWidth || 0,
+  height: image.naturalHeight || 0,
+});
+
+const logoScaleToCover = (image) => {
+  const { width, height } = logoGeometry(image);
+  return width && height
+    ? Math.max(LOGO_CROP_SIZE / width, LOGO_CROP_SIZE / height)
+    : 1;
+};
+
+const cloneLogo = (logo) =>
+  logo
+    ? {
+        dataUrl: logo.dataUrl,
+        scale: logo.scale,
+        x: logo.x,
+        y: logo.y,
+        naturalWidth: logo.naturalWidth,
+        naturalHeight: logo.naturalHeight,
+      }
+    : null;
 
 const requireElement = (value, name) => {
   if (!(value instanceof Element))
@@ -60,14 +90,36 @@ export function createGanttEngine(options) {
     visibleWeekdays: options.settings?.visibleWeekdays ?? ALL_WEEKDAYS,
     snapIncrement: options.settings?.snapIncrement ?? "day",
     futureDays: 90,
+    projectName:
+      options.projectName ??
+      (root.querySelector(".project-top-nav__name")?.textContent?.trim() ||
+        "Untitled project"),
+    projectNameEditing: false,
+    logo: options.logo ?? null,
+    logoDraft: null,
+    logoOpen: false,
     status: "Ready",
     markerScope: `gantt-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
     criticalTaskIds: new Set(),
     connection: null,
     connectionLock: false,
+    guide: null,
   };
   state.criticalTaskIds = criticalIds(state.tasks);
   root.dataset.theme = state.theme;
+  function updateThemeControl() {
+    const button = root.querySelector(".project-top-nav__theme");
+    if (!button) return;
+    const isDark = state.theme === "dark";
+    button.setAttribute(
+      "aria-label",
+      isDark ? "Switch to light mode" : "Switch to dark mode",
+    );
+    button.innerHTML = isDark
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.7 6.7 0 0 0 21 12.8Z" /></svg>';
+  }
+  updateThemeControl();
   const application = new MiniApplication({
     root,
     onError: (error) => {
@@ -76,6 +128,11 @@ export function createGanttEngine(options) {
     },
   });
   const contextMenu = root.querySelector("#context-menu");
+  const logoDialog = root.querySelector("#project-logo-dialog");
+  const logoDialogPanel = root.querySelector("#project-logo-dialog-panel");
+  const logoCropSurface = root.querySelector("#project-logo-crop");
+  const logoCropImage = root.querySelector("#project-logo-preview");
+  const logoCropEmpty = root.querySelector("#project-logo-empty");
   let contextMenuState = null,
     snapshot = null,
     rightLatched = false,
@@ -140,6 +197,94 @@ export function createGanttEngine(options) {
     if (application.state === "running")
       application.invalidateView("status", "status changed");
   }
+  function renderLogoDialogPreview() {
+    if (!logoCropImage || !logoCropEmpty) return;
+    const draft = state.logoDraft;
+    if (draft?.dataUrl) {
+      logoCropImage.src = draft.dataUrl;
+      logoCropImage.hidden = false;
+      logoCropEmpty.hidden = true;
+      if (draft.naturalWidth && draft.naturalHeight) {
+        logoCropImage.style.width = `${draft.naturalWidth * draft.scale}px`;
+        logoCropImage.style.height = `${draft.naturalHeight * draft.scale}px`;
+      } else {
+        logoCropImage.style.removeProperty("width");
+        logoCropImage.style.removeProperty("height");
+      }
+      logoCropImage.style.transform = `translate(calc(-50% + ${draft.x}px), calc(-50% + ${draft.y}px))`;
+    } else {
+      logoCropImage.hidden = true;
+      logoCropEmpty.hidden = false;
+    }
+  }
+  function prepareLogoDraft(logo) {
+    const draft = cloneLogo(logo) ?? {
+      dataUrl: null,
+      scale: 1,
+      x: 0,
+      y: 0,
+      naturalWidth: 0,
+      naturalHeight: 0,
+    };
+    if (!draft.dataUrl) return draft;
+    const image = new Image();
+    image.onload = () => {
+      draft.naturalWidth ||= image.naturalWidth;
+      draft.naturalHeight ||= image.naturalHeight;
+      if (!logo) draft.scale = logoScaleToCover(image);
+      renderLogoDialogPreview();
+    };
+    image.src = draft.dataUrl;
+    return draft;
+  }
+  function openLogoDialog() {
+    if (!logoDialog || !logoDialogPanel) return;
+    state.logoDraft = prepareLogoDraft(state.logo);
+    renderLogoDialogPreview();
+    logoDialog.hidden = false;
+    state.logoOpen = true;
+    logoDialogPanel.focus();
+  }
+  function closeLogoDialog() {
+    if (!logoDialog) return;
+    logoDialog.hidden = true;
+    state.logoOpen = false;
+  }
+  function saveLogo() {
+    state.logo = state.logoDraft?.dataUrl ? cloneLogo(state.logoDraft) : null;
+    closeLogoDialog();
+    invalidate("project logo updated");
+    setStatus("Project logo updated");
+    queueMicrotask(() => root.querySelector(".project-top-nav__logo")?.focus());
+  }
+  function cancelLogo() {
+    closeLogoDialog();
+    queueMicrotask(() => root.querySelector(".project-top-nav__logo")?.focus());
+  }
+  function beginProjectNameEdit() {
+    if (state.logoOpen) return;
+    state.projectNameEditing = true;
+    invalidate("project name edit started");
+  }
+  function commitProjectName(value) {
+    if (!state.projectNameEditing) return;
+    const nextName = String(value ?? "").trim();
+    state.projectNameEditing = false;
+    if (nextName) {
+      state.projectName = nextName;
+      invalidate("project name renamed");
+      setStatus(`Renamed project to ${nextName}`);
+    } else {
+      invalidate("project name edit finished");
+    }
+    queueMicrotask(() => root.querySelector(".project-top-nav__name")?.focus());
+  }
+  function cancelProjectName() {
+    if (!state.projectNameEditing) return;
+    state.projectNameEditing = false;
+    invalidate("project name edit cancelled");
+    queueMicrotask(() => root.querySelector(".project-top-nav__name")?.focus());
+  }
   function select(taskId) {
     state.selectedTaskId = taskId;
     onSelectionChange(taskId);
@@ -164,6 +309,7 @@ export function createGanttEngine(options) {
     color = "#287984",
     startDate = state.tasks[0]?.startDate ?? new Date(),
     groupName = null,
+    focusSidebarName = true,
   } = {}) {
     const start = xToDate(
       0,
@@ -197,11 +343,12 @@ export function createGanttEngine(options) {
     replaceTasks([...state.tasks, task], "task created");
     select(task.id);
     setStatus(`Created ${task.name}`);
-    queueMicrotask(() =>
-      taskList
-        .querySelector(`[data-task-id="${task.id}"] .task-row__name`)
-        ?.focus(),
-    );
+    if (focusSidebarName)
+      queueMicrotask(() =>
+        taskList
+          .querySelector(`[data-task-id="${task.id}"] .task-row__name`)
+          ?.focus(),
+      );
     return task;
   }
   function renameTask(taskId, name) {
@@ -385,9 +532,13 @@ export function createGanttEngine(options) {
     const row = snapshot?.rows.find(
       (item) => rowY >= item.y && rowY < item.y + item.height,
     );
+    const groupName = row
+      ? row.group ?? row.task?.groupName ?? row.task?.workstreamId ?? null
+      : null;
     return {
       x,
       y,
+      row,
       date: xToDate(
         x,
         snapshot.timelineData.minDate,
@@ -395,7 +546,7 @@ export function createGanttEngine(options) {
         state.visibleWeekdays,
         state.snapIncrement,
       ),
-      groupName: row?.group ?? null,
+      groupName,
     };
   }
   function taskElementFromEvent(event) {
@@ -531,6 +682,7 @@ export function createGanttEngine(options) {
       color,
       startDate: point.date,
       groupName: point.groupName,
+      focusSidebarName: false,
     });
     void persist({
       tasks: state.tasks,
@@ -574,6 +726,10 @@ export function createGanttEngine(options) {
   application.registerView("task-list", taskList, () =>
     renderTaskList(taskList, state, snapshot.rows),
   );
+  application.registerView("project-brand", root, () => {
+    const brand = root.querySelector(".project-top-nav__brand");
+    if (brand) renderProjectBrand(brand, state);
+  });
   application.registerView("timeline", timeline, () =>
     renderTimeline(timeline, snapshot),
   );
@@ -597,12 +753,14 @@ export function createGanttEngine(options) {
     if (source.checked) {
       state.theme = source.value;
       root.dataset.theme = state.theme;
+      updateThemeControl();
       invalidate("theme changed");
     }
   });
   application.registerCommand("theme.toggle", () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
     root.dataset.theme = state.theme;
+    updateThemeControl();
     invalidate("theme toggled");
   });
   application.registerCommand("timeline.scroll-left", () =>
@@ -736,6 +894,36 @@ export function createGanttEngine(options) {
       effects: [{ cause: "renamed", taskId: source.dataset.editTaskId }],
     });
   });
+  application.registerCommand("project.logo.open", openLogoDialog);
+  application.registerCommand("project.logo.cancel", cancelLogo);
+  application.registerCommand("project.logo.save", saveLogo);
+  application.registerCommand("project.logo.file", ({ source }) => {
+    const file = source.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      const image = new Image();
+      image.onload = () => {
+        state.logoDraft = {
+          dataUrl,
+          scale: logoScaleToCover(image),
+          x: 0,
+          y: 0,
+          naturalWidth: image.naturalWidth,
+          naturalHeight: image.naturalHeight,
+        };
+        renderLogoDialogPreview();
+      };
+      image.src = dataUrl;
+      source.value = "";
+    };
+    reader.readAsDataURL(file);
+  });
+  application.registerCommand("project.name.edit", beginProjectNameEdit);
+  application.registerCommand("project.name.commit", ({ source }) =>
+    commitProjectName(source.value),
+  );
   application.registerCommand("timeline.add-bar", addBarAtContext);
   application.registerCommand("dependency.begin-connect", beginConnection);
   application.registerCommand("dependency.remove", () => {
@@ -764,6 +952,41 @@ export function createGanttEngine(options) {
       void persist(result);
     },
     onNotice: setStatus,
+  });
+  function updateGuide(event) {
+    if (taskElementFromEvent(event)) {
+      if (state.guide?.visible) {
+        state.guide = { visible: false };
+        invalidate("guide hidden (over bar)");
+      }
+      return;
+    }
+    if (!snapshot) return;
+    const point = timelinePoint(event);
+    if (!point.groupName) {
+      if (state.guide?.visible) {
+        state.guide = { visible: false };
+        invalidate("guide hidden (no lane)");
+      }
+      return;
+    }
+    const x = dateToX(
+      point.date,
+      snapshot.timelineData.minDate,
+      state.scale,
+      state.visibleWeekdays,
+    );
+    const y = point.row ? point.row.y + point.row.height / 2 : point.y - HEADER_HEIGHT;
+    if (state.guide?.visible && state.guide.x === x && state.guide.y === y) return;
+    state.guide = { x, y, visible: true };
+    invalidate("guide updated");
+  }
+  timeline.addEventListener("pointermove", updateGuide);
+  timeline.addEventListener("pointerleave", () => {
+    if (state.guide?.visible) {
+      state.guide = { visible: false };
+      invalidate("guide hidden (left)");
+    }
   });
   const taskClick = (event) => {
     const row =
@@ -837,6 +1060,16 @@ export function createGanttEngine(options) {
   };
   const keydown = (event) => {
     if (event.key === "Escape") {
+      if (state.logoOpen) {
+        event.preventDefault();
+        cancelLogo();
+        return;
+      }
+      if (state.projectNameEditing) {
+        event.preventDefault();
+        cancelProjectName();
+        return;
+      }
       if (state.connection) {
         state.connection = null;
         invalidate("dependency connection cancelled");
@@ -845,26 +1078,87 @@ export function createGanttEngine(options) {
       return;
     }
     if (event.key !== "Enter") return;
-    if (event.target instanceof Element && event.target.id === "context-task-name" && contextMenuState?.kind === "add-bar") {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.id === "context-task-name" && contextMenuState?.kind === "add-bar") {
       event.preventDefault();
       addBarAtContext();
       return;
     }
-    const source =
-      event.target instanceof Element
-        ? event.target.closest("[data-action]")
-        : null;
+    const action = target?.dataset?.action;
+    if (action !== "task.rename" && action !== "project.name.commit") return;
+    const source = target.closest("[data-action]");
     if (!source) return;
     event.preventDefault();
-    if (source.dataset.action === "task.rename") {
+    if (action === "task.rename") {
       renameTask(source.dataset.editTaskId, source.value);
       void persist({
         tasks: state.tasks,
         effects: [{ cause: "renamed", taskId: source.dataset.editTaskId }],
       });
+    } else {
+      commitProjectName(source.value);
     }
   };
   const contextMenuHandler = (event) => openContextMenu(event);
+  const logoDrag = { pointerId: null, startX: 0, startY: 0 };
+  const logoWheel = (event) => {
+    if (!state.logoOpen || !state.logoDraft?.dataUrl || !logoCropSurface) return;
+    event.preventDefault();
+    state.logoDraft.scale = Math.min(
+      LOGO_MAX_SCALE,
+      Math.max(LOGO_MIN_SCALE, state.logoDraft.scale - event.deltaY * 0.001),
+    );
+    renderLogoDialogPreview();
+  };
+  const logoPointerDown = (event) => {
+    if (!state.logoOpen || !state.logoDraft?.dataUrl || event.button !== 0) return;
+    logoDrag.pointerId = event.pointerId;
+    logoDrag.startX = event.clientX - state.logoDraft.x;
+    logoDrag.startY = event.clientY - state.logoDraft.y;
+    logoCropSurface?.setPointerCapture(event.pointerId);
+    logoCropSurface?.classList.add("project-logo-dialog__crop--dragging");
+    event.preventDefault();
+  };
+  const logoPointerMove = (event) => {
+    if (logoDrag.pointerId !== event.pointerId) return;
+    state.logoDraft.x = event.clientX - logoDrag.startX;
+    state.logoDraft.y = event.clientY - logoDrag.startY;
+    renderLogoDialogPreview();
+  };
+  const logoPointerEnd = (event) => {
+    if (logoDrag.pointerId !== event.pointerId) return;
+    logoDrag.pointerId = null;
+    if (logoCropSurface?.hasPointerCapture?.(event.pointerId))
+      logoCropSurface.releasePointerCapture(event.pointerId);
+    logoCropSurface?.classList.remove("project-logo-dialog__crop--dragging");
+  };
+  const logoBackdropClick = (event) => {
+    if (event.target === logoDialog) cancelLogo();
+  };
+  const logoDialogKeydown = (event) => {
+    if (event.key !== "Tab" || !logoDialogPanel) return;
+    const items = Array.from(
+      logoDialogPanel.querySelectorAll(
+        "button, input, select, textarea, [tabindex]",
+      ),
+    ).filter(
+      (element) =>
+        !element.disabled &&
+        !element.hidden &&
+        element.getAttribute("tabindex") !== "-1",
+    );
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
   const connectionMove = (event) => updateConnectionPointer(event);
   const connectionDown = (event) => commitConnection(event);
   const connectionClick = (event) => {
@@ -887,6 +1181,15 @@ export function createGanttEngine(options) {
     taskList.addEventListener("pointerout", taskOut);
     taskList.addEventListener("scroll", taskScroll);
     timeline.addEventListener("scroll", timelineScroll);
+    if (logoCropSurface) {
+      logoCropSurface.addEventListener("wheel", logoWheel, { passive: false });
+      logoCropSurface.addEventListener("pointerdown", logoPointerDown);
+      logoCropSurface.addEventListener("pointermove", logoPointerMove);
+      logoCropSurface.addEventListener("pointerup", logoPointerEnd);
+      logoCropSurface.addEventListener("pointercancel", logoPointerEnd);
+    }
+    logoDialog?.addEventListener("click", logoBackdropClick);
+    logoDialogPanel?.addEventListener("keydown", logoDialogKeydown);
     return api;
   }
   function dispose() {
@@ -904,6 +1207,15 @@ export function createGanttEngine(options) {
     taskList.removeEventListener("pointerout", taskOut);
     taskList.removeEventListener("scroll", taskScroll);
     timeline.removeEventListener("scroll", timelineScroll);
+    if (logoCropSurface) {
+      logoCropSurface.removeEventListener("wheel", logoWheel);
+      logoCropSurface.removeEventListener("pointerdown", logoPointerDown);
+      logoCropSurface.removeEventListener("pointermove", logoPointerMove);
+      logoCropSurface.removeEventListener("pointerup", logoPointerEnd);
+      logoCropSurface.removeEventListener("pointercancel", logoPointerEnd);
+    }
+    logoDialog?.removeEventListener("click", logoBackdropClick);
+    logoDialogPanel?.removeEventListener("keydown", logoDialogKeydown);
     shrinkJob?.cancel();
     application.dispose();
     disposed = true;

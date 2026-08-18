@@ -49,3 +49,23 @@ demo remains untouched, and Escape cancels an open menu or connection preview.
 The interaction mapping follows the documented Tom’s Planner pattern: names are
 entered directly in the grid, schedule blocks are drawn on the timeline, and
 dependencies are created from a source task to a target task.
+
+## Project header: name and logo
+
+The top navigation brand follows the React PMIS `top-nav.tsx` header. It exposes two
+independent controls:
+
+- **Project name.** Clicking the name button swaps it for a textbox. Enter or blur
+  commits the new name; Escape cancels and restores the previous name. The name is
+  session-only state (no persistence) and shows a status message when changed.
+- **Project logo.** Clicking the 32px logo button opens the `Customize project logo`
+  dialog: an image upload (`Choose image`), a fixed-square crop frame centered over a
+  224px crop surface, pointer drag to reposition, and scroll to zoom (scale 0.5–3).
+  `Save logo` applies the crop to the header logo; `Cancel` (or Escape, or clicking the
+  backdrop) discards the draft. Like the name, the logo is session-only state.
+
+Keyboard contract (per `STD-HCI.md`): the logo and name buttons are tab-reachable and
+activate with Enter/Space. Inside the dialog, Tab advances Choose image → Save logo →
+Cancel and then loops back to the first field; Escape closes the dialog and returns
+focus to the logo button. Accept (`Save logo`) sits to the left of Decline (`Cancel`),
+matching the non-destructive default.

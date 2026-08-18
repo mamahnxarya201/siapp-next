@@ -687,3 +687,76 @@ adapter work waits for DBA schema and authentication decisions.
   menu continues to clamp inside the viewport for lower rows.
 - Final verification: `npm.cmd test` passes 45 unit tests and 12 Playwright
   scenarios; `git diff --check` passes.
+
+### Experimental navigation/theme refinement (2026-08-18)
+
+- Kept the moon control as the sole theme switcher in the experimental project
+  shell. Its light-mode icon is a moon and its dark-mode icon is a sun; the
+  accessible action label changes between `Switch to dark mode` and `Switch to
+  light mode` with the theme state.
+- Replaced the settings glyph that visually resembled a sun with a distinct
+  slider/settings glyph, reducing ambiguity between settings and theme control.
+- Changed the top navigation to a three-column grid so the search field is
+  centered independently of the unequal brand and action widths.
+- Applied the same shell changes to both `demo/index.html` and
+  `demo/empty.html`. Unit tests pass; the theme browser assertions pass. The
+  full browser run reached 13/14 scenarios, with the remaining failure in the
+  pre-existing grid-hover guide scenario rather than this refinement.
+
+### Dark theme task highlight refinement (2026-08-18)
+
+- Removed the enlarged SVG task selection layer in dark mode so selected or
+  hovered bars no longer show a light outline. Light mode keeps its existing
+  visual cue; row highlighting and task interaction behavior are unchanged.
+
+### Project header port: name rename + logo picker (2026-08-18)
+
+- Ported the React `components/pmis/top-nav.tsx` project image/name header to the
+  isolated vanilla experiment. Both `demo/index.html` and `demo/empty.html` now
+  expose a 32px project-logo button and a project-name button in the top nav.
+- Clicking the project name swaps it for an inline textbox; Enter or blur commits,
+  Escape cancels, and a status message confirms the rename. The name is
+  session-only engine state (`state.projectName`), no persistence.
+- Clicking the logo button opens a `Customize project logo` dialog that mirrors the
+  React implementation: file upload via `FileReader.readAsDataURL`, a fixed 144px
+  square crop frame centered over a 224px crop surface, Pointer-Events drag with
+  `setPointerCapture`, and wheel zoom clamped to 0.5–3. `Save logo` applies the
+  draft to the header; Cancel/Escape/backdrop discard it. The logo is session-only
+  (`state.logo`), no persistence.
+- Keyboard handling follows `STD-HCI.md`: the dialog traps Tab in the order Choose
+  image → Save logo → Cancel and loops; Accept sits left of Decline; Escape closes
+  and returns focus to the logo button. The logo/name buttons are native `<button>`
+  elements reachable by Tab.
+- Added the `project-brand` view (`renderProjectBrand` in `src/renderer.js`) plus
+  commands `project.logo.open/save/cancel/file` and
+  `project.name.edit/commit`. The Enter keydown branch now only intercepts rename
+  inputs so native button activation (Enter/Space) still works for the new buttons.
+- `docs/BILL_OF_MANIFEST.md` records the feature adds no dependency: the crop is a
+  re-implementation of the React custom crop (FileReader + Pointer Events + wheel)
+  with the Lucide upload glyph vendored. `docs/ARCHITECTURE.md` and
+  `docs/THEME_AND_INTERACTION_CONTRACT.md` were updated.
+- Verification: `npm.cmd test` unit suite passes 46 tests; the browser suite passes
+  16/17 scenarios including the three new header scenarios (rename commit + Escape
+  cancel, logo upload/drag/save/cancel, dialog tab-order loop). The single failure
+  is the pre-existing grid-hover guide scenario from the prior uncommitted work
+  (documented above on 2026-08-18); it is unrelated to the header port and its
+  `updateGuide` instrumentation still reports the pointer target as a row rect.
+  A stale `node` process on test port 4173 caused an `EADDRINUSE` server abort in
+  the first E2E attempt; after terminating it, the suite ran cleanly except for that
+  pre-existing scenario.
+
+### Project logo crop refinement (2026-08-18)
+
+- Fixed the logo picker empty-state three-line glyph so it is explicitly hidden
+  after an image is selected; the `[hidden]` display rule now wins over the
+  component's `display:flex` styling.
+- Uploaded images now load their natural dimensions and start at a cover scale
+  for the locked 144px square crop frame, preserving aspect ratio instead of
+  rendering at intrinsic one-pixel or arbitrary dimensions.
+- Saved crop geometry stores the image dimensions and reuses the same scale and
+  position in the 32px project-header box. The header hides the fallback glyph
+  once a logo is committed.
+- Added browser assertions for empty-state visibility, crop dimensions,
+  header sizing, and existing Save/Cancel behavior.
+- Verification: `npm.cmd test` passes 46 unit tests and all 17 Playwright
+  scenarios with clean exit.

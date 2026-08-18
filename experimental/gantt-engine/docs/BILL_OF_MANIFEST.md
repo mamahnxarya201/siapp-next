@@ -102,3 +102,46 @@ Before adding any runtime or development package, update this file with:
 Reading a library for one small technique does not authorize importing it. Reimplement
 only the narrow behavior needed and document provenance if source, not merely the public
 idea, is adapted.
+
+## Project logo and name header — no new dependency
+
+The top-navigation project image/name feature in `demo/index.html` and
+`demo/empty.html` adds no runtime or development package.
+
+Capability requested:
+- inline project rename from the header name control;
+- a project-logo picker popup that uploads an image, applies it to a fixed-aspect
+  (square) crop, and positions/zooms the source image before saving.
+
+Why no third-party package:
+- the crop interaction is narrow and already exists as a custom implementation in the
+  React PMIS `components/pmis/top-nav.tsx`, which uses `FileReader`, Pointer Events,
+  and a CSS `translate/scale` transform against a locked square crop frame. No external
+  crop library is used there either.
+- per `STD-COC.md`, "Not Invented Here" takes precedence; a library would add
+  dependency surface for three small techniques: data-URL file reading, pointer drag,
+  and wheel zoom.
+- the project has no image-processing requirement (no resize, EXIF rotation, or
+  server upload). The selected image is displayed with `object-fit: cover` inside the
+  32px header logo box, mirroring the React behavior.
+
+Implementation:
+- file selection: native `FileReader.readAsDataURL`;
+- crop positioning: Pointer Events with `setPointerCapture` on the crop surface;
+- zoom: the `wheel` event clamped to a 0.5–3 scale range;
+- fixed aspect ratio: a 144px square crop frame (`aspect-square`) centered over a
+  224px crop surface, matching the React `h-36`/`aspect-square` overlay;
+- keyboard: Tab traps inside the dialog (Choose image → Save logo → Cancel → loop),
+  Escape cancels, focus returns to the logo button on close;
+- persistence: none. The demo keeps both the renamed project name and the logo
+  in engine memory for the current session, per user decision on 2026-08-18.
+
+Removal/replacement strategy:
+- if a future host requires persisted or server-side project media, replace the
+  in-memory `state.logo`/`state.projectName` with a gateway operation and keep the
+  same command names and dialog markup.
+
+Vendored icon:
+- the "Choose image" upload glyph is the Lucide `upload` path (three `<path>` strokes),
+  vendored as inline SVG geometry under the same ISC Lucide 0.564.0 treatment already
+  documented in the vendored icon asset set above.

@@ -433,7 +433,7 @@ export function xToDate(
   if (!Number.isFinite(x)) throw new TypeError("x must be finite");
   const { dayWidth } = getTimelineScale(scale);
   const snapUnits = snapIncrementUnits(snapIncrement);
-  const units = Math.round(x / dayWidth / snapUnits) * snapUnits;
+  const units = Math.floor(x / dayWidth / snapUnits) * snapUnits;
   return shiftByVisibleUnits(origin, units, visibleWeekdays);
 }
 

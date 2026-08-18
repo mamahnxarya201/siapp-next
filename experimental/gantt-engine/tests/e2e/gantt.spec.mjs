@@ -15,9 +15,15 @@ test('creates tasks and bars and switches themes through the project chrome', as
   await expect(page.locator('.gantt-task')).toHaveCount(241);
   expect(await page.locator('.task-row__name').evaluateAll((inputs) => inputs.filter((input) => input.value === 'Year 0 task').length)).toBe(1);
 
-  await expect(page.locator('.gantt-application')).toHaveAttribute('data-theme', 'light');
-  await page.getByRole('button', { name: 'Switch theme' }).click();
-  await expect(page.locator('.gantt-application')).toHaveAttribute('data-theme', 'dark');
+   await expect(page.locator('.gantt-application')).toHaveAttribute('data-theme', 'light');
+   const themeButton = page.locator('.project-top-nav__theme');
+   await expect(themeButton).toHaveAttribute('aria-label', 'Switch to dark mode');
+   await expect(themeButton.locator('path')).toHaveCount(1);
+   await themeButton.click();
+   await expect(page.locator('.gantt-application')).toHaveAttribute('data-theme', 'dark');
+   await expect(themeButton).toHaveAttribute('aria-label', 'Switch to light mode');
+   await expect(themeButton.locator('circle')).toHaveCount(1);
+   await expect(page.locator('.gantt-task__selection').first()).toBeHidden();
 
   await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
   await page.locator('#context-task-name').fill('Second context task');
@@ -100,6 +106,25 @@ test('context menu only reveals items for the hovered surface', async ({ page })
   await expect(page.locator('[data-action="workstream.delete"]')).toBeHidden();
   await expect(page.locator('#context-task-name')).toBeHidden();
   await page.keyboard.press('Escape');
+});
+
+test('grid hover shows a landing guide and task creation keeps focus off the sidebar', async ({ page }) => {
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+
+  // Hover an empty grid cell -> landing guide crosshair appears.
+  await page.mouse.move(viewport.x + 24, viewport.y + 230);
+  await expect(page.locator('.gantt-guide-line')).toHaveCount(2);
+
+  // Leaving the timeline hides the guide (pointerleave).
+  await page.locator('#task-list').hover();
+  await expect(page.locator('.gantt-guide-line')).toHaveCount(0);
+
+  // Create via context menu; focus must not jump to a sidebar name input.
+  await page.mouse.click(viewport.x + 24, viewport.y + 230, { button: 'right' });
+  await page.locator('#context-task-name').fill('Focus check task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.gantt-task')).toHaveCount(241);
+  await expect(page.locator('.task-row__name:focus')).toHaveCount(0);
 });
 
 test('delegated controls update scale and dependency disclosure', async ({ page }) => {
@@ -284,4 +309,78 @@ test('empty entry point keeps the React shell without fixture rows or bars', asy
   await expect(page.locator('.task-group')).toHaveCount(0);
   await expect(page.locator('.gantt-task')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks[0].groupName)).toBe(null);
+});
+
+test('renames the project from the top navigation header', async ({ page }) => {
+  await expect(page.locator('.project-top-nav__name')).toHaveText('API Gateway Migration');
+  await page.locator('.project-top-nav__name').click();
+  await expect(page.locator('.project-top-nav__name-input')).toBeVisible();
+  await expect(page.locator('.project-top-nav__name-input')).toBeFocused();
+  await page.locator('.project-top-nav__name-input').fill('Renamed demo project');
+  await page.locator('.project-top-nav__name-input').press('Enter');
+  await expect(page.locator('.project-top-nav__name')).toHaveText('Renamed demo project');
+  await expect(page.locator('#application-status')).toHaveText('Renamed project to Renamed demo project');
+
+  // Escape cancels an in-progress rename and restores the committed name.
+  await page.locator('.project-top-nav__name').click();
+  await page.locator('.project-top-nav__name-input').fill('Cancelled rename');
+  await page.locator('.project-top-nav__name-input').press('Escape');
+  await expect(page.locator('.project-top-nav__name')).toHaveText('Renamed demo project');
+});
+
+test('customizes the project logo through the dialog and restores it on cancel', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+  await page.locator('.project-top-nav__logo').click();
+  await expect(page.locator('#project-logo-dialog')).toBeVisible();
+  await expect(page.locator('#project-logo-dialog-panel')).toBeFocused();
+
+  await page.locator('input[data-action="project.logo.file"]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
+  await expect(page.locator('#project-logo-preview')).toBeVisible();
+  await expect(page.locator('#project-logo-empty')).toBeHidden();
+  await expect(page.locator('#project-logo-preview')).toHaveAttribute('src', /data:image\/png/);
+  await expect.poll(() => page.locator('#project-logo-preview').evaluate((image) => ({
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    width: image.getBoundingClientRect().width,
+    height: image.getBoundingClientRect().height,
+  }))).toMatchObject({ naturalWidth: 1, naturalHeight: 1, width: 144, height: 144 });
+
+  const box = await page.locator('#project-logo-crop').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2 + 12, { steps: 3 });
+  await page.mouse.up();
+
+  await page.getByRole('button', { name: 'Save logo' }).click();
+  await expect(page.locator('#project-logo-dialog')).toBeHidden();
+  await expect(page.locator('.project-top-nav__logo-fallback')).toBeHidden();
+  await expect(page.locator('.project-top-nav__logo-img')).toBeVisible();
+  await expect(page.locator('.project-top-nav__logo-img')).toHaveAttribute('src', /data:image\/png/);
+  await expect.poll(() => page.locator('.project-top-nav__logo-img').evaluate((image) => image.getBoundingClientRect().width)).toBeGreaterThan(31.9);
+  await expect.poll(() => page.locator('.project-top-nav__logo-img').evaluate((image) => image.getBoundingClientRect().height)).toBeGreaterThan(31.9);
+  await expect(page.locator('#application-status')).toHaveText('Project logo updated');
+
+  // Cancel discards the new draft while the committed logo remains in the header.
+  await page.locator('.project-top-nav__logo').click();
+  await page.locator('input[data-action="project.logo.file"]').setInputFiles({ name: 'alt.png', mimeType: 'image/png', buffer: png });
+  await expect(page.locator('#project-logo-preview')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('#project-logo-dialog')).toBeHidden();
+  await expect(page.locator('.project-top-nav__logo-img')).toHaveAttribute('src', /data:image\/png/);
+});
+
+test('logo dialog tab order loops from choose image through save to cancel', async ({ page }) => {
+  await page.locator('.project-top-nav__logo').click();
+  await expect(page.locator('#project-logo-dialog-panel')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('input[data-action="project.logo.file"]')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Save logo' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('input[data-action="project.logo.file"]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#project-logo-dialog')).toBeHidden();
 });

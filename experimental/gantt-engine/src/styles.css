@@ -84,12 +84,20 @@ button, input { font: inherit; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 .gantt-application { display: grid; grid-template-rows: var(--top-nav-height) minmax(0, 1fr); height: 100vh; min-width: 900px; background: var(--background); }
-.project-top-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--card); }
-.project-top-nav__brand, .project-top-nav__actions { display: flex; align-items: center; gap: 10px; }
+.project-top-nav { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--card); }
+.project-top-nav__brand, .project-top-nav__actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.project-top-nav__actions { justify-content: flex-end; }
 .project-top-nav__brand { font-size: 14px; font-weight: 600; }
-.project-top-nav__logo { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 8px; color: var(--primary-foreground); background: var(--primary); }
+.project-top-nav__logo { position: relative; display: inline-flex; width: 32px; height: 32px; flex: 0 0 32px; align-items: center; justify-content: center; overflow: hidden; padding: 0; border: 0; border-radius: 8px; color: var(--primary-foreground); background: var(--primary); cursor: pointer; }
+.project-top-nav__logo:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .project-top-nav__logo svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.project-top-nav__search { width: min(450px, 42vw); }
+.project-top-nav__logo-img { position: absolute; top: 50%; left: 50%; max-width: none; object-fit: cover; }
+.project-top-nav__logo-img[hidden], .project-top-nav__logo-fallback[hidden], .project-logo-dialog__crop-empty[hidden] { display: none; }
+.project-top-nav__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; border: 0; border-radius: 6px; color: var(--foreground); background: transparent; cursor: pointer; font-size: 14px; font-weight: 600; }
+.project-top-nav__name:hover, .project-top-nav__name:focus-visible { background: var(--accent); outline: none; }
+.project-top-nav__name-input { width: 200px; height: 30px; padding: 0 8px; border: 1px solid var(--primary); border-radius: 6px; color: var(--foreground); background: var(--card); font-size: 14px; font-weight: 600; outline: none; }
+.project-top-nav__name-input:focus { box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 30%, transparent); }
+.project-top-nav__search { justify-self: center; width: min(450px, 42vw); }
 .project-top-nav__search input { width: 100%; height: 32px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--foreground); background: var(--secondary); outline: none; }
 .project-top-nav__search input:focus { outline: 2px solid color-mix(in oklch, var(--primary) 45%, transparent); }
 .project-top-nav__planning { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); font-size: 12px; }
@@ -198,7 +206,9 @@ button, input { font: inherit; }
 .dependency-line--preview { stroke: var(--warning, #eab968); stroke-width: 2; }
 .gantt-task { cursor: grab; }
 .gantt-task:active { cursor: grabbing; }
-.gantt-task__selection { fill: color-mix(in oklch, var(--primary) 22%, transparent); }
+.gantt-guide-line { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.75; pointer-events: none; }
+.gantt-task__selection { fill: color-mix(in oklch, var(--primary) 22%, transparent); pointer-events: none; }
+.gantt-application[data-theme="dark"] .gantt-task__selection { display: none; }
 .gantt-bar { rx: 4; }
 .gantt-bar--todo { fill: color-mix(in oklch, var(--muted-foreground) 55%, var(--card)); }
 .gantt-bar--in-progress { fill: var(--info); }
@@ -232,3 +242,24 @@ button, input { font: inherit; }
 .context-menu__danger { color: var(--destructive) !important; }
 @media (max-width: 1100px) { .gantt-toolbar__subtitle, .toolbar-button--text { display: none; } .gantt-workspace { grid-template-columns: 280px minmax(0, 1fr); } .project-top-nav__search { width: 32vw; } }
 @container (min-width: 440px) { .task-row__team-badge, .task-row__status-badge { display: inline-flex; } }
+
+.project-logo-dialog { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 20, 24, 0.38); }
+.project-logo-dialog[hidden] { display: none; }
+.project-logo-dialog__panel { width: min(28rem, 100%); padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24); outline: none; }
+.project-logo-dialog__title { margin: 0 0 4px; color: var(--foreground); font-size: 16px; font-weight: 600; }
+.project-logo-dialog__description { margin: 0 0 14px; color: var(--muted-foreground); font-size: 13px; }
+.project-logo-dialog__crop { position: relative; height: 224px; overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted); cursor: grab; touch-action: none; }
+.project-logo-dialog__crop--dragging { cursor: grabbing; }
+.project-logo-dialog__crop-image { position: absolute; top: 50%; left: 50%; max-height: none; max-width: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.project-logo-dialog__crop-empty { position: absolute; top: 50%; left: 50%; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; transform: translate(-50%, -50%); color: var(--muted-foreground); }
+.project-logo-dialog__crop-empty svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.project-logo-dialog__crop-frame { position: absolute; top: 50%; left: 50%; width: 144px; height: 144px; transform: translate(-50%, -50%); border: 2px solid #ffffff; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38); pointer-events: none; }
+.project-logo-dialog__choose { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: transparent; cursor: pointer; font-size: 13px; }
+.project-logo-dialog__choose:hover { background: var(--accent); }
+.project-logo-dialog__choose:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
+.project-logo-dialog__choose svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.project-logo-dialog__hint { margin: 0 0 14px; color: var(--muted-foreground); font-size: 12px; }
+.project-logo-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.project-logo-dialog__save { color: var(--primary-foreground); background: var(--primary); }
+.project-logo-dialog__save:hover { background: var(--primary); filter: brightness(0.92); }
+.project-logo-dialog__save:focus-visible, .project-logo-dialog__cancel:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }

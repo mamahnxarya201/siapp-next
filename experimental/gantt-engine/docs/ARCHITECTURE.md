@@ -143,10 +143,23 @@ Registered commands in `engine.js` are:
 | `theme.set` | Apply the selected scoped visual theme. |
 | `timeline.add-bar` | Create a one-snap-unit task at the context-menu date. |
 | `dependency.begin-connect` / `dependency.remove` | Start a dependency preview or remove the selected edge. |
+| `project.logo.open` / `project.logo.save` / `project.logo.cancel` | Open the project-logo dialog, commit the draft to the header, or discard it. |
+| `project.logo.file` | Read the chosen image into the dialog crop preview via `FileReader`. |
+| `project.name.edit` / `project.name.commit` | Swap the header project name to an inline textbox and commit the new name. |
+
+The logo dialog is a hidden `<div>` host element inside the application root. It is
+shown/hidden by the engine and owned directly by the composition root, in the same way
+the context menu is. The dialog implements the crop preview with direct DOM writes
+(pointer drag with `setPointerCapture`, wheel zoom) instead of full view refreshes so
+gesture feedback stays snappy. Keyboard Tab is trapped inside the dialog and loops
+Choose image → Save logo → Cancel.
 
 ## View refresh contract
 
-Three views are registered: `task-list`, `timeline`, and `status`.
+Four views are registered: `task-list`, `timeline`, `status`, and `project-brand`.
+`renderProjectBrand` replaces the descendants of `.project-top-nav__brand` only; it
+renders the logo button (with the committed image or the fallback glyph) and the
+project-name button or its editing textbox.
 
 `invalidateAllViews(reason)` marks each dirty. `ViewHost` records reasons and schedules
 one microtask. Repeated invalidations before that microtask are coalesced. `refresh()`

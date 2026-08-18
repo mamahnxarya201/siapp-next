@@ -9,12 +9,16 @@ import {
   ALL_WEEKDAYS,
   HEADER_HEIGHT,
   TIMELINE_EDGE_BUFFER_CELLS,
+  addCalendarDays,
   buildVisibleRows,
   computeTaskPositions,
+  defaultRowOrder,
+  reconcileRowOrder,
   computeTimelineData,
   getTimelineScale,
   shiftByVisibleUnits,
   snapIncrementUnits,
+  startOfCalendarDay,
   xToDate,
   dateToX,
 } from "./timeline.js";
@@ -23,6 +27,7 @@ const LOGO_CROP_SIZE = 144;
 const LOGO_HEADER_SIZE = 32;
 const LOGO_MIN_SCALE = 0.5;
 const LOGO_MAX_SCALE = 3;
+const TIMELINE_PAST_DAYS = 7;
 
 const logoGeometry = (image) => ({
   width: image.naturalWidth || 0,
@@ -47,6 +52,20 @@ const cloneLogo = (logo) =>
         naturalHeight: logo.naturalHeight,
       }
     : null;
+
+const originFromTasks = (tasks, fallback) =>
+  tasks.length
+    ? addCalendarDays(
+        startOfCalendarDay(
+          tasks.reduce(
+            (min, task) =>
+              task.startDate.getTime() < min.getTime() ? task.startDate : min,
+            tasks[0].startDate,
+          ),
+        ),
+        -TIMELINE_PAST_DAYS,
+      )
+    : fallback;
 
 const requireElement = (value, name) => {
   if (!(value instanceof Element))
@@ -73,8 +92,13 @@ export function createGanttEngine(options) {
     gateway = options.gateway ?? null,
     onScheduleCommit = options.onScheduleCommit ?? (() => {}),
     onSelectionChange = options.onSelectionChange ?? (() => {});
+  const initialTasks = normalizeTasks(options.tasks ?? []);
+  const initialOrigin = originFromTasks(initialTasks, startOfCalendarDay(new Date()));
   const state = {
-    tasks: normalizeTasks(options.tasks ?? []),
+    tasks: initialTasks,
+    rowOrder: defaultRowOrder(initialTasks, options.workstreams ?? []),
+    rowOrderDirty: false,
+    minDate: initialOrigin,
     previewResult: null,
     workstreams: options.workstreams ?? [],
     expandedWorkstreams: new Set(
@@ -142,18 +166,35 @@ export function createGanttEngine(options) {
     disposed = false;
 
   const shownTasks = () => state.previewResult?.tasks ?? state.tasks;
+  const shownOrder = () => state.previewResult?.rowOrder ?? state.rowOrder;
   function buildSnapshot() {
     const tasks = shownTasks(),
       rows = buildVisibleRows(
         tasks,
         state.workstreams,
         state.expandedWorkstreams,
-      ),
-      timelineData = computeTimelineData(tasks, {
+        "",
+        shownOrder(),
+      );
+    if (tasks.length > 0) {
+      const earliest = tasks.reduce(
+        (min, task) =>
+          task.startDate.getTime() < min.getTime() ? task.startDate : min,
+        tasks[0].startDate,
+      );
+      const earliestDay = startOfCalendarDay(earliest);
+      // The origin only ever extends left (when a task genuinely moves before
+      // the current left edge). It never re-anchors right, so dragging or
+      // creating a task cannot shift the whole grid.
+      if (earliestDay.getTime() < state.minDate.getTime())
+        state.minDate = earliestDay;
+    }
+    const timelineData = computeTimelineData(tasks, {
         scale: state.scale,
         visibleWeekdays: state.visibleWeekdays,
-        pastDays: 7,
+        pastDays: TIMELINE_PAST_DAYS,
         futureDays: state.futureDays,
+        minDate: state.minDate,
       }),
       positions = computeTaskPositions(rows, {
         rangeStart: timelineData.minDate,
@@ -299,6 +340,11 @@ export function createGanttEngine(options) {
     state.tasks = normalizeTasks(tasks);
     state.previewResult = null;
     state.criticalTaskIds = criticalIds(state.tasks);
+    state.rowOrder = reconcileRowOrder(
+      state.rowOrder,
+      state.tasks,
+      state.workstreams,
+    );
     invalidate(reason);
   }
   function taskId(prefix = "task") {
@@ -424,6 +470,11 @@ export function createGanttEngine(options) {
       { id, label: normalizedLabel, color: colors[state.workstreams.length % colors.length], icon: "foundation" },
     ];
     state.expandedWorkstreams.add(id);
+    state.rowOrder = reconcileRowOrder(
+      state.rowOrder,
+      state.tasks,
+      state.workstreams,
+    );
     invalidate("workstream created");
     setStatus(`Created workstream ${normalizedLabel}`);
     return id;
@@ -449,6 +500,11 @@ export function createGanttEngine(options) {
     }
     state.workstreams = state.workstreams.filter((item) => item.id !== id);
     state.expandedWorkstreams.delete(id);
+    state.rowOrder = reconcileRowOrder(
+      state.rowOrder,
+      state.tasks,
+      state.workstreams,
+    );
     invalidate("workstream deleted");
     setStatus(`Deleted workstream ${workstream.label}`);
     return true;
@@ -504,6 +560,11 @@ export function createGanttEngine(options) {
     const task = menuState.taskId
       ? state.tasks.find((item) => item.id === menuState.taskId)
       : null;
+    // A fresh add-bar menu must never reuse the previous task's name.
+    if (menuState.kind === "add-bar") {
+      const nameInput = contextMenu.querySelector("#context-task-name");
+      if (nameInput) nameInput.value = "";
+    }
     menuState.color = task?.color ?? menuState.color ?? "#287984";
     for (const colorInput of contextMenu.querySelectorAll("input[type='color']"))
       colorInput.value = menuState.color;
@@ -690,13 +751,25 @@ export function createGanttEngine(options) {
     });
   }
   async function persist(result) {
-    onScheduleCommit(result.tasks, result.effects);
+    const isReorder =
+      result.kind === "reorder" ||
+      result.kind === "reorder-group" ||
+      result.kind === "reorder-move";
+    const tasks = result.tasks ?? state.tasks;
+    const effects = result.effects ?? [];
+    onScheduleCommit(tasks, effects);
     if (!gateway) return;
     setStatus("Saving schedule…");
     const job = application.scheduleAsync((signal) =>
       gateway.execute(
         "schedule.commit",
-        { tasks: result.tasks, effects: result.effects },
+        {
+          tasks,
+          effects,
+          ...(isReorder
+            ? { rowOrder: result.rowOrder, rowOrderDirty: state.rowOrderDirty }
+            : {}),
+        },
         { signal, idempotencyKey: `schedule-${Date.now()}` },
       ),
     );
@@ -719,7 +792,11 @@ export function createGanttEngine(options) {
       setStatus(`Load failed: ${response.error.message}`);
       return;
     }
-    replaceTasks(response.data.tasks, "schedule loaded");
+    const nextTasks = normalizeTasks(response.data.tasks);
+    state.minDate = originFromTasks(nextTasks, startOfCalendarDay(new Date()));
+    state.rowOrder = defaultRowOrder(nextTasks, state.workstreams);
+    state.rowOrderDirty = false;
+    replaceTasks(nextTasks, "schedule loaded");
     setStatus("Schedule loaded");
   }
 
@@ -938,6 +1015,12 @@ export function createGanttEngine(options) {
     root: timeline,
     scheduler: application.scheduler,
     getState: () => state,
+    getSnapshot: () => snapshot,
+    getPointerRowY: (event) => {
+      const rect = timeline.getBoundingClientRect();
+      const y = event.clientY - rect.top + timeline.scrollTop;
+      return y - HEADER_HEIGHT;
+    },
     onSelect: select,
     onHover: hover,
     onPreview: (result) => {
@@ -945,7 +1028,19 @@ export function createGanttEngine(options) {
       invalidate(result ? "schedule preview" : "schedule preview cancelled");
     },
     onCommit: (result) => {
-      state.tasks = result.tasks;
+      if (result.kind !== "reorder-group") state.tasks = result.tasks;
+      if (result.kind === "reorder") {
+        state.rowOrder = result.order;
+        state.rowOrderDirty = true;
+      }
+      if (result.kind === "reorder-group" && result.rowOrder) {
+        state.rowOrder = result.rowOrder;
+        state.rowOrderDirty = true;
+      }
+      if (result.kind === "reorder-move") {
+        state.rowOrder = result.rowOrder;
+        state.rowOrderDirty = true;
+      }
       state.previewResult = null;
       state.criticalTaskIds = criticalIds(state.tasks);
       invalidate("schedule committed");
@@ -1023,11 +1118,51 @@ export function createGanttEngine(options) {
     });
   }
   const taskScroll = () => sync(taskList, timeline);
+  const hScroll = root.querySelector(".timeline-hscroll");
+  const hThumb = hScroll?.querySelector(".timeline-hscroll__thumb");
+  let hScrollDragging = false;
+  // Reflects the timeline's horizontal scroll position onto the custom thumb.
+  function syncHScroll() {
+    if (!hThumb) return;
+    const max = Math.max(1, timeline.scrollWidth - timeline.clientWidth);
+    const track = hScroll.clientWidth;
+    const thumbWidth = Math.max(24, (timeline.clientWidth / timeline.scrollWidth) * track);
+    hThumb.style.width = `${thumbWidth}px`;
+    const ratio = max <= 0 ? 0 : timeline.scrollLeft / max;
+    hThumb.style.transform = `translateX(${ratio * Math.max(0, track - thumbWidth)}px)`;
+  }
+  function hScrollPointer(event) {
+    if (!hThumb) return;
+    event.preventDefault();
+    const trackRect = hScroll.getBoundingClientRect();
+    const thumbWidth = parseFloat(hThumb.style.width) || 24;
+    const trackWidth = trackRect.width;
+    const max = Math.max(1, timeline.scrollWidth - timeline.clientWidth);
+    const pos = (event.clientX - trackRect.left - thumbWidth / 2) /
+      Math.max(1, trackWidth - thumbWidth);
+    timeline.scrollLeft = Math.max(0, Math.min(max, pos * max));
+  }
+  const hScrollDown = (event) => {
+    if (!hThumb) return;
+    hScrollDragging = true;
+    hThumb.classList.add("timeline-hscroll__thumb--dragging");
+    hThumb.setPointerCapture?.(event.pointerId);
+    hScrollPointer(event);
+  };
+  const hScrollMove = (event) => {
+    if (hScrollDragging) hScrollPointer(event);
+  };
+  const hScrollUp = () => {
+    if (!hScrollDragging) return;
+    hScrollDragging = false;
+    hThumb?.classList.remove("timeline-hscroll__thumb--dragging");
+  };
   function timelineScroll() {
     const previousScrollLeft = lastScrollLeft;
     const horizontalDelta = timeline.scrollLeft - previousScrollLeft;
     lastScrollLeft = timeline.scrollLeft;
     sync(timeline, taskList);
+    syncHScroll();
     const edgeBuffer = getTimelineScale(state.scale).dayWidth * TIMELINE_EDGE_BUFFER_CELLS;
     const remaining =
       timeline.scrollWidth - timeline.clientWidth - timeline.scrollLeft;
@@ -1182,6 +1317,13 @@ export function createGanttEngine(options) {
     taskList.addEventListener("pointerout", taskOut);
     taskList.addEventListener("scroll", taskScroll);
     timeline.addEventListener("scroll", timelineScroll);
+    if (hScroll) {
+      hScroll.addEventListener("pointerdown", hScrollDown);
+      hScroll.addEventListener("pointermove", hScrollMove);
+      hScroll.addEventListener("pointerup", hScrollUp);
+      hScroll.addEventListener("pointercancel", hScrollUp);
+      queueMicrotask(syncHScroll);
+    }
     if (logoCropSurface) {
       logoCropSurface.addEventListener("wheel", logoWheel, { passive: false });
       logoCropSurface.addEventListener("pointerdown", logoPointerDown);
@@ -1208,6 +1350,12 @@ export function createGanttEngine(options) {
     taskList.removeEventListener("pointerout", taskOut);
     taskList.removeEventListener("scroll", taskScroll);
     timeline.removeEventListener("scroll", timelineScroll);
+    if (hScroll) {
+      hScroll.removeEventListener("pointerdown", hScrollDown);
+      hScroll.removeEventListener("pointermove", hScrollMove);
+      hScroll.removeEventListener("pointerup", hScrollUp);
+      hScroll.removeEventListener("pointercancel", hScrollUp);
+    }
     if (logoCropSurface) {
       logoCropSurface.removeEventListener("wheel", logoWheel);
       logoCropSurface.removeEventListener("pointerdown", logoPointerDown);
@@ -1228,7 +1376,16 @@ export function createGanttEngine(options) {
     reloadSchedule,
     getState: () => state,
     getSnapshot: () => snapshot,
-    setTasks: (tasks) => replaceTasks(tasks, "tasks replaced"),
+    setTasks: (tasks) => {
+      const nextTasks = normalizeTasks(tasks);
+      state.minDate = originFromTasks(
+        nextTasks,
+        startOfCalendarDay(new Date()),
+      );
+      state.rowOrder = defaultRowOrder(nextTasks, state.workstreams);
+      state.rowOrderDirty = false;
+      replaceTasks(nextTasks, "tasks replaced");
+    },
   };
   return api;
 }

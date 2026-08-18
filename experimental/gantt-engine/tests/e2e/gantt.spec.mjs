@@ -32,6 +32,19 @@ test('creates tasks and bars and switches themes through the project chrome', as
 
 });
 
+test('a fresh add-bar menu never reuses the previous task name', async ({ page }) => {
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
+  await page.locator('#context-task-name').fill('First context task');
+  await page.getByRole('menuitem', { name: 'Add task' }).click();
+  await expect(page.locator('.gantt-task')).toHaveCount(241);
+
+  // Reopen the same add-bar menu: the name field must be empty, not retain the
+  // previously created task's name.
+  await page.mouse.click(viewport.x + 110, viewport.y + 230, { button: 'right' });
+  await expect(page.locator('#context-task-name')).toHaveValue('');
+});
+
 test('previews and commits a dependency through the scoped context menu', async ({ page }) => {
   await page.locator('.gantt-task[data-task-id="performance-1"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Add dependency' }).click();
@@ -252,6 +265,301 @@ test('moving a predecessor earlier never pulls its child backward', async ({ pag
   expect(childAfter).toBe(childBefore);
 });
 
+test('dragging the earliest task keeps the timeline origin stable so the dragged bar visibly moves', async ({ page }) => {
+  const minBefore = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
+  const bar = page.locator('.gantt-task[data-task-id="performance-1"] [data-interaction-mode="move"]');
+  const bounds = await bar.boundingBox();
+  const xBefore = await bar.evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
+  const neighborBefore = await page.locator('.gantt-task[data-task-id="performance-6"] [data-interaction-mode="move"]').evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
+
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 64, bounds.y + bounds.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator('#application-status')).toHaveText('Schedule saved');
+
+  const minAfter = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
+  const xAfter = await bar.evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
+  const neighborAfter = await page.locator('.gantt-task[data-task-id="performance-6"] [data-interaction-mode="move"]').evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
+
+  // The origin must not re-anchor: the dragged bar moves on screen and the
+  // nearby bar (which the origin shift used to push left) stays put.
+  expect(minAfter).toBe(minBefore);
+  expect(xAfter).toBeGreaterThan(xBefore);
+  expect(neighborAfter).toBe(neighborBefore);
+});
+
+test('vertical drag reorders rows within a workstream without re-sorting by date', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    const mk = (id, color, off) => ({
+      id,
+      name: id,
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + off * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (off + 3) * 86400000).toISOString(),
+      color,
+      dependencies: [],
+      dependents: [],
+    });
+    eng.setTasks([mk('t1', '#ff0000', 0), mk('t2', '#00ff00', 2)]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(2);
+  // t1 (earlier date) sits above t2 initially.
+  const y1Before = await page.locator('.gantt-task[data-task-id="t1"]').evaluate((el) => el.getBoundingClientRect().y);
+  const y2Before = await page.locator('.gantt-task[data-task-id="t2"]').evaluate((el) => el.getBoundingClientRect().y);
+  expect(y2Before).toBeGreaterThan(y1Before);
+  const t2DateBefore = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks.find((item) => item.id === 't2').startDate.toISOString().slice(0, 10),
+  );
+
+  const bar = page.locator('.gantt-task[data-task-id="t2"] [data-interaction-mode="move"]');
+  const bounds = await bar.boundingBox();
+  // Drag t2 up so it lands above t1.
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y - 60, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.locator('#application-status')).toHaveText('Schedule saved');
+
+  const y1After = await page.locator('.gantt-task[data-task-id="t1"]').evaluate((el) => el.getBoundingClientRect().y);
+  const y2After = await page.locator('.gantt-task[data-task-id="t2"]').evaluate((el) => el.getBoundingClientRect().y);
+  expect(y2After).toBeLessThan(y1After);
+
+  // Dates are unchanged; only the row order moved.
+  const t2DateAfter = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks.find((item) => item.id === 't2').startDate.toISOString().slice(0, 10),
+  );
+  expect(t2DateAfter).toBe(t2DateBefore);
+});
+
+test('a single diagonal drag both moves the date and reorders the row (free move)', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    const mk = (id, color, off) => ({
+      id,
+      name: id,
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + off * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (off + 3) * 86400000).toISOString(),
+      color,
+      dependencies: [],
+      dependents: [],
+    });
+    eng.setTasks([mk('t1', '#ff0000', 0), mk('t2', '#00ff00', 2)]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(2);
+
+  const dateBefore = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks.find((item) => item.id === 't2').startDate.toISOString().slice(0, 10),
+  );
+
+  const bar = page.locator('.gantt-task[data-task-id="t2"] [data-interaction-mode="move"]');
+  const bounds = await bar.boundingBox();
+  // Move left (earlier date) AND up (row above t1) in one gesture.
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 - 160, bounds.y - 80, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.locator('#application-status')).toHaveText('Schedule saved');
+
+  const dateAfter = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks.find((item) => item.id === 't2').startDate.toISOString().slice(0, 10),
+  );
+  const y1 = await page.locator('.gantt-task[data-task-id="t1"]').evaluate((el) => el.getBoundingClientRect().y);
+  const y2 = await page.locator('.gantt-task[data-task-id="t2"]').evaluate((el) => el.getBoundingClientRect().y);
+  // Both dimensions changed in one gesture: earlier date AND above t1.
+  expect(dateAfter).not.toBe(dateBefore);
+  expect(y2).toBeLessThan(y1);
+});
+
+test('holding a bar at the viewport right edge autoscrolls forward and keeps the bar under the pointer', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    const mk = (id, color, off) => ({
+      id,
+      name: id,
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + off * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (off + 3) * 86400000).toISOString(),
+      color,
+      dependencies: [],
+      dependents: [],
+    });
+    eng.setTasks([mk('t1', '#ff0000', 0)]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+
+  const bar = page.locator('.gantt-task[data-task-id="t1"] [data-interaction-mode="move"]');
+  const barBounds = await bar.boundingBox();
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  const scrollBefore = await page.locator('#timeline-viewport').evaluate((el) => el.scrollLeft);
+
+  // Drag the bar past the viewport's right edge and hold it there. The pointer
+  // must go beyond the edge (not just to it) to enter the autoscroll zone.
+  await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width + 40, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(400);
+  const scrollAfter = await page.locator('#timeline-viewport').evaluate((el) => el.scrollLeft);
+
+  // The viewport scrolled forward while holding the bar at the edge.
+  expect(scrollAfter).toBeGreaterThan(scrollBefore);
+  await page.mouse.up();
+});
+
+test('autoscroll speed scales with pointer distance past the edge (throttle)', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    const mk = (id, color, off) => ({
+      id,
+      name: id,
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + off * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (off + 3) * 86400000).toISOString(),
+      color,
+      dependencies: [],
+      dependents: [],
+    });
+    eng.setTasks([mk('t1', '#ff0000', 0)]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+
+  const bar = page.locator('.gantt-task[data-task-id="t1"] [data-interaction-mode="move"]');
+  const barBounds = await bar.boundingBox();
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+
+  const readScroll = () =>
+    page.locator('#timeline-viewport').evaluate((el) => el.scrollLeft);
+
+  // One drag; move the pointer to a near-past-edge position, sample the speed,
+  // then push it further past the edge and sample again. Holding the drag across
+  // both phases avoids re-grabbing the bar.
+  await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
+  await page.mouse.down();
+
+  const nearX = viewport.x + viewport.width + 20;
+  await page.mouse.move(nearX, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(250); // let the throttle settle toward its target
+  const nearBefore = await readScroll();
+  await page.waitForTimeout(120);
+  const nearAfter = await readScroll();
+  const nearSpeed = nearAfter - nearBefore;
+
+  const farX = viewport.x + viewport.width + 120;
+  await page.mouse.move(farX, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(250); // settle at the deeper position
+  const farBefore = await readScroll();
+  await page.waitForTimeout(120);
+  const farAfter = await readScroll();
+  const farSpeed = farAfter - farBefore;
+
+  await page.mouse.up();
+
+  // The deeper position scrolls faster: speed scales with pointer distance past
+  // the edge (throttle), not a fixed jump.
+  expect(nearSpeed).toBeGreaterThan(0);
+  expect(farSpeed).toBeGreaterThan(nearSpeed);
+});
+
+test('vertical drag moves a task into another workstream and the sidebar highlights the landing group', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    const mk = (id, color, off, grp) => ({
+      id,
+      name: id,
+      groupName: grp,
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + off * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (off + 3) * 86400000).toISOString(),
+      color,
+      dependencies: [],
+      dependents: [],
+    });
+    eng.setTasks([mk('t1', '#ff0000', 0, 'gateway-foundation'), mk('t2', '#00ff00', 0, 'gateway-foundation')]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(2);
+
+  const bar = page.locator('.gantt-task[data-task-id="t2"] [data-interaction-mode="move"]');
+  const bounds = await bar.boundingBox();
+  // Move t2 down onto the next workstream header (service-migration).
+  const target = await page.evaluate(() => {
+    const vp = document.querySelector('#timeline-viewport');
+    const vpr = vp.getBoundingClientRect();
+    const snap = globalThis.ganttDemo.getSnapshot();
+    const header = snap.rows.find((row) => row.type === 'group-header' && row.group === 'service-migration');
+    return vpr.top + 72 + header.y + 20;
+  });
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2, target, { steps: 8 });
+  const highlighted = await page.locator('.task-group--reorder-target').count();
+  await page.mouse.up();
+  await expect(page.locator('#application-status')).toHaveText('Schedule saved');
+
+  const group = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks.find((item) => item.id === 't2').groupName,
+  );
+  expect(group).toBe('service-migration');
+  expect(highlighted).toBe(1);
+});
+
+test('creating a task lands it on the hovered grid column and the guide crosses from the left pane', async ({ page }) => {
+  const minBefore = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
+  const viewport = await page.locator('#timeline-viewport').boundingBox();
+  const colIndex = 3;
+  const hoverX = viewport.x + colIndex * 32 + 16;
+  const hoverY = viewport.y + 230;
+
+  // Hover an empty grid cell: the crosshair's horizontal line must run from the
+  // left pane edge (x=0) to the hovered column, meeting the vertical line there.
+  await page.mouse.move(hoverX, hoverY);
+  await expect(page.locator('.gantt-guide-line')).toHaveCount(2);
+  const guide = await page.evaluate(() => {
+    const vertical = document.querySelector('.gantt-guide-line--v');
+    const horizontal = document.querySelector('.gantt-guide-line--h');
+    return {
+      hx1: parseFloat(horizontal.getAttribute('x1')),
+      vx: parseFloat(vertical.getAttribute('x1')),
+      hx2: parseFloat(horizontal.getAttribute('x2')),
+    };
+  });
+  expect(guide.hx1).toBe(0);
+  expect(guide.hx2).toBe(guide.vx);
+
+  // Create a task at that cell; it must land exactly on the hovered column.
+  await page.mouse.click(hoverX, hoverY, { button: 'right' });
+  await page.locator('#context-task-name').fill('Origin check task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.gantt-task')).toHaveCount(241);
+
+  const createdX = await page.evaluate(() => {
+    const task = globalThis.ganttDemo.getState().tasks.find((t) => t.name === 'Origin check task');
+    const position = globalThis.ganttDemo.getSnapshot().positions.find((p) => p.taskId === task.id);
+    return Math.round(position.x);
+  });
+  expect(createdX).toBe(colIndex * 32);
+
+  // The origin must not re-anchor: the created bar appears where hovered and
+  // the existing grid does not slide.
+  const minAfter = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
+  expect(minAfter).toBe(minBefore);
+});
+
 test('scrolling stays synchronized and the future range grows then compacts', async ({ page }) => {
   const taskList = page.locator('#task-list');
   const timeline = page.locator('#timeline-viewport');
@@ -286,6 +594,30 @@ test('scrolling stays synchronized and the future range grows then compacts', as
   });
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().futureDays), { timeout: 2_000 }).toBe(90);
   await expect(page.locator('.gantt-milestone')).toHaveCount(5);
+});
+
+test('the custom horizontal scrollbar drags and stays in sync with the timeline', async ({ page }) => {
+  const timeline = page.locator('#timeline-viewport');
+  const track = page.locator('.timeline-hscroll');
+  const thumb = page.locator('.timeline-hscroll__thumb');
+  await expect(track).toHaveCount(1);
+  await expect(thumb).toHaveCount(1);
+
+  // Dragging the thumb scrolls the timeline horizontally.
+  const trackBox = await track.boundingBox();
+  await page.mouse.move(trackBox.x + 30, trackBox.y + trackBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(trackBox.x + 400, trackBox.y + trackBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const afterDrag = await timeline.evaluate((el) => el.scrollLeft);
+  expect(afterDrag).toBeGreaterThan(0);
+
+  // Scrolling the timeline moves the thumb.
+  await timeline.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth - el.clientWidth;
+    el.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => thumb.evaluate((el) => el.style.transform)).not.toBe('translateX(0px)');
 });
 
 test('gateway command reloads through the application scheduler', async ({ page }) => {

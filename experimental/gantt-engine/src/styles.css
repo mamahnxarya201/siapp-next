@@ -140,8 +140,15 @@ button, input { font: inherit; }
 .task-list { scrollbar-gutter: auto; }
 .task-list { scrollbar-width: none; }
 .task-list::-webkit-scrollbar { width: 0; height: 0; }
+/* Both native scrollbars on the timeline viewport are hidden. Vertical scrolling
+   still works via the wheel and the synchronized task list; horizontal scrolling
+   is driven by the custom .timeline-hscroll track/thumb below the grid. */
 .timeline-viewport { scrollbar-width: none; }
-.timeline-viewport::-webkit-scrollbar { width: 0; height: 8px; }
+.timeline-viewport::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.timeline-hscroll { position: relative; height: 10px; flex: 0 0 10px; cursor: pointer; touch-action: none; }
+.timeline-hscroll__thumb { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: 5px; background: var(--scrollbar-thumb); min-width: 24px; }
+.timeline-hscroll__thumb:hover { background: var(--scrollbar-thumb-hover); }
+.timeline-hscroll__thumb--dragging { background: var(--scrollbar-thumb-hover); }
 .task-list { background: var(--card); }
 .task-group { position: relative; display: flex; align-items: center; width: 100%; height: var(--group-height); padding: 0 8px; border: 0; border-bottom: 1px solid var(--border); color: var(--foreground); background: var(--secondary); text-align: left; }
 .task-group:hover, .task-group:focus-within { background: color-mix(in oklch, var(--secondary) 78%, var(--card)); }
@@ -182,7 +189,7 @@ button, input { font: inherit; }
 .task-row__dependencies { display: inline-flex; flex: 0 0 24px; align-items: center; justify-content: flex-end; gap: 3px; color: var(--muted-foreground); font-size: 10px; text-align: right; }
 .task-row__dependencies svg { width: 12px; height: 12px; }
 
-.timeline-panel { display: grid; grid-template-rows: var(--project-toolbar-height) minmax(0, 1fr); min-width: 0; min-height: 0; background: var(--background); }
+.timeline-panel { display: grid; grid-template-rows: var(--project-toolbar-height) minmax(0, 1fr) auto; min-width: 0; min-height: 0; background: var(--background); }
 .timeline-viewport { width: 100%; height: 100%; }
 .timeline-viewport { position: relative; }
 .timeline-stage { position: relative; min-height: 100%; background: var(--card); }
@@ -207,6 +214,8 @@ button, input { font: inherit; }
 .gantt-task { cursor: grab; }
 .gantt-task:active { cursor: grabbing; }
 .gantt-guide-line { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.75; pointer-events: none; }
+.gantt-reorder-guide { stroke: var(--accent); stroke-width: 2; opacity: 0.9; pointer-events: none; }
+.task-group--reorder-target { outline: 2px solid var(--accent); outline-offset: -2px; }
 .gantt-task__selection { fill: color-mix(in oklch, var(--primary) 22%, transparent); pointer-events: none; }
 .gantt-application[data-theme="dark"] .gantt-task__selection { display: none; }
 .gantt-bar { rx: 4; }

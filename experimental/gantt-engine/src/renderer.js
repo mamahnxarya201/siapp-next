@@ -84,15 +84,6 @@ function renderTaskListLegacy(root, state, rows) {
     fragment.append(element);
   }
 
-  const createRow = document.createElement("div");
-  createRow.className = "task-create-row";
-  const createInput = document.createElement("input");
-  createInput.type = "text";
-  createInput.placeholder = "Add task…";
-  createInput.dataset.action = "task.create";
-  createInput.setAttribute("aria-label", "Add task");
-  createRow.append(createInput);
-  fragment.append(createRow);
   root.replaceChildren(fragment);
 }
 
@@ -205,6 +196,11 @@ function sidebarStatusSummary(tasks) {
 
 export function renderTaskList(root, state, rows) {
   const fragment = document.createDocumentFragment();
+  const reorderTargetGroup =
+    state.previewResult?.kind === "reorder" ||
+    state.previewResult?.kind === "reorder-move"
+      ? state.previewResult.targetGroup
+      : null;
 
   for (const row of rows) {
     if (row.type === "group-header") {
@@ -212,6 +208,8 @@ export function renderTaskList(root, state, rows) {
       const group = sidebarElement("div", "task-group");
       group.dataset.groupId = row.group;
       group.dataset.expanded = String(expanded);
+      if (reorderTargetGroup === row.group)
+        group.classList.add("task-group--reorder-target");
 
       const toggle = sidebarButton(
         "workstream.toggle",
@@ -502,6 +500,9 @@ function grid(target, rows, data, height, settings, state) {
             ? "timeline-row--hovered"
             : "",
         ].filter(Boolean).join(" "),
+        ...(row.type === "group-header"
+          ? { "data-group-id": row.group, "data-row-type": "group" }
+          : {}),
         fill:
           row.type === "group-header" ? settings.groupFill : settings.taskFill,
       }),
@@ -811,8 +812,24 @@ export function renderTimeline(root, snapshot) {
         class: "gantt-guide-line gantt-guide-line--h",
         x1: 0,
         y1: state.guide.y,
-        x2: timelineData.totalWidth,
+        x2: state.guide.x,
         y2: state.guide.y,
+      }),
+    );
+  }
+  if (
+    (state.previewResult?.kind === "reorder" ||
+      state.previewResult?.kind === "reorder-move") &&
+    state.previewResult.insertionY != null
+  ) {
+    const lineY = HEADER_HEIGHT + state.previewResult.insertionY;
+    body.append(
+      svg("line", {
+        class: "gantt-reorder-guide",
+        x1: 0,
+        x2: timelineData.totalWidth,
+        y1: lineY,
+        y2: lineY,
       }),
     );
   }

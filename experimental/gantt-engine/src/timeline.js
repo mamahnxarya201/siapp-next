@@ -292,15 +292,48 @@ function normalizeWorkstreams(workstreams, tasks) {
   return normalized;
 }
 
+const taskMatchesQuery = (task, normalizedQuery) => {
+  if (!normalizedQuery) return true;
+  const assigneeName = task.assignee?.name ?? "";
+  return (
+    String(task.name ?? task.title).toLowerCase().includes(normalizedQuery) ||
+    String(assigneeName).toLowerCase().includes(normalizedQuery)
+  );
+};
+
+function taskBelongsTo(task, workstreamId) {
+  return workstreamIdOf(task) === workstreamId;
+}
+
+function appendTaskRows(rows, tasks, normalizedQuery) {
+  let y = rows.length ? rows[rows.length - 1].y + rows[rows.length - 1].height : 0;
+  for (const task of tasks) {
+    if (!taskMatchesQuery(task, normalizedQuery)) continue;
+    rows.push(
+      Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }),
+    );
+    y += TASK_ROW_HEIGHT;
+  }
+}
+
 /**
  * Builds deterministic group/task rows without consulting dependency edges.
  * This separation is intentional: workstream grouping is never a graph tree.
+ *
+ * When `order` is omitted the rows fall back to the date-sort, preserving the
+ * historical default. When provided, `order` is an explicit flat sequence of
+ * `{ type: "workstream" | "task", id }` entries that fully determines the row
+ * sequence (workstream headers, task order, cross-workstream placement, and
+ * ungrouped rows). A task that is not present in `order` is appended after its
+ * owning workstream header (or as a bare row when ungrouped), so newly created
+ * tasks always render even before the engine reconciles its order list.
  */
 export function buildVisibleRows(
   sourceTasks,
   workstreams = [],
   expandedWorkstreams,
   query = "",
+  order,
 ) {
   const tasks = normalizeTasks(sourceTasks);
   const orderedWorkstreams = normalizeWorkstreams(workstreams, tasks);
@@ -309,6 +342,135 @@ export function buildVisibleRows(
       ? new Set(orderedWorkstreams.map((workstream) => workstream.id))
       : new Set(expandedWorkstreams);
   const normalizedQuery = String(query).trim().toLowerCase();
+
+  if (order === undefined || order === null) {
+    return buildVisibleRowsByDateSort(
+      tasks,
+      orderedWorkstreams,
+      expanded,
+      normalizedQuery,
+    );
+  }
+
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const workstreamById = new Map(
+    orderedWorkstreams.map((workstream) => [workstream.id, workstream]),
+  );
+  const seenTaskIds = new Set();
+  const rows = [];
+  let y = 0;
+  // Sentinel used to distinguish a collapsed header (its tasks are hidden)
+  // from the ungrouped tail (bare rows are allowed).
+  const COLLAPSED = Symbol("collapsed");
+  let currentGroupState = null;
+
+  for (const entry of order) {
+    if (entry?.type === "workstream") {
+      const workstream = workstreamById.get(entry.id);
+      if (!workstream) continue;
+      const groupTasks = tasks.filter((task) => taskBelongsTo(task, entry.id));
+      rows.push(
+        Object.freeze({
+          type: "group-header",
+          group: workstream.id,
+          workstream,
+          taskCount: groupTasks.filter((task) =>
+            taskMatchesQuery(task, normalizedQuery),
+          ).length,
+          y,
+          height: GROUP_HEADER_HEIGHT,
+        }),
+      );
+      y += GROUP_HEADER_HEIGHT;
+      currentGroupState = expanded.has(workstream.id)
+        ? workstream.id
+        : COLLAPSED;
+      continue;
+    }
+    if (entry?.type === "task") {
+      const task = taskById.get(entry.id);
+      if (!task) continue;
+      seenTaskIds.add(entry.id);
+      const belongs = workstreamIdOf(task);
+      if (belongs === null) {
+        // Ungrouped task: bare row, hidden while inside a collapsed header's
+        // block.
+        if (currentGroupState === COLLAPSED) continue;
+        if (!taskMatchesQuery(task, normalizedQuery)) continue;
+        rows.push(
+          Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }),
+        );
+        y += TASK_ROW_HEIGHT;
+        continue;
+      }
+      // Grouped task: only render under its own expanded header.
+      if (currentGroupState !== belongs) continue;
+      if (!taskMatchesQuery(task, normalizedQuery)) continue;
+      rows.push(
+        Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }),
+      );
+      y += TASK_ROW_HEIGHT;
+      continue;
+    }
+  }
+
+  // Append any tasks not present in the order (e.g. freshly created before the
+  // engine reconciles its order list). Grouped tasks land after their owning
+  // header when it is expanded; ungrouped tasks land as bare rows at the end.
+  const missing = tasks.filter((task) => !seenTaskIds.has(task.id));
+  const missingGrouped = new Map();
+  const missingUngrouped = [];
+  for (const task of missing) {
+    const group = workstreamIdOf(task);
+    if (group === null) missingUngrouped.push(task);
+    else {
+      if (!missingGrouped.has(group)) missingGrouped.set(group, []);
+      missingGrouped.get(group).push(task);
+    }
+  }
+  for (const [group, groupTasks] of missingGrouped) {
+    const headerIndex = rows.findIndex(
+      (row) => row.type === "group-header" && row.group === group,
+    );
+    if (headerIndex === -1) continue;
+    if (!expanded.has(group)) continue;
+    // Append missing tasks after the group's existing task rows (the last row
+    // owned by this header), falling back to right after the header when none.
+    groupTasks.sort(compareTasks);
+    let blockEnd = headerIndex;
+    for (let index = headerIndex + 1; index < rows.length; index += 1) {
+      if (rows[index].type === "group-header") break;
+      blockEnd = index;
+    }
+    const insertAt = blockEnd + 1;
+    const inserted = [];
+    let cursor = rows[blockEnd].y + rows[blockEnd].height;
+    for (const task of groupTasks) {
+      if (!taskMatchesQuery(task, normalizedQuery)) continue;
+      inserted.push(
+        Object.freeze({ type: "task", task, y: cursor, height: TASK_ROW_HEIGHT }),
+      );
+      cursor += TASK_ROW_HEIGHT;
+    }
+    rows.splice(insertAt, 0, ...inserted);
+    let yy = rows[insertAt].y + inserted.reduce((sum, row) => sum + row.height, 0);
+    for (let index = insertAt + inserted.length; index < rows.length; index += 1) {
+      rows[index] = Object.freeze({ ...rows[index], y: yy });
+      yy += rows[index].height;
+    }
+  }
+  missingUngrouped.sort(compareTasks);
+  appendTaskRows(rows, missingUngrouped, normalizedQuery);
+
+  return Object.freeze(rows);
+}
+
+function buildVisibleRowsByDateSort(
+  tasks,
+  orderedWorkstreams,
+  expanded,
+  normalizedQuery,
+) {
   const rows = [];
   let y = 0;
 
@@ -318,15 +480,7 @@ export function buildVisibleRows(
       .sort(compareTasks);
 
     if (normalizedQuery) {
-      groupTasks = groupTasks.filter((task) => {
-        const assigneeName = task.assignee?.name ?? "";
-        return (
-          String(task.name ?? task.title)
-            .toLowerCase()
-            .includes(normalizedQuery) ||
-          String(assigneeName).toLowerCase().includes(normalizedQuery)
-        );
-      });
+      groupTasks = groupTasks.filter((task) => taskMatchesQuery(task, normalizedQuery));
       if (groupTasks.length === 0) continue;
     }
 
@@ -343,28 +497,103 @@ export function buildVisibleRows(
     y += GROUP_HEADER_HEIGHT;
 
     if (!expanded.has(workstream.id)) continue;
-    for (const task of groupTasks) {
-      rows.push(
-        Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }),
-      );
-      y += TASK_ROW_HEIGHT;
-    }
+    appendTaskRows(rows, groupTasks, normalizedQuery);
+    y = rows[rows.length - 1].y + rows[rows.length - 1].height;
   }
 
   const ungroupedTasks = tasks
     .filter((task) => workstreamIdOf(task) === null)
     .sort(compareTasks);
-  for (const task of ungroupedTasks) {
-    if (
-      normalizedQuery &&
-      !String(task.name ?? task.title).toLowerCase().includes(normalizedQuery) &&
-      !String(task.assignee?.name ?? "").toLowerCase().includes(normalizedQuery)
-    ) continue;
-    rows.push(Object.freeze({ type: "task", task, y, height: TASK_ROW_HEIGHT }));
-    y += TASK_ROW_HEIGHT;
-  }
+  appendTaskRows(rows, ungroupedTasks, normalizedQuery);
 
   return Object.freeze(rows);
+}
+
+/**
+ * Returns the default flat order (workstream headers then their date-sorted
+ * tasks, ungrouped tasks last) for a task/workstream set. Used to seed the
+ * engine's explicit row order so an initial state matches the date-sort.
+ */
+export function defaultRowOrder(sourceTasks, workstreams = []) {
+  const tasks = normalizeTasks(sourceTasks);
+  const orderedWorkstreams = normalizeWorkstreams(workstreams, tasks);
+  const order = [];
+  for (const workstream of orderedWorkstreams) {
+    order.push({ type: "workstream", id: workstream.id });
+    tasks
+      .filter((task) => taskBelongsTo(task, workstream.id))
+      .sort(compareTasks)
+      .forEach((task) => order.push({ type: "task", id: task.id }));
+  }
+  tasks
+    .filter((task) => taskBelongsTo(task, null))
+    .sort(compareTasks)
+    .forEach((task) => order.push({ type: "task", id: task.id }));
+  return Object.freeze(order);
+}
+
+/**
+ * Reconciles a flat order against the current tasks/workstreams so it always
+ * contains exactly one entry per live workstream and task, preserves the
+ * relative order of existing entries, drops entries for removed items, appends
+ * headers for new workstreams, and places new tasks after their owning header
+ * (or at the end when ungrouped). Returns a frozen copy.
+ */
+export function reconcileRowOrder(order, sourceTasks, workstreams = []) {
+  const tasks = normalizeTasks(sourceTasks);
+  const orderedWorkstreams = normalizeWorkstreams(workstreams, tasks);
+  const workstreamIds = new Set(orderedWorkstreams.map((item) => item.id));
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const seenWorkstreams = new Set();
+  const seenTasks = new Set();
+  const next = [];
+
+  for (const entry of order ?? []) {
+    if (entry?.type === "workstream" && workstreamIds.has(entry.id)) {
+      seenWorkstreams.add(entry.id);
+      next.push({ type: "workstream", id: entry.id });
+    } else if (entry?.type === "task" && taskIds.has(entry.id)) {
+      seenTasks.add(entry.id);
+      next.push({ type: "task", id: entry.id });
+    }
+  }
+
+  for (const workstream of orderedWorkstreams) {
+    if (seenWorkstreams.has(workstream.id)) continue;
+    seenWorkstreams.add(workstream.id);
+    next.push({ type: "workstream", id: workstream.id });
+  }
+
+  const missingGrouped = new Map();
+  const missingUngrouped = [];
+  for (const task of tasks) {
+    if (seenTasks.has(task.id)) continue;
+    const group = workstreamIdOf(task);
+    if (group === null) missingUngrouped.push(task);
+    else {
+      if (!missingGrouped.has(group)) missingGrouped.set(group, []);
+      missingGrouped.get(group).push(task);
+    }
+  }
+  for (const groupTasks of missingGrouped.values()) {
+    groupTasks.sort(compareTasks);
+  }
+  missingUngrouped.sort(compareTasks);
+
+  const result = [];
+  for (const entry of next) {
+    result.push(entry);
+    if (entry.type !== "workstream") continue;
+    const appended = missingGrouped.get(entry.id) ?? [];
+    for (const task of appended) result.push({ type: "task", id: task.id });
+    missingGrouped.delete(entry.id);
+  }
+  for (const task of missingUngrouped) result.push({ type: "task", id: task.id });
+  for (const groupTasks of missingGrouped.values()) {
+    for (const task of groupTasks) result.push({ type: "task", id: task.id });
+  }
+
+  return Object.freeze(result);
 }
 
 export function buildRowLayout(rows) {
@@ -401,10 +630,11 @@ export function computeTimelineRange(sourceTasks, options = {}) {
     tasks[0]?.endDate ?? anchor,
   );
 
+  const minDate = options.minDate
+    ? startOfCalendarDay(options.minDate)
+    : addCalendarDays(startOfCalendarDay(earliest), -pastDays);
   return Object.freeze({
-    minDate: Object.freeze(
-      addCalendarDays(startOfCalendarDay(earliest), -pastDays),
-    ),
+    minDate: Object.freeze(minDate),
     maxDate: Object.freeze(
       addCalendarDays(startOfCalendarDay(latest), futureDays),
     ),

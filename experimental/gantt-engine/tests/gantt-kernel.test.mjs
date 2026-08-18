@@ -20,12 +20,19 @@ import {
   computeTaskPositions,
   computeTimelineRange,
   dateToX,
+  defaultRowOrder,
   normalizeTimelineBoundary,
+  reconcileRowOrder,
   shiftByVisibleUnits,
   snapPixelDelta,
   visibleUnitsBetween,
   xToDate,
 } from '../src/timeline.js'
+import {
+  dropBoundaries,
+  reorderTaskToPointer,
+  reorderWorkstreamToIndex,
+} from '../src/reorder.js'
 import {
   DEPENDENCY_ELBOW_GAP,
   DEPENDENCY_PARENT_EXIT_GAP,
@@ -225,6 +232,28 @@ test('row building keeps workstreams independent from dependency edges and posit
   const range = computeTimelineRange(tasks)
   assert.equal(range.minDate.getTime(), localDate(-5).getTime())
   assert.equal(range.maxDate.getTime(), localDate(95).getTime())
+})
+
+test('computeTimelineRange honors a stable minDate origin instead of re-anchoring to the earliest task', () => {
+  const tasks = [
+    task('backend', 2, 4, { groupName: 'backend' }),
+    task('qa', 4, 5, { groupName: 'qa', dependencies: ['backend'] }),
+  ]
+  const anchored = computeTimelineRange(tasks, {
+    minDate: localDate(0),
+    pastDays: 7,
+    futureDays: 90,
+  })
+  // The supplied origin is kept (not recomputed to earliest - 7 = localDate(-5)).
+  assert.equal(anchored.minDate.getTime(), localDate(0).getTime())
+  // The right edge is still derived from the latest task's future buffer.
+  assert.equal(anchored.maxDate.getTime(), localDate(95).getTime())
+
+  // A later origin is honored too; the caller is responsible for never moving
+  // the stable origin right of any task (the engine only shrinks it leftward).
+  const later = computeTimelineRange(tasks, { minDate: localDate(10) })
+  assert.equal(later.minDate.getTime(), localDate(10).getTime())
+  assert.equal(later.maxDate.getTime(), localDate(95).getTime())
 })
 
 test('ungrouped tasks remain bare rows without a synthetic ungrouped workstream', () => {
@@ -494,4 +523,201 @@ test('forecast handles an empty project and reuses graph validation for malforme
     id: 'dangling',
     tasks: [task('a', 1, 2, { dependencies: ['missing'] })],
   }), /dangling predecessor/)
+})
+
+test('defaultRowOrder seeds headers then date-sorted tasks, ungrouped last', () => {
+  const tasks = [
+    task('late', 6, 8, { groupName: 'beta' }),
+    task('early', 1, 3, { groupName: 'beta' }),
+    task('alpha-first', 2, 4, { groupName: 'alpha' }),
+    task('free', 5, 7, { extra: { groupName: null, workstreamId: null } }),
+  ]
+  const order = defaultRowOrder(tasks, [
+    { id: 'alpha', label: 'Alpha' },
+    { id: 'beta', label: 'Beta' },
+  ])
+  assert.deepEqual(order, [
+    { type: 'workstream', id: 'alpha' },
+    { type: 'task', id: 'alpha-first' },
+    { type: 'workstream', id: 'beta' },
+    { type: 'task', id: 'early' },
+    { type: 'task', id: 'late' },
+    { type: 'task', id: 'free' },
+  ])
+})
+
+test('buildVisibleRows with an explicit order preserves that sequence and skips collapsed tasks', () => {
+  const tasks = [
+    task('t1', 1, 3, { groupName: 'a' }),
+    task('t2', 9, 11, { groupName: 'a' }),
+    task('t3', 2, 4, { groupName: 'b' }),
+  ]
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 't2' },
+    { type: 'task', id: 't1' },
+    { type: 'workstream', id: 'b' },
+    { type: 'task', id: 't3' },
+  ]
+  const rows = buildVisibleRows(
+    tasks,
+    [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+    ['a', 'b'],
+    '',
+    order,
+  )
+  assert.deepEqual(
+    rows.filter((row) => row.type === 'task').map((row) => row.task.id),
+    ['t2', 't1', 't3'],
+  )
+  // Collapsing workstream a hides t1 and t2 but keeps the headers.
+  const collapsedRows = buildVisibleRows(
+    tasks,
+    [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+    ['b'],
+    '',
+    order,
+  )
+  assert.deepEqual(
+    collapsedRows
+      .filter((row) => row.type === 'task')
+      .map((row) => row.task.id),
+    ['t3'],
+  )
+  assert.deepEqual(
+    collapsedRows.map((row) => row.type),
+    ['group-header', 'group-header', 'task'],
+  )
+})
+
+test('buildVisibleRows with order appends a task missing from the order under its header', () => {
+  const tasks = [
+    task('t1', 1, 3, { groupName: 'a' }),
+    task('new-task', 2, 4, { groupName: 'a' }),
+  ]
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 't1' },
+  ]
+  const rows = buildVisibleRows(
+    tasks,
+    [{ id: 'a', label: 'A' }],
+    ['a'],
+    '',
+    order,
+  )
+  assert.deepEqual(
+    rows.filter((row) => row.type === 'task').map((row) => row.task.id),
+    ['t1', 'new-task'],
+  )
+})
+
+test('reconcileRowOrder drops removed items, appends new workstreams and tasks', () => {
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 'gone' },
+    { type: 'task', id: 'keep' },
+    { type: 'workstream', id: 'old' },
+  ]
+  const reconciled = reconcileRowOrder(order, [
+    task('keep', 1, 3, { groupName: 'a' }),
+    task('brand-new', 2, 4, { groupName: 'new-ws' }),
+  ], [
+    { id: 'a', label: 'A' },
+    { id: 'new-ws', label: 'New' },
+  ])
+  assert.deepEqual(reconciled.map((entry) => entry.id), [
+    'a',
+    'keep',
+    'new-ws',
+    'brand-new',
+  ])
+})
+
+test('reorderTaskToPointer reassigns workstream and reorders rows', () => {
+  const tasks = [
+    task('t1', 1, 3, { groupName: 'a' }),
+    task('t2', 1, 3, { groupName: 'a' }),
+  ]
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 't1' },
+    { type: 'task', id: 't2' },
+    { type: 'workstream', id: 'b' },
+  ]
+  const rows = [
+    { type: 'group-header', group: 'a', y: 0, height: 40 },
+    { type: 'task', task: tasks[0], y: 40, height: 36 },
+    { type: 'task', task: tasks[1], y: 76, height: 36 },
+    { type: 'group-header', group: 'b', y: 112, height: 40 },
+  ]
+  // Drop t2 on the b header -> joins workstream b at its top.
+  const result = reorderTaskToPointer({
+    order,
+    tasks,
+    rows,
+    taskId: 't2',
+    pointerY: 122,
+    expanded: new Set(['a', 'b']),
+  })
+  assert.ok(result?.valid)
+  assert.deepEqual(result.order.map((entry) => entry.id), [
+    'a',
+    't1',
+    'b',
+    't2',
+  ])
+  assert.equal(result.tasks.find((item) => item.id === 't2').groupName, 'b')
+  assert.equal(result.insertionY, 112)
+  assert.equal(result.targetGroup, 'b')
+})
+
+test('reorderTaskToPointer refuses a collapsed destination workstream', () => {
+  const tasks = [
+    task('t1', 1, 3, { groupName: 'a' }),
+    task('t2', 1, 3, { groupName: 'a' }),
+  ]
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 't1' },
+    { type: 'task', id: 't2' },
+    { type: 'workstream', id: 'b' },
+  ]
+  const rows = [
+    { type: 'group-header', group: 'a', y: 0, height: 40 },
+    { type: 'task', task: tasks[0], y: 40, height: 36 },
+    { type: 'task', task: tasks[1], y: 76, height: 36 },
+    { type: 'group-header', group: 'b', y: 112, height: 40 },
+  ]
+  const result = reorderTaskToPointer({
+    order,
+    tasks,
+    rows,
+    taskId: 't2',
+    pointerY: 122,
+    expanded: new Set(['a']),
+  })
+  assert.equal(result, null)
+})
+
+test('reorderWorkstreamToIndex moves a whole workstream block', () => {
+  const order = [
+    { type: 'workstream', id: 'a' },
+    { type: 'task', id: 'a1' },
+    { type: 'workstream', id: 'b' },
+    { type: 'task', id: 'b1' },
+    { type: 'workstream', id: 'c' },
+  ]
+  const moved = reorderWorkstreamToIndex({
+    order,
+    workstreamId: 'a',
+    targetBlockIndex: 2,
+  })
+  assert.deepEqual(moved.map((entry) => entry.id), [
+    'b',
+    'b1',
+    'c',
+    'a',
+    'a1',
+  ])
 })

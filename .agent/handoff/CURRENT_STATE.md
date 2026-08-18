@@ -1,6 +1,6 @@
 # PMIS Current State
 
-Last updated: 2026-08-12
+Last updated: 2026-08-18
 
 ## Current Objective
 
@@ -280,6 +280,50 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Plan History loads read-only Change Records from the SQLite-backed API, and
   Scenario creation posts a snapshot of the current Active Plan through the
   planning command endpoint.
+
+## Experimental engine: vertical row reorder (2026-08-18)
+
+- The isolated `experimental/gantt-engine` gained an explicit row-order model.
+  Rows are no longer derived from the date-sort; `buildVisibleRows` accepts a flat
+  `{ type, id }` order (workstream headers, tasks, ungrouped) and the engine keeps
+  `state.rowOrder`, seeded from `defaultRowOrder` (the old date-sort) and kept
+  consistent by `reconcileRowOrder` on task/workstream changes.
+- A horizontal drag that changes a task's date no longer re-ranks its row, fixing
+  the "bar jumps to the top of its workstream when dragged past another bar's date"
+  bug.
+- `src/reorder.js` adds vertical-reorder geometry. Task bars and workstream group
+  headers are draggable vertically, and a full task move is free: one gesture
+  changes both the date (horizontal) and the row/workstream (vertical)
+  simultaneously. A live preview shows a horizontal insertion line and highlights
+  the destination workstream header in the task list; release commits the new dates
+  and row order together. A task can be moved into/out of a workstream by crossing
+  its header (reassigning `groupName`); collapsed workstreams are not drop targets.
+  Row order flows through the existing commit/persist seam for a future persistence
+  backend but is ephemeral in the current in-memory demo.
+- Fixed: the add-bar context menu no longer reuses the previous task's name — the
+  `#context-task-name` field is cleared each time the menu opens.
+- Horizontal autoscroll: dragging a task bar into the 40px band inside the
+  viewport's left or right edge scrolls the timeline continuously in both
+  directions, throttle-style. The trigger is the band *inside* the edge (not the
+  pointer leaving the viewport) because the viewport sits flush against the browser
+  window edge — the pointer cannot travel past it, so a "past the edge" trigger
+  would never fire on that side. The target speed is proportional to how deep the
+  pointer is in the band (deeper = faster), and the actual speed eases toward it
+  each frame (gas-motor feel). The dragged date is anchored in timeline space so the
+  bar stays pinned at the viewport edge (leading edge rides the left separator or
+  the right viewport edge) while content scrolls under it. The existing scroll
+  listener grows/shrinks the grid range, so scrolling out to a far date and back
+  does not retain wasted scroll data.
+- Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and
+  thumb under the grid (Chromium cannot show a horizontal-only native scrollbar).
+  The viewport's native scrollbars are hidden; the thumb mirrors `scrollLeft` and
+  dragging it writes `scrollLeft`. Vertical scrolling still works via wheel and the
+  synchronized task list, with no vertical scrollbar shown.
+- Task creation remains context-menu only (right-click the grid → Add task); the
+  sidebar does not include an inline task-entry field. The `task.create` command
+  and the unused legacy renderer's create-row input were removed after a short
+  experiment with a sidebar textbox, which was reverted at the user's request.
+- Documentation updated in `experimental/gantt-engine/docs/ARCHITECTURE.md`.
 
 ## Confirmed Decisions Awaiting Implementation
 
@@ -760,3 +804,66 @@ adapter work waits for DBA schema and authentication decisions.
   header sizing, and existing Save/Cancel behavior.
 - Verification: `npm.cmd test` passes 46 unit tests and all 17 Playwright
   scenarios with clean exit.
+
+### Experimental Gantt: stable timeline origin (2026-08-18)
+
+- Root-caused two interaction bugs in `experimental/gantt-engine` to the timeline
+  origin (`minDate`) being re-derived from the earliest task on every render:
+  dragging the earliest task kept it frozen on screen while the grid slid (a
+  nearby bar appeared to move), and creating a task earlier than the current
+  earliest re-anchored the grid so the new bar appeared several columns from the
+  hover point.
+- `computeTimelineRange` now accepts an optional `minDate` origin that is honored
+  verbatim instead of recomputed from the earliest task.
+- The engine seeds `state.minDate` to the earliest task minus a 7-day buffer and
+  only extends it leftward when a task is genuinely moved/created before the
+  current left edge. `reloadSchedule`/`setTasks` reseed the origin from the
+  replacement data; incremental mutations (create/rename/delete/color/deps) no
+  longer reset it.
+- The grid-hover crosshair's horizontal guide line now runs from the left activity
+  pane edge to the hovered column (meeting the vertical line) instead of spanning
+  the full timeline width.
+- Added kernel coverage for the `minDate` override and two Playwright scenarios
+  (origin stability on drag, and add-task landing on the hovered column plus the
+  anchored crosshair).
+- Verification: `npm.cmd test` passes 47 unit tests and 19 Playwright scenarios
+  with clean exit.
+
+### Experimental UI primitives storyboard (2026-08-18)
+
+- Added `experimental/gantt-engine/src/ui-primitives.js` with dependency-free
+  `pmis-button` and `pmis-textfield` custom elements. They mirror the narrow
+  React button/input contracts for variants, sizes, disabled state, focus
+  treatment, invalid fields, and native event behavior.
+- Added `experimental/gantt-engine/demo/ui-primitives-storyboard.html`, showing
+  the React reference markup beside the opt-in Web Component implementation.
+- Existing experimental Gantt controls were not replaced; the primitives are
+  available for new host surfaces.
+- Updated `experimental/gantt-engine/docs/BILL_OF_MANIFEST.md`; no package was
+  added.
+- Verification: `node --check src/ui-primitives.js` passed. Browser smoke loaded
+  the storyboard, confirmed both custom elements were registered, confirmed four
+  experimental buttons rendered, toggled all experimental controls disabled,
+  and observed native click event propagation without console errors.
+
+### Logo dialog Web Component adoption (2026-08-18)
+
+- Loaded `src/ui-primitives.js` from both experimental demo entry modules.
+- Replaced the logo dialog Save and Cancel controls in `demo/index.html` and
+  `demo/empty.html` with `pmis-button` elements.
+- Extended action delegation and the dialog focus trap to recognize custom
+  buttons while preserving command names and keyboard order.
+- Verification: 47 unit tests passed. Browser verification confirmed the dialog
+  renders both custom buttons and Tab order remains Choose image → Save logo →
+  Cancel.
+
+### Logo dialog primitive styling correction (2026-08-18)
+
+- Removed legacy host-level background and hover overrides from
+  `.project-logo-dialog__save`; those styles painted square corners behind the
+  shadow button.
+- The logo dialog now inherits the same rounded `pmis-button` surface as the
+  storyboard for Save and Cancel.
+- Browser visual verification confirmed both buttons render with the primitive's
+  6px radius, and the custom Cancel action closes the dialog.
+

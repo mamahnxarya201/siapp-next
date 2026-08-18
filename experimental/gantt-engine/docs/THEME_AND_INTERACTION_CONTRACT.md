@@ -31,12 +31,13 @@ rules.
 
 ## Task authoring
 
-- The activity panel contains an editable task-name field for every task.
-- The final `Add task…` field creates a task on Enter. It is assigned to the first
-  workstream, receives a one-snap-unit duration, and is persisted through the gateway.
+- The activity panel contains an editable task-name field for every task. The
+  sidebar does not include an inline task-entry field.
 - A right-click in empty timeline space suppresses the browser menu and offers
-  `Add task bar here`. The new bar starts at the clicked date and remains draggable
-  through the existing schedule interaction controller.
+  `Add task bar here` (a name field in the context menu). The new bar starts at the
+  clicked date and remains draggable through the existing schedule interaction
+  controller. The name field is cleared each time the menu opens so a fresh menu
+  never reuses the previous task's name.
 - Right-clicking a task bar offers `Connect to another task`. Moving over a target
   renders a preview connector; clicking the target commits the edge. The canonical
   `predecessorIds` and UI-facing `dependencies` fields are updated together before

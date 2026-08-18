@@ -59,6 +59,7 @@ experimental/gantt-engine/
     dependencies.js              progressive edge selection and connector routes
     grid.js                      normalized cell-grid presentation settings
     scheduling.js                drag/resize constraints and forward propagation
+    reorder.js                   vertical row/workstream reorder geometry
     forecast.js                  PERT duration and CPM passes
     fixtures.js                  deterministic standalone demonstration data
     styles.css                   standalone visual and layout contract
@@ -139,7 +140,7 @@ Registered commands in `engine.js` are:
 | `schedule.reload` | Schedule `Gateway.execute('schedule.load')`. |
 | `workstream.toggle` | Change expansion without changing dependency graph. |
 | `task.select` | Select the task and disclose its graph context. |
-| `task.create` / `task.rename` | Create or rename a task through the activity panel. |
+| `task.rename` | Rename a task through the activity panel. Task creation is context-menu only (`timeline.add-bar` / `task.create-workstream`). |
 | `theme.set` | Apply the selected scoped visual theme. |
 | `timeline.add-bar` | Create a one-snap-unit task at the context-menu date. |
 | `dependency.begin-connect` / `dependency.remove` | Start a dependency preview or remove the selected edge. |
@@ -196,7 +197,52 @@ who expect queued calls, timers, or an explicit I/O scheduler.
 `timeline.js` owns local-calendar day/noon boundaries, visible weekday compression,
 day and half-day snapping, row construction, range calculation, and coordinates. It
 preserves the PMIS geometry constants: 72px calendar header, 40px group header, 36px
-task row, 24px task bar, and scale widths of 60/32/20 pixels.
+task row, 24px task bar, and scale widths of 60/32/20 pixels. `computeTimelineRange`
+accepts an optional `minDate` origin; when supplied it is kept verbatim instead of
+being recomputed from the earliest task.
+
+### Explicit row order
+
+Row order is an explicit engine-owned concept, not a date-derived value.
+`buildVisibleRows` accepts a flat `order` of `{ type: "workstream" | "task", id }`
+entries that fully determines the row sequence: workstream headers, task order,
+cross-workstream placement, and ungrouped rows. When `order` is omitted the function
+falls back to the historical date-sort, so callers and tests that predate the order
+model keep working unchanged.
+
+`defaultRowOrder` seeds the initial order from the date-sort (headers first, then each
+workstream's date-sorted tasks, ungrouped last), so a fresh engine matches the
+previous deterministic layout. `reconcileRowOrder` keeps the order consistent as tasks
+and workstreams are created, renamed, or deleted: it drops entries for removed items,
+appends headers for new workstreams, and places new tasks after their owning header
+(or as a bare row when ungrouped).
+
+The engine stores the order on `state.rowOrder` and reconciles it on every
+`replaceTasks` (task create/rename/delete, schedule load/replace) and on workstream
+create/delete. Because rows come from the order rather than a date sort, a horizontal
+drag that changes a task's date never re-ranks its row. `reloadSchedule` and
+`setTasks` reseed the order from the replacement data's date-sort. A reorder commit
+passes `rowOrder` through the existing commit/persist seam (alongside `tasks` and
+`effects`) so a future persistence backend can store it without rework; in the current
+in-memory demo the order is ephemeral.
+
+`reorder.js` provides the vertical-reorder geometry: it maps a pointer row-Y over the
+visible rows to a new flat order and the resulting per-task workstream. A task's
+workstream is derived from its position in the order (the nearest preceding workstream
+header), so dragging a bar across a header both reorders it and reassigns its group.
+Dropping on an expanded header inserts into that workstream; dropping on a collapsed
+header or in a collapsed block is rejected (only expanded workstreams are drop
+targets); dropping below all groups makes the task ungrouped. `reorderWorkstreamToIndex`
+moves a whole workstream block (header and its tasks) to reorder groups relative to
+each other.
+
+The engine keeps the timeline origin (`state.minDate`) stable for the session. It is
+seeded to the earliest task minus a 7-day past buffer and only ever extends leftward
+(when a task is genuinely moved or created before the current left edge). Dragging or
+creating a task never re-anchors the grid rightward, so the bar under the pointer
+moves on screen and a newly created bar lands exactly on the hovered grid column.
+`replaceTasks` (used by `reloadSchedule`/`setTasks`) reseeds the origin from the
+replacement data.
 
 The renderer owns the wireframe cell grid. `settings.grid` is normalized by
 `src/grid.js` and controls vertical/horizontal line visibility, major-line visibility,
@@ -222,14 +268,51 @@ slack, project finish, and critical IDs.
 
 ## Pointer and scroll sequence
 
-1. Pointer down identifies task and mode (`move`, `resize-start`, `resize-end`).
-2. The controller freezes the committed task snapshot and gesture parameters.
-3. Pointer moves save only the latest X coordinate.
-4. One animation-frame job calculates snapped dates and forward propagation.
-5. The engine stores the result as a preview and invalidates views.
-6. Pointer up calculates the final result once, commits it atomically, recalculates
-   criticality, and invokes the host callback/bridge.
-7. Escape, blur, pointer cancellation, stop, or dispose cancels the preview.
+1. Pointer down identifies the target: a task bar (mode `move`, `resize-start`,
+   `resize-end`) or a workstream group header (reorder).
+2. The controller freezes the committed task snapshot, the current row order, the
+   committed rows, and gesture parameters.
+3. A `move` gesture is free: both axes apply simultaneously. The horizontal
+   component changes the task date (with forward-only propagation) and the vertical
+   component reorders the row and may reassign the workstream, all in the same drag.
+   Resize gestures stay horizontal-only; a group-header drag is always a vertical
+   workstream reorder.
+4. Pointer moves save the latest X and the pointer row-Y.
+5. Horizontal autoscroll: while a task bar is being dragged, once the pointer
+   enters the 40px band inside the viewport's left or right edge the timeline
+   scrolls continuously. The trigger is the band *inside* the edge rather than the
+   pointer leaving the viewport, because the viewport often sits flush against the
+   browser window edge — the pointer physically cannot travel past it, so a
+   "past the edge" trigger would never fire on that side. The target speed is
+   proportional to how deep the pointer is in the band (deeper = faster), and the
+   actual speed eases toward it each animation frame (gas-motor feel), easing back
+   down to zero when the pointer returns inside the viewport. The dragged date is
+   anchored in timeline space (the pixel delta adds any scroll movement), so the
+   bar stays pinned at the viewport edge — its leading edge rides the separator on
+   the left or the viewport edge on the right — while the content scrolls under it.
+   The existing scroll listener grows or shrinks the grid range as it scrolls, so
+   no wasted scroll data is retained when the user scrolls back to the current
+   date. Group headers and resize handles do not autoscroll.
+6. One animation-frame job computes the snapped date move and forward propagation,
+   combines it with the vertical reorder (new row order plus the per-task workstream
+   reassignment), and the engine stores the result as a preview and invalidates
+   views.
+7. The reorder preview renders a horizontal insertion line at the target row and
+   highlights the destination workstream header in the task list. Reorder targets
+   are computed against the committed rows captured at pointer-down, so the live
+   preview never feeds back into its own target selection.
+8. Pointer up calculates the final result once, commits it atomically, recalculates
+   criticality, and invokes the host callback/bridge. Reorder commits update
+   `state.rowOrder` and any reassigned task workstream.
+9. Escape, blur, pointer cancellation, stop, or dispose cancels the preview.
+
+Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
+rendered under the grid, because Chromium's `::-webkit-scrollbar` styling cannot show
+only a horizontal native scrollbar. The viewport's native scrollbars are hidden
+(`scrollbar-width: none`), the thumb width/position mirror `timeline.scrollLeft` /
+`scrollWidth` / `clientWidth`, and dragging the thumb writes `scrollLeft`. Vertical
+scrolling is untouched: it still works via the wheel and the synchronized task list,
+with no vertical scrollbar shown.
 
 Task-list and timeline scroll containers synchronize `scrollTop` through guarded DOM
 writes. Horizontal timeline scrolling remains native. Near the right edge, the range

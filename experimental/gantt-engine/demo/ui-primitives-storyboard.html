@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PMIS UI primitives storyboard</title>
+    <link rel="stylesheet" href="../src/styles.css">
+    <style>
+      :root { color-scheme: light; }
+      body { overflow: auto; min-width: 0; padding: 32px; background: var(--background); }
+      main { max-width: 1120px; margin: 0 auto; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      .intro { margin: 0 0 28px; color: var(--muted-foreground); }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+      .panel { padding: 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+      .panel h2 { margin: 0 0 4px; font-size: 16px; }
+      .panel p { margin: 0 0 20px; color: var(--muted-foreground); font-size: 13px; }
+      .samples { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+      .sample { display: grid; gap: 6px; color: var(--muted-foreground); font-size: 11px; }
+      .sample input { height: 36px; padding: 4px 12px; border: 1px solid var(--input); border-radius: 6px; color: var(--foreground); background: transparent; font: inherit; outline: none; }
+      .sample input:focus-visible { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent); }
+      .field { width: min(100%, 300px); }
+      .field pmis-textfield { width: 100%; }
+      .actions { display: flex; align-items: center; gap: 10px; margin-top: 24px; }
+      #status { min-height: 20px; color: var(--muted-foreground); font-size: 13px; }
+      code { padding: 2px 4px; border-radius: 4px; background: var(--muted); font-size: 12px; }
+      @media (max-width: 760px) { body { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UI primitive storyboard</h1>
+      <p class="intro">Reference output from the React shadcn primitives beside opt-in native Web Components for the experimental engine.</p>
+      <div class="grid">
+        <section class="panel" aria-labelledby="react-title">
+          <h2 id="react-title">React reference</h2>
+          <p><code>components/ui/button.tsx</code> and <code>components/ui/input.tsx</code> semantics reproduced as plain HTML.</p>
+          <div class="samples">
+            <div class="sample"><span>default</span><button class="react-button" type="button">Continue</button></div>
+            <div class="sample"><span>outline</span><button class="react-button outline" type="button">Secondary</button></div>
+            <div class="sample"><span>destructive</span><button class="react-button destructive" type="button">Delete</button></div>
+            <div class="sample field"><span>text field</span><input type="text" placeholder="Project name" aria-label="React project name"></div>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="experimental-title">
+          <h2 id="experimental-title">Experimental Web Components</h2>
+          <p><code>&lt;pmis-button&gt;</code> and <code>&lt;pmis-textfield&gt;</code>; no React, runtime package, or bundler.</p>
+          <div class="samples">
+            <div class="sample"><span>default</span><pmis-button data-action="demo.click">Continue</pmis-button></div>
+            <div class="sample"><span>outline</span><pmis-button variant="outline" data-action="demo.click">Secondary</pmis-button></div>
+            <div class="sample"><span>destructive</span><pmis-button variant="destructive" data-action="demo.click">Delete</pmis-button></div>
+            <div class="sample field"><span>text field</span><pmis-textfield placeholder="Project name" aria-label="Web Component project name"></pmis-textfield></div>
+          </div>
+        </section>
+      </div>
+      <div class="actions">
+        <pmis-button size="sm" variant="secondary" id="disable-toggle">Disable experimental controls</pmis-button>
+        <span id="status" role="status" aria-live="polite"></span>
+      </div>
+    </main>
+    <script type="module">
+      import "../src/ui-primitives.js";
+      const controls = [...document.querySelectorAll(".panel[aria-labelledby='experimental-title'] .samples pmis-button, .panel[aria-labelledby='experimental-title'] .samples pmis-textfield")];
+      const toggle = document.querySelector("#disable-toggle");
+      const status = document.querySelector("#status");
+      document.addEventListener("click", (event) => {
+        if (event.target.closest("[data-action='demo.click']")) status.textContent = "Web Component button dispatched a native click event.";
+      });
+      toggle.addEventListener("click", () => {
+        const disabled = controls.some((control) => control.hasAttribute("disabled"));
+        controls.forEach((control) => control.toggleAttribute("disabled", !disabled));
+        toggle.textContent = disabled ? "Disable experimental controls" : "Enable experimental controls";
+        status.textContent = disabled ? "Experimental controls enabled." : "Experimental controls disabled.";
+      });
+    </script>
+    <style>
+      .react-button { height: 36px; padding: 0 16px; border: 1px solid transparent; border-radius: 6px; color: var(--primary-foreground); background: var(--primary); cursor: pointer; font: 500 .875rem/1 inherit; }
+      .react-button.outline { border-color: var(--border); color: var(--foreground); background: var(--card); }
+      .react-button.destructive { background: var(--destructive); }
+    </style>
+  </body>
+</html>

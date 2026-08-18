@@ -56,7 +56,24 @@ navigation, authentication, persistence, and React replacement are explicit non-
 | Pure Gantt kernel | `src/model.js`, `timeline.js`, `dependencies.js`, `scheduling.js`, `forecast.js` | Validation, geometry, routing, propagation, and forecast calculations. |
 | Browser UI | `src/renderer.js`, `interaction.js`, `styles.css` | DOM/SVG paint and pointer/scroll/keyboard control. |
 | Standalone host | `demo/index.html`, `demo/empty.html` | Populated and empty-shell hosts with injected in-memory gateways. |
-| Verification | `tests/` | Framework, kernel, bridge, and browser behavior. |
+| UI primitives | `src/ui-primitives.js`, `demo/ui-primitives-storyboard.html` | Dependency-free `pmis-button` and `pmis-textfield` custom elements, compared with the React reference. |
+
+### UI primitive adoption
+
+Use `pmis-button` for new experimental buttons instead of recreating button
+markup or styling:
+
+```html
+<pmis-button variant="outline" size="sm" data-action="dialog.cancel">
+  Cancel
+</pmis-button>
+```
+
+Load `src/ui-primitives.js` once from the host entry module. Use `variant` and
+`size` attributes for appearance. Do not apply host-level `background`,
+`color`, hover, or radius overrides; the visible native button lives in Shadow
+DOM and owns those styles. Extend the primitive only when the shared contract
+needs a new behavior.
 
 Start with [Architecture](./docs/ARCHITECTURE.md), then read the
 [PHP bridge contract](./docs/PHP_BRIDGE_CONTRACT.md) before adding a PHP endpoint.

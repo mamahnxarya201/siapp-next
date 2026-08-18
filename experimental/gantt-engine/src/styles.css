@@ -260,6 +260,4 @@ button, input { font: inherit; }
 .project-logo-dialog__choose svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .project-logo-dialog__hint { margin: 0 0 14px; color: var(--muted-foreground); font-size: 12px; }
 .project-logo-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
-.project-logo-dialog__save { color: var(--primary-foreground); background: var(--primary); }
-.project-logo-dialog__save:hover { background: var(--primary); filter: brightness(0.92); }
 .project-logo-dialog__save:focus-visible, .project-logo-dialog__cancel:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }

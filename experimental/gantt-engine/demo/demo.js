@@ -1,3 +1,4 @@
+import "../src/ui-primitives.js";
 import { Gateway } from "../src/bridge/index.mjs";
 import { InMemoryTransport } from "../src/bridge/transports.mjs";
 import { createGanttEngine } from "../src/engine.js";

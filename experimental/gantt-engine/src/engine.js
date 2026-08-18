@@ -1139,11 +1139,12 @@ export function createGanttEngine(options) {
     if (event.key !== "Tab" || !logoDialogPanel) return;
     const items = Array.from(
       logoDialogPanel.querySelectorAll(
-        "button, input, select, textarea, [tabindex]",
+        "button, input, select, textarea, [tabindex], pmis-button, pmis-textfield",
       ),
     ).filter(
       (element) =>
         !element.disabled &&
+        !element.hasAttribute("disabled") &&
         !element.hidden &&
         element.getAttribute("tabindex") !== "-1",
     );

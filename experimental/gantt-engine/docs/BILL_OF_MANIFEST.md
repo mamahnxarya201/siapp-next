@@ -80,6 +80,28 @@ The following are not third-party manifest entries:
   separate entry point so empty-state work can be tested without changing the
   populated demo fixture.
 
+## UI primitive storyboard
+
+- `demo/ui-primitives-storyboard.html` compares the existing React button/input
+  semantics with `pmis-button` and `pmis-textfield` custom elements.
+- `demo/index.html` and `demo/empty.html` load the primitives; the logo dialog's
+  Save and Cancel actions use `pmis-button`.
+- `src/ui-primitives.js` uses only Custom Elements, Shadow DOM, slots, and native
+  button/input controls. No runtime or development dependency was added.
+
+### Adoption rule for future experimental UI
+
+- New experimental buttons MUST use `pmis-button`; new single-line text inputs
+  SHOULD use `pmis-textfield`.
+- Load `src/ui-primitives.js` from the host entry module. Configure appearance
+  with `variant` and `size` attributes.
+- Do not paint `background`, `color`, hover, or border-radius on the custom
+  element host. The visible native control is inside Shadow DOM; host-level
+  paint creates square-corner artifacts or diverges from the shared primitive.
+- Preserve `data-action` names and accessibility labels when migrating existing
+  controls. Update `ActionDelegator` and focus traps when adding a new custom
+  interactive tag.
+
 ## Third-party code inspiration
 
 Apart from the explicitly listed Lucide icon paths, no third-party source code was

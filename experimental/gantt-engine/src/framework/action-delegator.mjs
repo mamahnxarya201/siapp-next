@@ -39,7 +39,7 @@ export class ActionDelegator {
     this.onError = onError;
     this.started = false;
     this.listeners = {
-      click: (event) => this.handle(event, "click", ["BUTTON"]),
+      click: (event) => this.handle(event, "click", ["BUTTON", "PMIS-BUTTON"]),
       submit: (event) => this.handle(event, "submit", ["FORM"]),
       change: (event) =>
         this.handle(event, "change", ["INPUT", "SELECT", "TEXTAREA"]),

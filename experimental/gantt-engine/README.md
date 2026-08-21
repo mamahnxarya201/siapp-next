@@ -21,6 +21,17 @@ npm.cmd test
 The package has no runtime dependencies. `@playwright/test` is the only development
 dependency and is documented in [Bill of Manifest](./docs/BILL_OF_MANIFEST.md).
 
+## Read the documentation
+
+Open [`docs/index.html`](./docs/index.html) directly in a browser for the complete
+reference. Use your browser's built-in find command, such as `Ctrl+F`, to search
+the offline page. It includes the Markdown documentation rendered with section
+navigation.
+
+The Markdown files in `docs/` are the source of truth. After editing them, run
+`npm run docs:build` from this directory to refresh the HTML portal.
+
+
 ## What is implemented
 
 - delegated button, form, and field actions backed by named commands;

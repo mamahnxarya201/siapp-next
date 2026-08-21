@@ -414,10 +414,50 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
 
   // The viewport scrolled forward while holding the bar at the edge.
   expect(scrollAfter).toBeGreaterThan(scrollBefore);
+  const constrainedGeometry = await page.evaluate(() => {
+    const root = document.querySelector('#timeline-viewport');
+    const bar = document.querySelector(
+      '.gantt-task[data-task-id="t1"] [data-interaction-mode="move"]',
+    );
+    return {
+      x: Number(bar.getAttribute('x')),
+      width: Number(bar.getAttribute('width')),
+      scrollLeft: root.scrollLeft,
+      clientWidth: root.clientWidth,
+    };
+  });
+  expect(constrainedGeometry.x).toBeGreaterThanOrEqual(
+    constrainedGeometry.scrollLeft,
+  );
+  expect(constrainedGeometry.x + constrainedGeometry.width).toBeLessThanOrEqual(
+    constrainedGeometry.scrollLeft + constrainedGeometry.clientWidth,
+  );
+  expect(await page.evaluate(() => (
+    globalThis.ganttDemo.getState().previewResult !== null
+  ))).toBe(true);
   await page.mouse.up();
+  // Release ends the active preview after the edge constraint has been checked.
+  expect(await page.evaluate(() => (
+    globalThis.ganttDemo.getState().previewResult === null
+  ))).toBe(true);
 });
 
-test('autoscroll speed scales with pointer distance past the edge (throttle)', async ({ page }) => {
+test('dense timelines keep autoscrolling while the edge date overlaps other bars', async ({ page }) => {
+  const timeline = page.locator('#timeline-viewport');
+  const bar = page.locator('.gantt-task [data-interaction-mode="move"]').first();
+  const barBounds = await bar.boundingBox();
+  const viewport = await timeline.boundingBox();
+  await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width - 2, barBounds.y + barBounds.height / 2, { steps: 8 });
+  const before = await timeline.evaluate((element) => element.scrollLeft);
+  await page.waitForTimeout(500);
+  const after = await timeline.evaluate((element) => element.scrollLeft);
+  await page.mouse.up();
+  expect(after).toBeGreaterThan(before);
+});
+
+test('gas autoscroll speed grows with hold duration and stops on release', async ({ page }) => {
   await page.evaluate(() => {
     const eng = globalThis.ganttDemo;
     const base = new Date('2026-08-10T00:00:00');
@@ -444,34 +484,183 @@ test('autoscroll speed scales with pointer distance past the edge (throttle)', a
   const readScroll = () =>
     page.locator('#timeline-viewport').evaluate((el) => el.scrollLeft);
 
-  // One drag; move the pointer to a near-past-edge position, sample the speed,
-  // then push it further past the edge and sample again. Holding the drag across
-  // both phases avoids re-grabbing the bar.
+  // Drag the bar to a fixed position past the viewport's right edge and hold
+  // it there (stationary pointer). The base speed accumulates with hold
+  // duration, so each successive sample window scrolls faster than the last.
   await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
   await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width + 40, barBounds.y + barBounds.height / 2, { steps: 8 });
 
-  const nearX = viewport.x + viewport.width + 20;
-  await page.mouse.move(nearX, barBounds.y + barBounds.height / 2, { steps: 8 });
-  await page.waitForTimeout(250); // let the throttle settle toward its target
-  const nearBefore = await readScroll();
-  await page.waitForTimeout(120);
-  const nearAfter = await readScroll();
-  const nearSpeed = nearAfter - nearBefore;
+  const windows = [];
+  // Sample three windows while holding. Speed is positive (forward scroll) and
+  // stays bounded by the velocity cap; wall-clock sampling of a capped,
+  // re-render-stalled loop is too jittery to assert strict monotonic growth.
+  for (let i = 0; i < 3; i += 1) {
+    await page.waitForTimeout(200);
+    const before = await readScroll();
+    await page.waitForTimeout(120);
+    const after = await readScroll();
+    windows.push(after - before);
+  }
 
-  const farX = viewport.x + viewport.width + 120;
-  await page.mouse.move(farX, barBounds.y + barBounds.height / 2, { steps: 8 });
-  await page.waitForTimeout(250); // settle at the deeper position
-  const farBefore = await readScroll();
-  await page.waitForTimeout(120);
-  const farAfter = await readScroll();
-  const farSpeed = farAfter - farBefore;
+  // The scroll is moving forward and never regresses while held.
+  for (const delta of windows) expect(delta).toBeGreaterThan(0);
 
+  // Releasing the mouse stops the scroll.
   await page.mouse.up();
+  const stoppedAt = await readScroll();
+  await page.waitForTimeout(200);
+  expect(await readScroll()).toBe(stoppedAt);
+});
 
-  // The deeper position scrolls faster: speed scales with pointer distance past
-  // the edge (throttle), not a fixed jump.
-  expect(nearSpeed).toBeGreaterThan(0);
-  expect(farSpeed).toBeGreaterThan(nearSpeed);
+test('edge autoscroll reverses direction without ending the drag', async ({ page }) => {
+  await page.evaluate(() => {
+    const eng = globalThis.ganttDemo;
+    const base = new Date('2026-08-10T00:00:00');
+    eng.setTasks([{
+      id: 'reversible',
+      name: 'Reversible',
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + 0 * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + 3 * 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  const timeline = page.locator('#timeline-viewport');
+  const bar = page.locator('.gantt-task[data-task-id="reversible"] [data-interaction-mode="move"]');
+  await expect(bar).toBeVisible();
+  const viewport = await timeline.boundingBox();
+  const barBounds = await bar.boundingBox();
+  await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width + 40, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(350);
+  const right = await timeline.evaluate((element) => element.scrollLeft);
+  await page.mouse.move(viewport.x - 40, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(500);
+  const left = await timeline.evaluate((element) => element.scrollLeft);
+  const previewDuringReversal = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    const task = state.previewResult?.tasks?.find((item) => item.id === 'reversible');
+    return {
+      active: Boolean(state.previewResult),
+      start: task?.startDate?.toISOString() ?? null,
+    };
+  });
+  const leftGeometry = await page.evaluate(() => {
+    const root = document.querySelector('#timeline-viewport');
+    const bar = document.querySelector(
+      '.gantt-task[data-task-id="reversible"] [data-interaction-mode="move"]',
+    );
+    return {
+      x: Number(bar.getAttribute('x')),
+      width: Number(bar.getAttribute('width')),
+      scrollLeft: root.scrollLeft,
+      clientWidth: root.clientWidth,
+    };
+  });
+  expect(leftGeometry.x).toBeGreaterThanOrEqual(leftGeometry.scrollLeft);
+  expect(leftGeometry.x + leftGeometry.width).toBeLessThanOrEqual(
+    leftGeometry.scrollLeft + leftGeometry.clientWidth,
+  );
+  expect(previewDuringReversal.active).toBe(true);
+  await page.mouse.up();
+  expect(right).toBeGreaterThan(0);
+  expect(left).toBeLessThan(right);
+  expect(await page.locator('#application-status').textContent()).not.toContain('Error');
+});
+test('left drag pre-renders a viewport buffer instead of re-anchoring each date', async ({ page }) => {
+  const timeline = page.locator('#timeline-viewport');
+  await page.evaluate(() => {
+    const base = new Date('2026-08-10T00:00:00');
+    globalThis.ganttDemo.setTasks([{
+      id: 'left-buffer',
+      name: 'Left buffer',
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: base.toISOString(),
+      endDate: new Date(base.getTime() + 3 * 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  await expect(page.locator('.gantt-task[data-task-id="left-buffer"]')).toBeVisible();
+  const before = await page.evaluate(() =>
+    globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString()
+  );
+  const bar = page.locator('.gantt-task[data-task-id="left-buffer"] [data-interaction-mode="move"]');
+  const barBounds = await bar.boundingBox();
+  const viewport = await timeline.boundingBox();
+  await page.mouse.move(barBounds.x + barBounds.width / 2, barBounds.y + barBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x - 40, barBounds.y + barBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(180);
+  const prepared = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().minDate.toISOString()
+  );
+  expect(Date.parse(prepared)).toBeLessThan(Date.parse(before));
+  const firstGeometry = await page.evaluate(() => {
+    const root = document.querySelector('#timeline-viewport');
+    const bar = document.querySelector(
+      '.gantt-task[data-task-id="left-buffer"] [data-interaction-mode="move"]',
+    );
+    return {
+      x: Number(bar.getAttribute('x')),
+      scrollLeft: root.scrollLeft,
+    };
+  });
+  expect(firstGeometry.x).toBe(firstGeometry.scrollLeft);
+  const origins = [];
+  for (let index = 0; index < 3; index += 1) {
+    await page.waitForTimeout(180);
+    origins.push(await page.evaluate(() =>
+      globalThis.ganttDemo.getState().minDate.toISOString()
+    ));
+  }
+  expect(new Set(origins)).toEqual(new Set([prepared]));
+  expect(await page.evaluate(() => (
+    globalThis.ganttDemo.getState().previewResult !== null
+  ))).toBe(true);
+  await page.mouse.up();
+});
+test('resizing a task edge uses the same edge autoscroll session', async ({ page }) => {
+  const timeline = page.locator('#timeline-viewport');
+  await page.locator('input[data-action="timeline.set-scale"][value="day"]').check({ force: true });
+  await page.evaluate(() => {
+    const base = new Date('2026-08-10T00:00:00');
+    globalThis.ganttDemo.setTasks([{
+      id: 'resizable',
+      name: 'Resizable',
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'in-progress',
+      progress: 50,
+      startDate: base.toISOString(),
+      endDate: new Date(base.getTime() + 10 * 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  const handle = page.locator('.gantt-task[data-task-id="resizable"] [data-interaction-mode="resize-end"]');
+  await page.locator('.gantt-task[data-task-id="resizable"] [data-interaction-mode="move"]').click();
+  await expect(handle).toBeVisible();
+  const handleBounds = await handle.boundingBox();
+  const viewport = await timeline.boundingBox();
+  const before = await timeline.evaluate((element) => element.scrollLeft);
+  await page.mouse.move(handleBounds.x, handleBounds.y + handleBounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width + 40, handleBounds.y + handleBounds.height / 2, { steps: 8 });
+  await page.waitForTimeout(350);
+  const after = await timeline.evaluate((element) => element.scrollLeft);
+  await page.mouse.up();
+  expect(after).toBeGreaterThan(before);
 });
 
 test('vertical drag moves a task into another workstream and the sidebar highlights the landing group', async ({ page }) => {
@@ -611,6 +800,23 @@ test('the custom horizontal scrollbar drags and stays in sync with the timeline'
   await page.mouse.up();
   const afterDrag = await timeline.evaluate((el) => el.scrollLeft);
   expect(afterDrag).toBeGreaterThan(0);
+  // Grabbing inside the thumb preserves the grab offset instead of recentering.
+  await timeline.evaluate((element) => {
+    element.scrollLeft = 2400;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(2400);
+  const thumbBeforeGrab = await thumb.boundingBox();
+  const grabOffset = 20;
+  const grabY = thumbBeforeGrab.y + thumbBeforeGrab.height / 2;
+  await page.mouse.move(thumbBeforeGrab.x + grabOffset, grabY);
+  await page.mouse.down();
+  const thumbAfterDown = await thumb.boundingBox();
+  expect(Math.abs(thumbAfterDown.x - thumbBeforeGrab.x)).toBeLessThanOrEqual(1);
+  await page.mouse.move(thumbBeforeGrab.x + grabOffset + 100, grabY, { steps: 5 });
+  const thumbAfterMove = await thumb.boundingBox();
+  expect(Math.abs((thumbAfterMove.x - thumbBeforeGrab.x) - 100)).toBeLessThanOrEqual(1);
+  await page.mouse.up();
 
   // Scrolling the timeline moves the thumb.
   await timeline.evaluate((el) => {

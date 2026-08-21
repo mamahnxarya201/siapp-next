@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Searchable documentation for the experimental PMIS Gantt engine.">
+<title>Experimental Gantt engine documentation</title>
+<style>
+:root{--paper:#f4f1e9;--raised:#ebe6da;--ink:#161815;--muted:#65685f;--green:#1d6b4d;--blue:#315f80;--amber:#9a5d16;--line:rgba(22,24,21,.18);--max:1180px;--reading:760px;--sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--serif:Iowan Old Style,Charter,Georgia,serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:88px;background:var(--paper)}body{margin:0;color:var(--ink);background:linear-gradient(to right,transparent calc(50% - .5px),rgba(22,24,21,.035) 50%,transparent calc(50% + .5px)),var(--paper);font:16px/1.65 var(--sans)}a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}.skip{position:fixed;left:16px;top:-60px;z-index:5;padding:10px 14px;background:var(--ink);color:var(--paper)}.skip:focus{top:16px}.topbar{position:sticky;top:0;z-index:4;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(14px)}.topbar-inner{width:min(var(--max),calc(100% - 40px));min-height:64px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-weight:700;letter-spacing:-.03em;text-decoration:none}.meta,.eyebrow{font:700 11px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}.meta{color:var(--muted)}.layout{width:min(var(--max),calc(100% - 40px));margin:auto;display:grid;grid-template-columns:220px minmax(0,var(--reading));gap:clamp(32px,7vw,100px)}.rail{position:sticky;top:88px;align-self:start;max-height:calc(100vh - 112px);overflow:auto;padding:30px 0}.rail h2{margin:0 0 14px;font:700 11px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}.rail nav{display:grid;gap:8px}.rail a{font-size:13px;text-decoration:none}.rail a:hover,.rail a:focus{color:var(--green);text-decoration:underline}.search-row{display:flex;gap:8px;margin-top:8px}.search{min-width:0;flex:1;padding:10px 11px;border:1px solid var(--line);border-radius:0;background:var(--paper);color:var(--ink);font:14px var(--sans)}.search-button{padding:10px 11px;border:1px solid var(--ink);border-radius:0;background:var(--ink);color:var(--paper);font:700 12px var(--sans);cursor:pointer}.search-button:hover,.search-button:focus{background:var(--green)}.search:focus,.search-button:focus{outline:2px solid var(--green);outline-offset:2px}.hero{padding:82px 0 68px;border-bottom:1px solid var(--line)}h1,h2,h3{margin:0;text-wrap:pretty}h1{max-width:760px;font-size:clamp(50px,8vw,104px);font-weight:560;line-height:.94;letter-spacing:-.075em}.lead{max-width:720px;margin:28px 0 0;font:clamp(21px,2.3vw,30px)/1.35 var(--serif)}.facts{display:grid;grid-template-columns:repeat(3,1fr);margin-top:42px;border-top:1px solid var(--line)}.fact{padding:13px 14px 13px 0;border-bottom:1px solid var(--line)}.fact strong{display:block;font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.fact span{display:block;margin-top:5px;font-size:14px}.article-header{padding:56px 0 20px;border-bottom:1px solid var(--line)}.article-header h2{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.05em}.section-map{margin:14px 0 0;color:var(--muted);font:12px/1.5 var(--mono)}.article-body{padding:24px 0 70px}.article-body h3{margin:38px 0 10px;font-size:25px;letter-spacing:-.03em}.article-body h4,.article-body h5,.article-body h6{margin:28px 0 8px}.article-body p{max-width:var(--reading);margin:0 0 16px}.article-body ul,.article-body ol{max-width:var(--reading);padding-left:25px}.article-body li{padding-left:4px;margin:5px 0}.article-body code{padding:2px 5px;background:var(--raised);font:14px var(--mono)}.article-body pre{overflow:auto;margin:20px 0;padding:18px;background:var(--ink);color:var(--paper);font:13px/1.6 var(--mono)}.article-body pre code{padding:0;background:none;color:inherit}.table-wrap{overflow:auto;margin:20px 0}.article-body table{width:100%;border-collapse:collapse;font-size:14px}.article-body th,.article-body td{padding:9px 10px;text-align:left;vertical-align:top;border:1px solid var(--line)}.article-body th{background:var(--raised);font-weight:700}.empty{display:none;margin:25px 0;padding:14px;border-left:3px solid var(--amber);background:var(--raised)}body.searching article[data-document]{display:none}body.searching article[data-document].match{display:block}body.searching .empty.visible{display:block}.footer{padding:32px 0 70px;border-top:1px solid var(--line);color:var(--muted);font:12px var(--mono)}@media(max-width:820px){.layout{display:block}.rail{position:static;max-height:none;padding:20px 0;border-bottom:1px solid var(--line)}.rail nav{display:flex;flex-wrap:wrap}.rail a{padding:5px 8px;border:1px solid var(--line)}.search{max-width:420px}.facts{grid-template-columns:1fr}.hero{padding:58px 0 48px}}@media print{.topbar,.rail,.skip{display:none}.layout{display:block;width:auto}.hero{padding-top:0}.article-body{padding-bottom:20px}a{text-decoration:none}}
+@media print{.topbar,.rail,.skip{display:none}.layout{display:block;width:auto}.hero{padding-top:0}.article-body{padding-bottom:20px}a{text-decoration:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar"><div class="topbar-inner"><a class="brand" href="#top">Experimental Gantt engine</a><span class="meta">PMIS / technical reference</span></div></header>
+<div class="layout" id="top">
+<aside class="rail" aria-label="Documentation navigation"><h2>Contents</h2><nav><a href="#doc-readme-md" data-doc-link>Experimental Gantt engine documentation</a><a href="#doc-architecture-md" data-doc-link>Vanilla Gantt engine architecture</a><a href="#doc-bill-of-manifest-md" data-doc-link>Bill of manifest</a><a href="#doc-layout-contract-md" data-doc-link>React project-view layout contract</a><a href="#doc-php-bridge-contract-md" data-doc-link>Gantt engine JavaScript/PHP bridge contract</a><a href="#doc-testing-md" data-doc-link>Testing and verification manual</a><a href="#doc-theme-and-interaction-contract-md" data-doc-link>Year 0 theme and interaction contract</a></nav><p class="meta" style="margin-top:24px;line-height:1.6">Use your browser's built-in find command to search this page.</p></aside>
+<main id="content">
+<section class="hero"><p class="eyebrow">Documentation portal</p><h1>Read the engine as a system.</h1><p class="lead">A browser-ready reference for the isolated PMIS Gantt engine. The Markdown files beside this page are canonical; this page is their rendered reading surface.</p><div class="facts"><div class="fact"><strong>Runtime</strong><span>Vanilla DOM, SVG, and browser APIs</span></div><div class="fact"><strong>Boundary</strong><span>Gateway transport seam for future PHP</span></div><div class="fact"><strong>Scope</strong><span>Experimental migration slice, not React replacement</span></div></div></section>
+<article id="doc-readme-md" data-document><header class="article-header"><p class="eyebrow">README.md</p><h2>Experimental Gantt engine documentation</h2><p class="section-map">Start here · Source of truth</p></header><div class="article-body"><h2 id="experimental-gantt-engine-documentation">Experimental Gantt engine documentation</h2>
+<p>The experimental Gantt engine is a framework-free DOM and SVG implementation for the PMIS migration slice. The React PMIS application remains the production implementation.</p>
+<p>Use the <a href="./index.html">documentation portal</a> when you want a readable reference in a browser. Use your browser&#39;s built-in find command, such as <code>Ctrl+F</code>, to search the page. The portal is generated from the Markdown files in this directory, so the Markdown files remain the source of truth.</p>
+<h3 id="start-here">Start here</h3>
+<ul><li><a href="#doc-architecture-md">Architecture</a> explains the engine composition, lifecycle, rendering boundaries, scheduling, and bridge separation.</li><li><a href="#doc-theme-and-interaction-contract-md">Theme and interaction contract</a> defines supported themes, authoring behavior, context menus, and project-header controls.</li><li><a href="#doc-layout-contract-md">Layout contract</a> defines settled geometry, sidebar behavior, and the design-token seam.</li><li><a href="#doc-php-bridge-contract-md">PHP bridge contract</a> defines the JavaScript gateway, transport boundary, request and response shapes, errors, cancellation, and versioning.</li><li><a href="#doc-testing-md">Testing and verification manual</a> defines test layers, manual visual checks, and the clean-exit completion rule.</li><li><a href="#doc-bill-of-manifest-md">Bill of manifest</a> records runtime and development dependencies, vendored assets, and dependency approval rules.</li></ul>
+<h3 id="source-of-truth">Source of truth</h3>
+<p>Edit the Markdown files in this directory. Run <code>npm run docs:build</code> from <code>experimental/gantt-engine</code> to regenerate <code>docs/index.html</code>. You do not need to run a command to read the documentation: open <code>docs/index.html</code> directly in a browser. Double-clicking <code>docs/index.html</code> opens the rendered layout immediately. A browser cannot run the Node generator or reliably read sibling Markdown files from a <code>file://</code> page, so regenerate the portal after documentation changes.</p>
+<p>The generated portal includes the full Markdown content, section navigation, and keyboard-accessible skip navigation. It does not require a server or network access.</p></div></article>
+<article id="doc-architecture-md" data-document><header class="article-header"><p class="eyebrow">ARCHITECTURE.md</p><h2>Vanilla Gantt engine architecture</h2><p class="section-map">Purpose and status · Mental model for desktop-framework developers · Source tree · Application lifecycle · Command delegation · View refresh contract · Scheduler contract · Gantt data and kernel boundaries · Explicit row order · Pointer and scroll sequence · Bridge separation · Deliberate limitations</p></header><div class="article-body"><h2 id="vanilla-gantt-engine-architecture">Vanilla Gantt engine architecture</h2>
+<h3 id="purpose-and-status">Purpose and status</h3>
+<p>This document describes the implemented experimental engine in this directory. It extends the repository migration plan at <code>../../../.agent/doc/migration/005-gantt-vanilla-migration.md</code> with the actual framework, Gantt, bridge, and test boundaries delivered by task 006.</p>
+<p>The implementation is isolated from the React PMIS application. No React, Zustand, Next.js, Tailwind, Radix, or component-library code is imported. The experiment does not include the dashboard, right inspector, task dialogs, comments, labels, checklist, application routing, authentication, or persistence.</p>
+<h3 id="mental-model-for-desktop-framework-developers">Mental model for desktop-framework developers</h3>
+<div class="table-wrap"><table><thead><tr><th scope="col">Desktop concept</th><th scope="col">Implemented equivalent</th></tr></thead><tbody><tr><td>Form/application object</td><td><code>src/engine.js</code> composition root</td></tr><tr><td><code>Button.OnClick</code> / Qt slot</td><td><code>data-action</code> routed by <code>ActionDelegator</code></td></tr><tr><td>Command dispatcher</td><td><code>CommandBus</code></td></tr><tr><td><code>Invalidate()</code></td><td><code>ViewHost.invalidate()</code></td></tr><tr><td><code>Update()</code> / paint pass</td><td>scheduled <code>ViewHost.refresh()</code></td></tr><tr><td><code>BeginInvoke()</code> / queued signal</td><td><code>Scheduler.scheduleMicrotask()</code></td></tr><tr><td>UI frame callback</td><td><code>Scheduler.scheduleAnimationFrame()</code></td></tr><tr><td>Timer</td><td><code>Scheduler.scheduleDelay()</code></td></tr><tr><td>Cancellable background operation</td><td><code>Scheduler.scheduleAsync()</code> plus <code>AbortSignal</code></td></tr><tr><td>Service interface</td><td><code>Gateway.execute(operation, payload)</code></td></tr><tr><td>Local service implementation</td><td><code>InMemoryTransport</code></td></tr><tr><td>Future PHP adapter</td><td><code>FetchTransport</code></td></tr><tr><td>Custom control paint</td><td><code>renderer.js</code> DOM/SVG functions</td></tr></tbody></table></div>
+<p>The control flow is event-oriented. A button click executes a named command. The command changes application state and invalidates named views. The scheduler coalesces invalidations, and each view refresh reads a new snapshot. No virtual DOM, component reactivity, hooks, or transparent dependency tracking exists.</p>
+<h3 id="source-tree">Source tree</h3>
+<pre><code>experimental/gantt-engine/
+  package.json                   local test commands; no runtime dependency
+  playwright.config.mjs         Chrome project and temporary artifact location
+  README.md                      operator entry point
+  demo/
+    index.html                   static application hosts and delegated controls
+    demo.js                      composition root for the in-memory bridge
+  docs/
+    ARCHITECTURE.md              this file
+    PHP_BRIDGE_CONTRACT.md       JS/PHP wire and responsibility contract
+    TESTING.md                   verification strategy and commands
+    BILL_OF_MANIFEST.md          dependency inventory and tradeoffs
+    THEME_AND_INTERACTION_CONTRACT.md  Year 0 UI interaction and theme contract
+  src/
+    engine.js                    application state, commands, views, lifecycle
+    interaction.js               pointer, keyboard, hover, and gesture lifecycle
+    renderer.js                  task-list DOM and layered SVG rendering
+    model.js                     task normalization and graph validation
+    timeline.js                  calendar math, scales, rows, coordinates, range
+    dependencies.js              progressive edge selection and connector routes
+    grid.js                      normalized cell-grid presentation settings
+    scheduling.js                drag/resize constraints and forward propagation
+    reorder.js                   vertical row/workstream reorder geometry
+    forecast.js                  PERT duration and CPM passes
+    fixtures.js                  deterministic standalone demonstration data
+    styles.css                   standalone visual and layout contract
+    framework/
+      action-delegator.mjs       one root listener for click/submit/change
+      command-bus.mjs            named one-handler command registry
+      mini-application.mjs       lifecycle and subsystem composition
+      scheduler.mjs              cancellable queued/frame/timer/async jobs
+      view-host.mjs              explicit invalidate/refresh and view registry
+      index.mjs                  framework public surface
+    bridge/
+      index.mjs                  application-facing Gateway exports
+      transports.mjs             composition-root-only concrete transports
+      gateway.mjs                normalized operation execution
+      protocol.mjs               request/response envelope validation
+      serialization.mjs          strict JSON boundary and canonical payloads
+      cancellation.mjs           timeout and caller cancellation composition
+      errors.mjs                 stable error taxonomy
+      in-memory-transport.mjs    deterministic demo/test handler adapter
+      fetch-transport.mjs        future HTTP/PHP transport
+  tests/
+    framework.test.mjs           framework lifecycle and scheduling tests
+    gantt-kernel.test.mjs        model/timeline/graph/schedule/forecast tests
+    php-bridge.test.mjs          bridge and transport contract tests
+    run-e2e.mjs                  owns server and Playwright process lifetimes
+    static-server.mjs            dependency-free local test server
+    e2e/gantt.spec.mjs           browser interaction scenarios</code></pre>
+<h3 id="application-lifecycle">Application lifecycle</h3>
+<p><code>createGanttEngine()</code> validates all host elements, normalizes task input, calculates initial CPM criticality, constructs <code>MiniApplication</code>, registers views and commands, and returns an object with <code>start()</code>, <code>dispose()</code>, <code>reloadSchedule()</code>, <code>setTasks()</code>, <code>getState()</code>, and <code>getSnapshot()</code>.</p>
+<p><code>start()</code> performs these operations in order:</p>
+<ol><li>Build the first immutable-style render snapshot.</li><li>Start the delegated action listeners.</li><li>Start all registered views; each queues its initial refresh.</li><li>Start timeline pointer and keyboard listeners.</li><li>Attach task-list hover and two-way scroll synchronization listeners.</li></ol>
+<p><code>dispose()</code> cancels gesture work, removes every listener attached by the engine, cancels delayed work, disposes views and commands, and rejects reuse. The engine does not own or remove its host elements.</p>
+<h3 id="command-delegation">Command delegation</h3>
+<p>Interactive HTML uses stable names such as:</p>
+<pre><code>&lt;button data-action=&quot;schedule.reload&quot;&gt;Reload schedule&lt;/button&gt;
+&lt;input type=&quot;radio&quot; data-action=&quot;timeline.set-scale&quot; value=&quot;week&quot;&gt;</code></pre>
+<p><code>ActionDelegator</code> installs exactly one listener for each supported browser event:</p>
+<ul><li><code>click</code> for buttons;</li><li><code>submit</code> for forms;</li><li><code>change</code> for inputs, selects, and textareas.</li></ul>
+<p>It walks from the event target to the root, finds the nearest supported element with <code>data-action</code>, and executes the same-named command through <code>CommandBus</code>. The payload contains <code>source</code>, the native <code>event</code>, <code>eventType</code>, action name, and root. The delegator does not contain business rules or rendering calls.</p>
+<p>Registered commands in <code>engine.js</code> are:</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Command</th><th scope="col">State/action consequence</th></tr></thead><tbody><tr><td><code>timeline.set-scale</code></td><td>Set day/week/month and invalidate views.</td></tr><tr><td><code>timeline.scroll-left</code></td><td>Imperatively scroll the timeline 200px left.</td></tr><tr><td><code>timeline.scroll-right</code></td><td>Imperatively scroll the timeline 200px right.</td></tr><tr><td><code>dependencies.toggle-all</code></td><td>Enable or disable all visible dependency edges.</td></tr><tr><td><code>dependencies.toggle-critical</code></td><td>Enable or disable calculated critical emphasis.</td></tr><tr><td><code>schedule.reload</code></td><td>Schedule <code>Gateway.execute(&#39;schedule.load&#39;)</code>.</td></tr><tr><td><code>workstream.toggle</code></td><td>Change expansion without changing dependency graph.</td></tr><tr><td><code>task.select</code></td><td>Select the task and disclose its graph context.</td></tr><tr><td><code>task.rename</code></td><td>Rename a task through the activity panel. Task creation is context-menu only (<code>timeline.add-bar</code> / <code>task.create-workstream</code>).</td></tr><tr><td><code>theme.set</code></td><td>Apply the selected scoped visual theme.</td></tr><tr><td><code>timeline.add-bar</code></td><td>Create a one-snap-unit task at the context-menu date.</td></tr><tr><td><code>dependency.begin-connect</code> / <code>dependency.remove</code></td><td>Start a dependency preview or remove the selected edge.</td></tr><tr><td><code>project.logo.open</code> / <code>project.logo.save</code> / <code>project.logo.cancel</code></td><td>Open the project-logo dialog, commit the draft to the header, or discard it.</td></tr><tr><td><code>project.logo.file</code></td><td>Read the chosen image into the dialog crop preview via <code>FileReader</code>.</td></tr><tr><td><code>project.name.edit</code> / <code>project.name.commit</code></td><td>Swap the header project name to an inline textbox and commit the new name.</td></tr></tbody></table></div>
+<p>The logo dialog is a hidden <code>&lt;div&gt;</code> host element inside the application root. It is shown/hidden by the engine and owned directly by the composition root, in the same way the context menu is. The dialog implements the crop preview with direct DOM writes (pointer drag with <code>setPointerCapture</code>, wheel zoom) instead of full view refreshes so gesture feedback stays snappy. Keyboard Tab is trapped inside the dialog and loops Choose image → Save logo → Cancel.</p>
+<h3 id="view-refresh-contract">View refresh contract</h3>
+<p>Four views are registered: <code>task-list</code>, <code>timeline</code>, <code>status</code>, and <code>project-brand</code>. <code>renderProjectBrand</code> replaces the descendants of <code>.project-top-nav__brand</code> only; it renders the logo button (with the committed image or the fallback glyph) and the project-name button or its editing textbox.</p>
+<p><code>invalidateAllViews(reason)</code> marks each dirty. <code>ViewHost</code> records reasons and schedules one microtask. Repeated invalidations before that microtask are coalesced. <code>refresh()</code> is explicit and runs the registered render function. A failed refresh remains dirty but does not enter an automatic retry loop; the application error handler reports it.</p>
+<p>The renderer owns descendants of <code>taskListElement</code> and <code>timelineElement</code> only. It may replace those descendants during refresh, but it does not mutate application state, execute commands, call the bridge, or apply scheduling rules.</p>
+<h3 id="scheduler-contract">Scheduler contract</h3>
+<p><code>Scheduler</code> is the only abstraction around queued work:</p>
+<ul><li>microtasks coalesce view invalidation;</li><li>animation frames throttle pointer previews;</li><li>delayed work compacts an extended timeline after 260ms idle at the left edge;</li><li>async jobs pass an <code>AbortSignal</code> to bridge operations.</li></ul>
+<p>Every returned job has cancellation and completion state. <code>MiniApplication.stop()</code> and <code>dispose()</code> call <code>cancelAll()</code>. This makes asynchronous ownership visible to auditors who expect queued calls, timers, or an explicit I/O scheduler.</p>
+<h3 id="gantt-data-and-kernel-boundaries">Gantt data and kernel boundaries</h3>
+<p><code>model.js</code> accepts both current PMIS task fields and planning-record aliases. Internally:</p>
+<p>are rejected before rendering;</p>
+<ul><li><code>dependencies</code> / <code>predecessorIds</code> are canonical predecessor IDs;</li><li><code>dependents</code> are derived during normalization;</li><li>duplicate IDs, duplicate edges, self-edges, dangling IDs, invalid dates, and cycles</li><li>workstream IDs remain independent from graph edges.</li></ul>
+<p><code>timeline.js</code> owns local-calendar day/noon boundaries, visible weekday compression, day and half-day snapping, row construction, range calculation, and coordinates. It preserves the PMIS geometry constants: 72px calendar header, 40px group header, 36px task row, 24px task bar, and scale widths of 60/32/20 pixels. <code>computeTimelineRange</code> accepts an optional <code>minDate</code> origin; when supplied it is kept verbatim instead of being recomputed from the earliest task.</p>
+<h4 id="explicit-row-order">Explicit row order</h4>
+<p>Row order is an explicit engine-owned concept, not a date-derived value. <code>buildVisibleRows</code> accepts a flat <code>order</code> of <code>{ type: &quot;workstream&quot; | &quot;task&quot;, id }</code> entries that fully determines the row sequence: workstream headers, task order, cross-workstream placement, and ungrouped rows. When <code>order</code> is omitted the function falls back to the historical date-sort, so callers and tests that predate the order model keep working unchanged.</p>
+<p><code>defaultRowOrder</code> seeds the initial order from the date-sort (headers first, then each workstream&#39;s date-sorted tasks, ungrouped last), so a fresh engine matches the previous deterministic layout. <code>reconcileRowOrder</code> keeps the order consistent as tasks and workstreams are created, renamed, or deleted: it drops entries for removed items, appends headers for new workstreams, and places new tasks after their owning header (or as a bare row when ungrouped).</p>
+<p>The engine stores the order on <code>state.rowOrder</code> and reconciles it on every <code>replaceTasks</code> (task create/rename/delete, schedule load/replace) and on workstream create/delete. Because rows come from the order rather than a date sort, a horizontal drag that changes a task&#39;s date never re-ranks its row. <code>reloadSchedule</code> and <code>setTasks</code> reseed the order from the replacement data&#39;s date-sort. A reorder commit passes <code>rowOrder</code> through the existing commit/persist seam (alongside <code>tasks</code> and <code>effects</code>) so a future persistence backend can store it without rework; in the current in-memory demo the order is ephemeral.</p>
+<p><code>reorder.js</code> provides the vertical-reorder geometry: it maps a pointer row-Y over the visible rows to a new flat order and the resulting per-task workstream. A task&#39;s workstream is derived from its position in the order (the nearest preceding workstream header), so dragging a bar across a header both reorders it and reassigns its group. Dropping on an expanded header inserts into that workstream; dropping on a collapsed header or in a collapsed block is rejected (only expanded workstreams are drop targets); dropping below all groups makes the task ungrouped. <code>reorderWorkstreamToIndex</code> moves a whole workstream block (header and its tasks) to reorder groups relative to each other.</p>
+<p>The engine keeps the timeline origin (<code>state.minDate</code>) stable for the session. It is seeded to the earliest task minus a 7-day past buffer and only ever extends leftward (when a task is genuinely moved or created before the current left edge). Dragging or creating a task never re-anchors the grid rightward, so the bar under the pointer moves on screen and a newly created bar lands exactly on the hovered grid column. <code>replaceTasks</code> (used by <code>reloadSchedule</code>/<code>setTasks</code>) reseeds the origin from the replacement data.</p>
+<p>The renderer owns the wireframe cell grid. <code>settings.grid</code> is normalized by <code>src/grid.js</code> and controls vertical/horizontal line visibility, major-line visibility, minor/major/row colors, and group/task fills. This keeps later user grid preferences at a stable settings seam instead of scattering display decisions across SVG paint code.</p>
+<p><code>dependencies.js</code> selects edges by precedence: all, selected chain, hovered direct, critical path, then none. Hidden/collapsed endpoints are excluded. It returns one continuous orthogonal route per edge. Normal routes enter the child from the left; cramped routes enter from above. Elbow, parent-exit, top-inset, and top-gap values are separate constants.</p>
+<p><code>scheduling.js</code> is pure. Dragging/resizing returns new tasks and before/after effects. Direct child movement clamps to the latest direct predecessor end. Moving a predecessor right pushes only violating descendants recursively and preserves their durations. Moving a predecessor left never pulls descendants backward. Unrelated tasks retain their dates and metadata.</p>
+<p><code>forecast.js</code> keeps PERT/CPM separate from drag propagation. It uses <code>(optimistic + 4 * mostLikely + pessimistic) / 6</code>, then computes earliest/latest dates, slack, project finish, and critical IDs.</p>
+<h3 id="pointer-and-scroll-sequence">Pointer and scroll sequence</h3>
+<p><code>resize-end</code>) or a workstream group header (reorder).</p>
+<p>committed rows, and gesture parameters.</p>
+<p>component changes the task date (with forward-only propagation) and the vertical component reorders the row and may reassign the workstream, all in the same drag. Resize gestures stay horizontal-only; a group-header drag is always a vertical workstream reorder.</p>
+<p><code>resize-start</code>, or <code>resize-end</code>) is active, entering the 40px band inside either viewport edge starts one drag-owned animation loop. The trigger stays inside the edge because the viewport may be flush with the browser window. The target velocity combines elapsed dwell time and pointer penetration and is expressed in screen pixels per second across scales. Elapsed frame time integrates displacement, so frame cadence does not change the feel. Reversal and neutral return decelerate through zero. Overlapping task bars do not suppress the active edge command. The velocity is clamped at the scroll bounds without hidden accumulation. The dragged date is anchored in timeline space by adding scroll movement to the pointer delta, so the bar remains constrained at the edge while the content scrolls underneath.</p>
+<p>propagation, and any free-move row reorder, then stores the result as a preview and invalidates views. Group headers, dependency gestures, and scrollbar-thumb dragging do not auto-pan.</p>
+<p>node that is replaced during preview rendering. Pointer-up commits the final result; pointer-cancel, lost capture, Escape, blur, stop, and dispose cancel the preview and stop the loop immediately.</p>
+<p>highlights the destination workstream header in the task list. Reorder targets use the committed rows captured at pointer-down, so the live preview never feeds back into its own target selection.</p>
+<p>recalculates criticality, and invokes the host callback/bridge. Reorder commits update <code>state.rowOrder</code> and any reassigned task workstream.</p>
+<ol><li>Pointer down identifies the target: a task bar (mode <code>move</code>, <code>resize-start</code>,</li><li>The controller freezes the committed task snapshot, the current row order, the</li><li>A <code>move</code> gesture is free: both axes apply simultaneously. The horizontal</li><li>Pointer moves save the latest X and the pointer row-Y.</li><li>Horizontal autoscroll: while a schedule-affecting task gesture (<code>move</code>,</li><li>The same animation-frame job computes the snapped date move, forward</li><li>Pointer capture is held by the stable timeline viewport, not the task SVG</li><li>The reorder preview renders a horizontal insertion line at the target row and</li><li>Pointer-up calculates the final result once, commits it atomically,</li></ol>
+<p>Horizontal scrolling is exposed through a custom <code>.timeline-hscroll</code> track and thumb rendered under the grid, because Chromium&#39;s <code>::-webkit-scrollbar</code> styling cannot show only a horizontal native scrollbar. The viewport&#39;s native scrollbars are hidden (<code>scrollbar-width: none</code>), the thumb width/position mirror <code>timeline.scrollLeft</code> / <code>scrollWidth</code> / <code>clientWidth</code>, and dragging the thumb writes <code>scrollLeft</code>. Vertical scrolling is untouched: it still works via the wheel and the synchronized task list, with no vertical scrollbar shown.</p>
+<p>Task-list and timeline scroll containers synchronize <code>scrollTop</code> through guarded DOM writes. Horizontal timeline scrolling remains native. Near the right edge, the range grows by 180 days behind a latch. Returning near the left edge schedules compaction to the default 90-day future buffer.</p>
+<h3 id="bridge-separation">Bridge separation</h3>
+<p>Application commands may import <code>Gateway</code> from <code>bridge/index.mjs</code>. Only the composition root may import concrete transports from <code>bridge/transports.mjs</code>. Renderer, interaction, model, scheduling, and forecast modules do not import transport or PHP details.</p>
+<p>The demo injects <code>InMemoryTransport</code>. A future PHP integration replaces only that construction with <code>FetchTransport</code>; command names and view code remain unchanged. The complete wire format, security boundary, cancellation, versioning, and idempotency rules are in <a href="#doc-php-bridge-contract-md">PHP_BRIDGE_CONTRACT.md</a>.</p>
+<h3 id="deliberate-limitations">Deliberate limitations</h3>
+<p>middleware chain, event sourcing, or persistent command log.</p>
+<p>replacement rendering; pointer previews are animation-frame coalesced.</p>
+<ul><li>No general-purpose UI framework, dependency-injection container, virtual DOM,</li><li>No automatic fine-grained DOM diff. Three explicit view regions are small enough for</li><li>No actual PHP endpoint. The adapter and protocol exist for the later integration.</li><li>No React adapter and no modification of the existing React implementation.</li></ul></div></article>
+<article id="doc-bill-of-manifest-md" data-document><header class="article-header"><p class="eyebrow">BILL_OF_MANIFEST.md</p><h2>Bill of manifest</h2><p class="section-map">Runtime dependencies · Vendored icon asset set: Lucide · Development dependency: `@playwright/test` · Why it is used · Advantages · Disadvantages · Built-in development facilities · Demo entry points · UI primitive storyboard · Adoption rule for future experimental UI · Third-party code inspiration · Approval rule for future dependencies · Project logo and name header — no new dependency</p></header><div class="article-body"><h2 id="bill-of-manifest">Bill of manifest</h2>
+<h3 id="runtime-dependencies">Runtime dependencies</h3>
+<p>None. The experimental Gantt runtime uses only browser platform APIs and local ES modules. It does not import React, Preact, Vue, Svelte, morphdom, jQuery, Zustand, Tailwind, Radix, date-fns, or any other runtime package.</p>
+<p>This is deliberate: the required features are narrow: named command dispatch, explicit view invalidation, scheduled work, strict transport envelopes, DOM task rows, and SVG timeline rendering. A general UI framework would add lifecycle and abstraction surface that this migration does not need.</p>
+<h3 id="vendored-icon-asset-set-lucide">Vendored icon asset set: Lucide</h3>
+<p><code>ChevronDown</code>, <code>ChevronRight</code>, <code>Plus</code>, <code>MoreHorizontal</code>, <code>GitBranch</code>, <code>ListTodo</code>, <code>CircleAlert</code>, <code>Activity</code>, <code>CheckCircle2</code>, <code>Menu</code>, <code>Moon</code>, <code>Bell</code>, <code>Settings2</code>, and chart geometry.</p>
+<p>(<code>sidebarIconPaths</code>).</p>
+<p>the React component package without pulling React and a bundler into the isolated runtime. The selected Lucide path data is vendored as SVG geometry so the sidebar matches the React icon proportions and stroke treatment.</p>
+<p>icons are created with <code>document.createElementNS</code> during sidebar rendering.</p>
+<p>local path map with official Lucide imports and keep the same icon names and 14px/1.8px stroke contract.</p>
+<ul><li>Source: <code>lucide-react</code> 0.564.0 already present in the parent PMIS project.</li><li>License: ISC.</li><li>Used icons: <code>Blocks</code>, <code>ServerCog</code>, <code>PanelsTopLeft</code>, <code>ShieldCheck</code>, <code>Rocket</code>,</li><li>Location: the small namespace-aware SVG path map in <code>src/renderer.js</code></li><li>Reason: the experiment is a browser-native vanilla module and cannot import</li><li>Runtime impact: no package download, bundle, or module-resolution change;</li><li>Replacement strategy: if the experiment later gains a bundler, replace the</li></ul>
+<h3 id="development-dependency-playwright-test">Development dependency: <code>@playwright/test</code></h3>
+<ul><li>Declared version: <code>^1.62.1</code> in the experimental <code>package.json</code>.</li><li>Resolved from the repository&#39;s existing parent installation.</li><li>Purpose: browser-level interaction and layout verification.</li></ul>
+<h4 id="why-it-is-used">Why it is used</h4>
+<p>sticky headers, label/control behavior, or real browser event propagation;</p>
+<p>deterministic test isolation;</p>
+<ul><li>synthetic DOM tests cannot prove pointer drag, SVG visibility, native scrolling,</li><li>Playwright provides stable locators, pointer input, polling, traces, screenshots, and</li><li>it is already accepted by the repository and used by the React PMIS tests.</li></ul>
+<h4 id="advantages">Advantages</h4>
+<ul><li>real installed Chrome execution;</li><li>accessible-role and locator assertions;</li><li>failure traces/screenshots in the OS temporary directory;</li><li>one worker avoids shared demo-state races;</li><li>no new production bundle code.</li></ul>
+<h4 id="disadvantages">Disadvantages</h4>
+<ul><li>browser startup is slower than Node tests;</li><li>the test environment needs an installed supported Chrome;</li><li>Windows child-process cleanup requires the local <code>tests/run-e2e.mjs</code> wrapper;</li><li>browser tests require explicit deterministic fixtures.</li></ul>
+<h3 id="built-in-development-facilities">Built-in development facilities</h3>
+<p>The following are not third-party manifest entries:</p>
+<p><code>requestAnimationFrame</code>.</p>
+<ul><li><code>node:test</code> and <code>node:assert/strict</code> for unit/integration tests;</li><li><code>node:http</code> for the local static test server;</li><li><code>node:child_process</code> for deterministic server/runner ownership;</li><li>native <code>fetch</code>, <code>AbortController</code>, <code>queueMicrotask</code>, timers, and ES modules;</li><li>browser DOM, SVG, Pointer Events, <code>ResizeObserver</code>-compatible layout, and</li></ul>
+<h3 id="demo-entry-points">Demo entry points</h3>
+<p>for the populated timeline demo and browser scenarios.</p>
+<p>engine boundary initialized with empty task and workstream arrays. It is a separate entry point so empty-state work can be tested without changing the populated demo fixture.</p>
+<ul><li><code>demo/index.html</code> + <code>demo/demo.js</code>: React-aligned 240-task <code>p3</code> fixture used</li><li><code>demo/empty.html</code> + <code>demo/empty.js</code>: the same shell, controls, tokens, and</li></ul>
+<h3 id="ui-primitive-storyboard">UI primitive storyboard</h3>
+<p>semantics with <code>pmis-button</code> and <code>pmis-textfield</code> custom elements.</p>
+<p>Save and Cancel actions use <code>pmis-button</code>.</p>
+<p>button/input controls. No runtime or development dependency was added.</p>
+<ul><li><code>demo/ui-primitives-storyboard.html</code> compares the existing React button/input</li><li><code>demo/index.html</code> and <code>demo/empty.html</code> load the primitives; the logo dialog&#39;s</li><li><code>src/ui-primitives.js</code> uses only Custom Elements, Shadow DOM, slots, and native</li></ul>
+<h4 id="adoption-rule-for-future-experimental-ui">Adoption rule for future experimental UI</h4>
+<p>SHOULD use <code>pmis-textfield</code>.</p>
+<p>with <code>variant</code> and <code>size</code> attributes.</p>
+<p>element host. The visible native control is inside Shadow DOM; host-level paint creates square-corner artifacts or diverges from the shared primitive.</p>
+<p>controls. Update <code>ActionDelegator</code> and focus traps when adding a new custom interactive tag.</p>
+<ul><li>New experimental buttons MUST use <code>pmis-button</code>; new single-line text inputs</li><li>Load <code>src/ui-primitives.js</code> from the host entry module. Configure appearance</li><li>Do not paint <code>background</code>, <code>color</code>, hover, or border-radius on the custom</li><li>Preserve <code>data-action</code> names and accessibility labels when migrating existing</li></ul>
+<h3 id="third-party-code-inspiration">Third-party code inspiration</h3>
+<p>Apart from the explicitly listed Lucide icon paths, no third-party source code was copied into the mini-framework. The implementation uses ordinary platform patterns: root event delegation, a map-backed command registry, dirty-view scheduling, strict ports/adapters, and namespace-aware SVG creation.</p>
+<h3 id="approval-rule-for-future-dependencies">Approval rule for future dependencies</h3>
+<p>Before adding any runtime or development package, update this file with:</p>
+<ol><li>the missing capability;</li><li>why a local implementation is unsafe or materially more expensive;</li><li>package/version and license;</li><li>runtime/bundle/process impact;</li><li>advantages and disadvantages;</li><li>removal or replacement strategy;</li><li>user approval when the dependency expands the accepted architecture.</li></ol>
+<p>Reading a library for one small technique does not authorize importing it. Reimplement only the narrow behavior needed and document provenance if source, not merely the public idea, is adapted.</p>
+<h3 id="project-logo-and-name-header-no-new-dependency">Project logo and name header — no new dependency</h3>
+<p>The top-navigation project image/name feature in <code>demo/index.html</code> and <code>demo/empty.html</code> adds no runtime or development package.</p>
+<p>Capability requested:</p>
+<p>(square) crop, and positions/zooms the source image before saving.</p>
+<ul><li>inline project rename from the header name control;</li><li>a project-logo picker popup that uploads an image, applies it to a fixed-aspect</li></ul>
+<p>Why no third-party package:</p>
+<p>React PMIS <code>components/pmis/top-nav.tsx</code>, which uses <code>FileReader</code>, Pointer Events, and a CSS <code>translate/scale</code> transform against a locked square crop frame. No external crop library is used there either.</p>
+<p>dependency surface for three small techniques: data-URL file reading, pointer drag, and wheel zoom.</p>
+<p>server upload). The selected image is displayed with <code>object-fit: cover</code> inside the 32px header logo box, mirroring the React behavior.</p>
+<ul><li>the crop interaction is narrow and already exists as a custom implementation in the</li><li>per <code>STD-COC.md</code>, &quot;Not Invented Here&quot; takes precedence; a library would add</li><li>the project has no image-processing requirement (no resize, EXIF rotation, or</li></ul>
+<p>Implementation:</p>
+<p>224px crop surface, matching the React <code>h-36</code>/<code>aspect-square</code> overlay;</p>
+<p>Escape cancels, focus returns to the logo button on close;</p>
+<p>in engine memory for the current session, per user decision on 2026-08-18.</p>
+<ul><li>file selection: native <code>FileReader.readAsDataURL</code>;</li><li>crop positioning: Pointer Events with <code>setPointerCapture</code> on the crop surface;</li><li>zoom: the <code>wheel</code> event clamped to a 0.5–3 scale range;</li><li>fixed aspect ratio: a 144px square crop frame (<code>aspect-square</code>) centered over a</li><li>keyboard: Tab traps inside the dialog (Choose image → Save logo → Cancel → loop),</li><li>persistence: none. The demo keeps both the renamed project name and the logo</li></ul>
+<p>Removal/replacement strategy:</p>
+<p>in-memory <code>state.logo</code>/<code>state.projectName</code> with a gateway operation and keep the same command names and dialog markup.</p>
+<ul><li>if a future host requires persisted or server-side project media, replace the</li></ul>
+<p>Vendored icon:</p>
+<p>vendored as inline SVG geometry under the same ISC Lucide 0.564.0 treatment already documented in the vendored icon asset set above.</p>
+<ul><li>the &quot;Choose image&quot; upload glyph is the Lucide <code>upload</code> path (three <code>&lt;path&gt;</code> strokes),</li></ul></div></article>
+<article id="doc-layout-contract-md" data-document><header class="article-header"><p class="eyebrow">LAYOUT_CONTRACT.md</p><h2>React project-view layout contract</h2><p class="section-map">Geometry ownership · Settled values · Sidebar interaction contract · Theme and control behavior · Change checklist</p></header><div class="article-body"><h2 id="react-project-view-layout-contract">React project-view layout contract</h2>
+<p>This document defines the settled presentation geometry for the isolated Gantt engine. It is a presentation contract only: task grouping, dependency selection, connector routing, scheduling, and gateway boundaries remain owned by the existing engine modules.</p>
+<h3 id="geometry-ownership">Geometry ownership</h3>
+<p>The values below have two consumers and must stay synchronized:</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Concern</th><th scope="col">JavaScript source</th><th scope="col">CSS token</th></tr></thead><tbody><tr><td>Top navigation</td><td><code>demo/index.html</code> host layout</td><td><code>--top-nav-height</code></td></tr><tr><td>Project toolbar</td><td><code>demo/index.html</code> center timeline host</td><td><code>--project-toolbar-height</code></td></tr><tr><td>Activity pane</td><td>host grid</td><td><code>--activity-width</code></td></tr><tr><td>Calendar header</td><td><code>src/timeline.js</code> <code>HEADER_HEIGHT</code></td><td><code>--header-height</code></td></tr><tr><td>Workstream row</td><td><code>GROUP_HEADER_HEIGHT</code></td><td><code>--group-height</code></td></tr><tr><td>Task row</td><td><code>TASK_ROW_HEIGHT</code></td><td><code>--task-height</code></td></tr><tr><td>Task bar</td><td><code>BAR_HEIGHT</code> and <code>BAR_PADDING</code></td><td>bar styling in <code>src/styles.css</code></td></tr><tr><td>Week scale</td><td><code>TIMELINE_SCALES.week.dayWidth</code></td><td>no CSS equivalent; SVG geometry</td></tr></tbody></table></div>
+<p>The engine uses the JavaScript constants when calculating SVG coordinates. CSS uses the matching custom properties for the DOM task list and host layout. A change to row or header geometry therefore requires a unit-test update and a browser check for sidebar/SVG alignment.</p>
+<h3 id="settled-values">Settled values</h3>
+<p>bar dragging does not move the grid until this edge is reached.</p>
+<ul><li>top navigation: 56px;</li><li>project timeline toolbar: 48px;</li><li>activity pane: 320px by default, responsive down to 280px;</li><li>calendar header: 72px;</li><li>workstream row: 40px;</li><li>task row: 36px;</li><li>task bar: 24px with 6px vertical inset;</li><li>week scale: 32px per visible day;</li><li>day scale: 60px per visible day;</li><li>month scale: 20px per visible day.</li><li>timeline extension edge: two visible day cells for the active scale; normal</li></ul>
+<p>The activity pane keeps React&#39;s Tasks header, task rows, workstream rows, and team/status metadata. Dependency edges continue to render in the SVG layer and remain progressively disclosed; grouping does not imply a dependency hierarchy.</p>
+<h3 id="sidebar-interaction-contract">Sidebar interaction contract</h3>
+<p>control, while add/manage affordances are revealed on hover or keyboard focus. This avoids the nested-button structure that made the earlier experiment look like one large grouped control.</p>
+<p>assignee avatar, team badge, status badge, and dependency count. Team and status badges are retained in the DOM for wide panels but collapse at the compact activity-pane width so the task-name column remains readable.</p>
+<p>painted as one full-width horizontal cue and does not alter dependency graph membership or schedule calculations.</p>
+<p>for the mini-framework&#39;s accessible status contract, but visually clips the experiment-only footer so it does not consume layout space absent from the React project view.</p>
+<p>command/context-menu seam. Native prompt/confirm dialogs are the documented vanilla fallback for React&#39;s modal primitives; deleting a non-empty lane is rejected, matching the React guard.</p>
+<p>is contextual: right-clicking the grid opens a name/color form, Enter submits it, and the same menu supports palette or advanced native color input.</p>
+<p>color changes, dependency connection, and dependency-link removal. Right- clicking a workstream action exposes rename, delete, and collapse. Deleting a task removes its bar and cleans incoming/outgoing dependency references; removing dependencies only removes links and never silently deletes another task.</p>
+<p>tasks, five workstreams, deterministic assignees/teams/statuses, milestones, blockers, and forward-scheduled dependency dates. The renderer accepts the same fields when a host supplies another project payload.</p>
+<ul><li>Workstream headers are composed rows: the chevron is the only collapse</li><li>Task rows expose the React metadata contract: status dot, editable task name,</li><li>Sidebar hover state is shared with the SVG renderer. The hovered task row is</li><li>The experiment keeps <code>#application-status</code> and <code>#selection-status</code> in the DOM</li><li>Workstream creation, rename, and deletion are routed through the existing</li><li>The activity pane does not contain an inline task-entry field. Task creation</li><li>Right-clicking a task bar or sidebar row exposes task actions for deletion,</li><li>The isolated fixture now ports the React <code>p3</code> performance shape directly: 240</li></ul>
+<p>The experiment uses vendored Lucide SVG path geometry for workstream/action icons because it has no React icon package at runtime. The icon boxes, colors, dimensions, and interaction states remain token-driven; replacing the local path map with host-provided SVG icons is a visual asset substitution, not a layout change. See the <a href="#doc-bill-of-manifest-md">Bill of Manifest</a> for the source, license, and replacement strategy.</p>
+<h3 id="theme-and-control-behavior">Theme and control behavior</h3>
+<p>The top navigation and center-only timeline toolbar follow the React project view. Delegated controls remain available for scale selection, theme toggling, dependency disclosure, horizontal scrolling, and schedule reload. The <code>data-theme</code> attribute remains the extension point for light, dark, and editorial palettes; layout tokens must not be duplicated inside theme rules.</p>
+<h3 id="change-checklist">Change checklist</h3>
+<p>When adjusting this layout:</p>
+<p>affected.</p>
+<p>its root route.</p>
+<ol><li>Change the named JavaScript geometry constant first when SVG coordinates are</li><li>Update the matching CSS custom property in <code>src/styles.css</code>.</li><li>Update the geometry assertions in <code>tests/gantt-kernel.test.mjs</code>.</li><li>Run <code>npm.cmd test</code> from this directory and inspect the standalone demo at</li></ol>
+<p>Do not move dependency logic into CSS or couple the layout to a transport, React, or a PHP endpoint.</p></div></article>
+<article id="doc-php-bridge-contract-md" data-document><header class="article-header"><p class="eyebrow">PHP_BRIDGE_CONTRACT.md</p><h2>Gantt engine JavaScript/PHP bridge contract</h2><p class="section-map">Purpose and boundary · Non-negotiable import rule · Source map · JavaScript gateway API · Constructor options · `execute(operation, payload, options)` · Transport contract · JS to PHP request contract · PHP to JS response contract · Serialization rules · Error taxonomy · Timeout and cancellation · In-memory transport · Fetch transport · Future PHP endpoint responsibilities · Security and authentication boundary · Idempotency contract · Versioning contract · Verification strategy · Explicit non-goals</p></header><div class="article-body"><h2 id="gantt-engine-javascript-php-bridge-contract">Gantt engine JavaScript/PHP bridge contract</h2>
+<p>Status: experimental contract for task 006</p>
+<p>Protocol version: <code>1.0</code></p>
+<p>Runtime dependencies: browser/Node built-ins only</p>
+<h3 id="purpose-and-boundary">Purpose and boundary</h3>
+<p>The bridge gives application command handlers one stable way to call a named operation, regardless of whether the operation is handled in memory or later delivered to PHP over HTTP.</p>
+<p>It has four responsibilities:</p>
+<ol><li>create and validate a transport-neutral request envelope;</li><li>serialize values into the shared JSON data model;</li><li>coordinate timeout and caller cancellation;</li><li>return every outcome as <code>{ ok, data, error, meta }</code>.</li></ol>
+<p>The bridge is not a renderer, state store, domain service, generated RPC system, PHP client SDK, or automatic retry mechanism. This package contains no PHP server and chooses no PHP framework, database, or authentication system.</p>
+<h3 id="non-negotiable-import-rule">Non-negotiable import rule</h3>
+<p>Views, DOM renderers, SVG renderers, and interaction render loops MUST NOT import:</p>
+<ul><li><code>transports.mjs</code>;</li><li><code>fetch-transport.mjs</code> or <code>in-memory-transport.mjs</code>;</li><li>endpoint URLs, HTTP headers, PHP route names, or PHP function names.</li></ul>
+<p>The permitted dependency direction is:</p>
+<pre><code>button / delegated DOM event
+  -&gt; application command or controller
+    -&gt; Gateway.execute(operation, payload, options)
+
+application composition root
+  -&gt; constructs InMemoryTransport or FetchTransport
+  -&gt; injects the transport into Gateway
+  -&gt; injects application commands into views/controllers</code></pre>
+<p><code>src/bridge/index.mjs</code> exposes only the application-facing gateway, error vocabulary, and protocol version. <code>src/bridge/transports.mjs</code> is a separate, composition-root-only surface. The contract test scans view/renderer source for transport imports, direct network APIs, endpoint paths, and PHP details.</p>
+<p>An application command may depend on <code>Gateway</code>. A view should depend on an application command such as <code>commitScheduleChange(command)</code>, not on a transport. This preserves the intended event-oriented sequence: user event invokes command, command awaits I/O, application state changes, renderer receives new state.</p>
+<h3 id="source-map">Source map</h3>
+<div class="table-wrap"><table><thead><tr><th scope="col">File</th><th scope="col">Responsibility</th></tr></thead><tbody><tr><td><code>src/bridge/index.mjs</code></td><td>Application-facing exports.</td></tr><tr><td><code>src/bridge/gateway.mjs</code></td><td>Named operations, request creation, cancellation, normalization.</td></tr><tr><td><code>src/bridge/protocol.mjs</code></td><td>Version, validation, and exact envelope rules.</td></tr><tr><td><code>src/bridge/serialization.mjs</code></td><td>JSON-safe cloning, Date conversion, unsafe-value rejection.</td></tr><tr><td><code>src/bridge/errors.mjs</code></td><td>Shared error taxonomy and <code>BridgeError</code>.</td></tr><tr><td><code>src/bridge/cancellation.mjs</code></td><td>Caller/timeout cancellation and abort races.</td></tr><tr><td><code>src/bridge/transports.mjs</code></td><td>Composition-root-only transport exports.</td></tr><tr><td><code>src/bridge/in-memory-transport.mjs</code></td><td>Demo/test operation registry and replay.</td></tr><tr><td><code>src/bridge/fetch-transport.mjs</code></td><td>Future HTTP delivery using platform <code>fetch</code>.</td></tr><tr><td><code>tests/php-bridge.test.mjs</code></td><td>Executable <code>node:test</code> contract.</td></tr></tbody></table></div>
+<h3 id="javascript-gateway-api">JavaScript gateway API</h3>
+<p>Construct the selected transport and gateway once in the composition root:</p>
+<pre><code>import { Gateway } from &quot;./src/bridge/index.mjs&quot;;
+import { InMemoryTransport } from &quot;./src/bridge/transports.mjs&quot;;
+
+const transport = new InMemoryTransport({
+  handlers: {
+    &quot;schedule.commit&quot;: async (payload, context) =&gt; {
+      context.signal.throwIfAborted();
+      return scheduleService.commit(payload);
+    },
+  },
+});
+
+export const gateway = new Gateway({
+  transport,
+  defaultTimeoutMs: 15_000,
+  clientName: &quot;gantt-engine&quot;,
+  clientVersion: &quot;experimental&quot;,
+});</code></pre>
+<p>Application command code invokes a named operation:</p>
+<pre><code>const result = await gateway.execute(
+  &quot;schedule.commit&quot;,
+  {
+    projectId: &quot;project-1&quot;,
+    taskId: &quot;task-7&quot;,
+    startDate: new Date(&quot;2026-08-20T00:00:00.000Z&quot;),
+    endDate: new Date(&quot;2026-08-22T00:00:00.000Z&quot;),
+  },
+  {
+    operationVersion: 1,
+    idempotencyKey: &quot;drag-task-7-018f6f9a&quot;,
+    timeoutMs: 10_000,
+    signal: navigationAbortController.signal,
+  },
+);
+
+if (!result.ok) {
+  applicationNotifications.report(result.error);
+  return;
+}
+
+scheduleStore.acceptCommittedSchedule(result.data);</code></pre>
+<h4 id="constructor-options">Constructor options</h4>
+<div class="table-wrap"><table><thead><tr><th scope="col">Option</th><th scope="col">Required</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td><code>transport</code></td><td>Yes</td><td>Object implementing <code>send(request, { signal })</code>.</td></tr><tr><td><code>defaultTimeoutMs</code></td><td>No</td><td>Positive integer; defaults to 15 seconds. <code>null</code> disables it.</td></tr><tr><td><code>clientName</code></td><td>No</td><td>Diagnostic client identifier in request metadata.</td></tr><tr><td><code>clientVersion</code></td><td>No</td><td>Deployed build identifier, independent from protocol version.</td></tr><tr><td><code>requestIdFactory</code></td><td>No</td><td>Test/host override returning a 1-128 character string.</td></tr><tr><td><code>now</code></td><td>No</td><td>Test/host clock override returning epoch milliseconds.</td></tr></tbody></table></div>
+<h4 id="execute-operation-payload-options"><code>execute(operation, payload, options)</code></h4>
+<p>underscores, for example <code>tasks.query</code> or <code>schedule.commit</code>.</p>
+<p>underscores, colons, or dashes.</p>
+<ul><li><code>operation</code> is a lower-case identifier separated by dots, dashes, or</li><li><code>payload</code> must be a plain object. It is cloned and serialized before delivery.</li><li><code>operationVersion</code> is a positive integer and defaults to <code>1</code>.</li><li><code>idempotencyKey</code> is optional and accepts 1-128 letters, digits, dots,</li><li><code>timeoutMs</code> overrides the gateway default. <code>null</code> disables the call deadline.</li><li><code>signal</code> is an optional caller-owned <code>AbortSignal</code>.</li></ul>
+<p><code>execute</code> resolves with a normalized result for validation, application, network, HTTP, timeout, cancellation, serialization, and protocol failures. Transport rejection does not become ordinary exception control flow in application commands. Construction still throws synchronously for invalid composition, because the application cannot run with a missing or malformed transport.</p>
+<h3 id="transport-contract">Transport contract</h3>
+<p>A transport implements:</p>
+<pre><code>transport.send(requestEnvelope, { signal })
+  -&gt; Promise&lt;responseEnvelope&gt;</code></pre>
+<p>The transport MUST:</p>
+<ul><li>use the supplied composed signal for cancellable work;</li><li>return the shared response envelope rather than a transport-specific success;</li><li>throw <code>BridgeError</code> for delivery failures without a valid response;</li><li>never call a renderer, mutate application state, or apply Gantt domain rules.</li></ul>
+<p>The gateway owns the deadline. It combines the caller signal and timeout into the single signal passed to the transport. Fetch therefore has no second timer with different semantics.</p>
+<h3 id="js-to-php-request-contract">JS to PHP request contract</h3>
+<p>Fetch sends UTF-8 JSON with <code>POST</code>:</p>
+<pre><code>{
+  &quot;operation&quot;: &quot;schedule.commit&quot;,
+  &quot;payload&quot;: {
+    &quot;projectId&quot;: &quot;project-1&quot;,
+    &quot;taskId&quot;: &quot;task-7&quot;,
+    &quot;startDate&quot;: &quot;2026-08-20T00:00:00.000Z&quot;,
+    &quot;endDate&quot;: &quot;2026-08-22T00:00:00.000Z&quot;
+  },
+  &quot;meta&quot;: {
+    &quot;requestId&quot;: &quot;13cc7bc7-d6ef-4446-a365-4977a40ad051&quot;,
+    &quot;protocolVersion&quot;: &quot;1.0&quot;,
+    &quot;operationVersion&quot;: 1,
+    &quot;clientName&quot;: &quot;gantt-engine&quot;,
+    &quot;clientVersion&quot;: &quot;experimental&quot;,
+    &quot;sentAt&quot;: &quot;2026-08-15T00:00:00.000Z&quot;,
+    &quot;idempotencyKey&quot;: &quot;drag-task-7-018f6f9a&quot;
+  }
+}</code></pre>
+<p>When present, <code>Idempotency-Key</code> repeats the metadata value in an HTTP header. <code>X-PMIS-Bridge-Version</code> carries the protocol version so the endpoint can reject unsupported versions before dispatch. The body remains authoritative for schema validation and audit correlation.</p>
+<p>An operation name is an allowlisted application capability. It is never a PHP function, class, method, filename, SQL fragment, URL suffix, or reflection target. PHP maps <code>(operation, operationVersion)</code> through an explicit dispatch table.</p>
+<h3 id="php-to-js-response-contract">PHP to JS response contract</h3>
+<p>Both success and failure contain exactly four top-level fields:</p>
+<pre><code>{
+  &quot;ok&quot;: true,
+  &quot;data&quot;: {
+    &quot;revision&quot;: 9,
+    &quot;affectedTaskIds&quot;: [&quot;task-7&quot;, &quot;task-12&quot;]
+  },
+  &quot;error&quot;: null,
+  &quot;meta&quot;: {
+    &quot;requestId&quot;: &quot;13cc7bc7-d6ef-4446-a365-4977a40ad051&quot;,
+    &quot;protocolVersion&quot;: &quot;1.0&quot;,
+    &quot;operation&quot;: &quot;schedule.commit&quot;,
+    &quot;operationVersion&quot;: 1,
+    &quot;servedAt&quot;: &quot;2026-08-15T00:00:00.041Z&quot;
+  }
+}</code></pre>
+<pre><code>{
+  &quot;ok&quot;: false,
+  &quot;data&quot;: null,
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;CONFLICT&quot;,
+    &quot;message&quot;: &quot;The schedule changed after the command was prepared.&quot;,
+    &quot;retryable&quot;: false,
+    &quot;details&quot;: {
+      &quot;expectedRevision&quot;: 8,
+      &quot;currentRevision&quot;: 9
+    }
+  },
+  &quot;meta&quot;: {
+    &quot;requestId&quot;: &quot;13cc7bc7-d6ef-4446-a365-4977a40ad051&quot;,
+    &quot;protocolVersion&quot;: &quot;1.0&quot;,
+    &quot;operation&quot;: &quot;schedule.commit&quot;,
+    &quot;operationVersion&quot;: 1,
+    &quot;servedAt&quot;: &quot;2026-08-15T00:00:00.041Z&quot;
+  }
+}</code></pre>
+<p>Rules:</p>
+<p>A mismatch becomes <code>PROTOCOL_ERROR</code>.</p>
+<p><code>durationMs</code>) plus transport name to returned metadata.</p>
+<p><code>error.code</code>, not transport-specific fields.</p>
+<p>warnings, debug HTML, or byte-order mark before the JSON.</p>
+<ul><li>Success sets <code>ok: true</code>, supplies JSON-compatible <code>data</code>, and sets <code>error: null</code>.</li><li>Failure sets <code>ok: false</code>, <code>data: null</code>, and all four error fields.</li><li><code>error.details</code> is required; use <code>null</code> when empty.</li><li>Response request ID, protocol version, and operation must match the request.</li><li>The gateway adds authoritative client timing (<code>startedAt</code>, <code>finishedAt</code>, and</li><li>HTTP metadata such as <code>httpStatus</code> may appear in <code>meta</code>. Command decisions use</li><li>PHP returns <code>Content-Type: application/json; charset=utf-8</code> and no notices,</li></ul>
+<h3 id="serialization-rules">Serialization rules</h3>
+<div class="table-wrap"><table><thead><tr><th scope="col">Value</th><th scope="col">Rule</th></tr></thead><tbody><tr><td><code>null</code>, boolean, string</td><td>Preserved.</td></tr><tr><td>number</td><td>Finite; integers within JS safe range; negative zero becomes zero.</td></tr><tr><td><code>Date</code></td><td>Converted with <code>toISOString()</code> to an ISO-8601 UTC string.</td></tr><tr><td>array</td><td>Order preserved; members serialized recursively.</td></tr><tr><td>plain object</td><td>Enumerable string keys preserved; values serialized recursively.</td></tr><tr><td><code>undefined</code>, <code>BigInt</code>, function, symbol</td><td>Rejected with <code>SERIALIZATION_ERROR</code>.</td></tr><tr><td><code>NaN</code>, positive/negative infinity</td><td>Rejected with <code>SERIALIZATION_ERROR</code>.</td></tr><tr><td>cyclic graph</td><td>Rejected with <code>SERIALIZATION_ERROR</code>.</td></tr><tr><td>class, <code>Map</code>, <code>Set</code>, typed array, binary/blob</td><td>Rejected; adapt explicitly.</td></tr></tbody></table></div>
+<p>Object keys <code>__proto__</code>, <code>constructor</code>, and <code>prototype</code> are rejected. Payload depth is limited to 64 levels. This keeps behavior deterministic across JSON, JavaScript objects, and PHP values.</p>
+<p>Dates are strings on the wire. Each operation schema identifies date fields and validates their time-zone/calendar meaning. The bridge never guesses that an arbitrary string is a date.</p>
+<p>PHP should decode JSON with exceptions enabled and preserve the distinction between JSON objects and lists during validation. Associative-array decoding must handle the empty-object/empty-list ambiguity explicitly. Never use PHP <code>serialize()</code> or <code>unserialize()</code> for this boundary.</p>
+<h3 id="error-taxonomy">Error taxonomy</h3>
+<div class="table-wrap"><table><thead><tr><th scope="col">Code</th><th scope="col">Meaning</th><th scope="col">Typical HTTP</th><th scope="col">Retry guidance</th></tr></thead><tbody><tr><td><code>VALIDATION_ERROR</code></td><td>Envelope, payload, or domain input invalid.</td><td>400/422</td><td>Correct input.</td></tr><tr><td><code>UNKNOWN_OPERATION</code></td><td>Operation/version absent from allowlist.</td><td>404</td><td>Do not retry unchanged.</td></tr><tr><td><code>AUTH_REQUIRED</code></td><td>No valid authenticated actor.</td><td>401</td><td>Re-authenticate.</td></tr><tr><td><code>FORBIDDEN</code></td><td>Actor lacks resource/operation permission.</td><td>403</td><td>Do not retry unchanged.</td></tr><tr><td><code>NOT_FOUND</code></td><td>Resource absent or not visible.</td><td>404</td><td>Refresh/correct identity.</td></tr><tr><td><code>CONFLICT</code></td><td>Revision, state, or domain precondition conflict.</td><td>409</td><td>Refresh first.</td></tr><tr><td><code>IDEMPOTENCY_CONFLICT</code></td><td>Key reused with different payload.</td><td>409</td><td>New key for new intent.</td></tr><tr><td><code>RATE_LIMITED</code></td><td>Rate policy rejected request.</td><td>429</td><td>Follow server policy.</td></tr><tr><td><code>TIMEOUT</code></td><td>Client or explicitly normalized upstream deadline.</td><td>408</td><td>Mutation outcome may be unknown.</td></tr><tr><td><code>CANCELLED</code></td><td>Caller cancelled locally.</td><td>none</td><td>Not a server failure.</td></tr><tr><td><code>NETWORK_ERROR</code></td><td>Endpoint could not be reached/read.</td><td>none</td><td>Retry safely.</td></tr><tr><td><code>HTTP_ERROR</code></td><td>Unstructured HTTP failure.</td><td>other 4xx/5xx</td><td>Infrastructure failure.</td></tr><tr><td><code>PROTOCOL_ERROR</code></td><td>Malformed/mismatched response.</td><td>any</td><td>Fix compatibility.</td></tr><tr><td><code>SERIALIZATION_ERROR</code></td><td>JS value cannot cross JSON safely.</td><td>none</td><td>Fix adapter/input.</td></tr><tr><td><code>UNAVAILABLE</code></td><td>Endpoint/dependency temporarily unavailable.</td><td>502/503/504</td><td>Follow policy.</td></tr><tr><td><code>INTERNAL_ERROR</code></td><td>Unexpected application/bridge failure.</td><td>500</td><td>Log by request ID.</td></tr></tbody></table></div>
+<p>PHP failures return the most specific normalized error. Fetch maps only unstructured HTTP failures. Server messages must not expose SQL, stack traces, filesystem paths, secrets, or authorization internals. Unserializable internal error details are discarded rather than causing a second bridge failure.</p>
+<h3 id="timeout-and-cancellation">Timeout and cancellation</h3>
+<p>The gateway creates one composed signal for every call:</p>
+<ul><li>caller abort produces <code>CANCELLED</code>;</li><li>gateway deadline produces <code>TIMEOUT</code>;</li><li>whichever occurs first wins;</li><li>listeners and timers are removed when the call settles;</li><li>the returned Promise resolves to a failure result.</li></ul>
+<p>The gateway races delivery against this signal, so it returns even if a custom handler ignores cancellation. Such work may continue. Transports and handlers must observe <code>context.signal</code>, stop expensive work, and avoid committing after abort where possible.</p>
+<p>HTTP cancellation cannot prove PHP did not commit. A timed-out or cancelled mutation has an unknown remote outcome. Query current state or retry using the same idempotency key; never issue a new key for the same user intent.</p>
+<h3 id="in-memory-transport">In-memory transport</h3>
+<pre><code>import { InMemoryTransport } from &quot;./src/bridge/transports.mjs&quot;;
+
+const transport = new InMemoryTransport({
+  handlers: {
+    &quot;tasks.query&quot;: () =&gt; ({ tasks: fixtureTasks }),
+    &quot;schedule.commit&quot;: (command, context) =&gt;
+      scheduleService.commit(command, context),
+  },
+  latencyMs: 0,
+});</code></pre>
+<p>Handlers receive serialized payload plus operation, operation version, request ID, idempotency key, and signal. A handler returns data or throws <code>BridgeError</code>.</p>
+<p>Completed results replay when operation/version/key and canonical payload recur. The same key with different payload returns <code>IDEMPOTENCY_CONFLICT</code>. The cache is process-local, non-durable, does not scope by actor, and does not deduplicate concurrent in-flight requests. It is demo behavior, not the PHP persistence plan.</p>
+<h3 id="fetch-transport">Fetch transport</h3>
+<pre><code>import { Gateway } from &quot;./src/bridge/index.mjs&quot;;
+import { FetchTransport } from &quot;./src/bridge/transports.mjs&quot;;
+
+const transport = new FetchTransport({
+  endpoint: &quot;/api/gantt/bridge&quot;,
+  credentials: &quot;same-origin&quot;,
+  headerProvider: () =&gt; ({
+    &quot;X-CSRF-Token&quot;: csrfTokenStore.current(),
+  }),
+});
+
+export const gateway = new Gateway({ transport });</code></pre>
+<p>Fetch uses the platform API and no third-party package. It sends POST JSON with <code>Accept</code>, <code>Content-Type</code>, protocol header, composed signal, and same-origin credentials. <code>headerProvider</code> may supply request-time CSRF/correlation headers. It belongs in composition and must not read tokens from rendered components.</p>
+<p>The endpoint is injected. <code>/api/gantt/bridge</code> may route to a PHP front controller through Apache, nginx, a PHP development server, or another host without changing application commands or renderer code.</p>
+<h3 id="future-php-endpoint-responsibilities">Future PHP endpoint responsibilities</h3>
+<p>In order, the PHP boundary must:</p>
+<p>atomically where required;</p>
+<ol><li>accept only configured method and JSON content type;</li><li>apply request/body size and rate limits;</li><li>decode JSON with exceptions and validate the envelope;</li><li>reject unsupported protocol versions before dispatch;</li><li>resolve actor from server-trusted session/token state;</li><li>validate CSRF for cookie-authenticated mutation;</li><li>allowlist <code>(operation, operationVersion)</code>;</li><li>validate the operation payload schema;</li><li>authorize actor against project/resource and command responsibility;</li><li>claim or replay idempotency for mutating operations;</li><li>invoke the application service in the required transaction;</li><li>commit domain changes, downstream effects, and Change Record/audit data</li><li>persist the completed idempotent response;</li><li>return the normalized envelope with original request ID;</li><li>log internal diagnostics by request and actor ID.</li></ol>
+<p>The endpoint must not:</p>
+<ul><li>use operation strings for reflection or dynamic file inclusion;</li><li>trust actor, tenant, ownership, or role claims in payload;</li><li>contain SVG geometry, DOM/view state, hover/selection, or invalidation logic;</li><li>expose repository records without an application response adapter;</li><li>reimplement forward-only scheduling differently from the domain service;</li><li>return raw PHP exceptions, warnings, or notices.</li></ul>
+<p>Separate handlers may own operations, while the HTTP adapter owns common envelope, authentication, idempotency, transaction, and error mapping concerns.</p>
+<h3 id="security-and-authentication-boundary">Security and authentication boundary</h3>
+<p>Authentication and authorization are PHP/server responsibilities. JavaScript transports credentials but never decides identity or permissions.</p>
+<p>must not read an HttpOnly session secret.</p>
+<p>a CSRF header through <code>headerProvider</code>.</p>
+<p>them, never a renderer or task payload.</p>
+<p>operation.</p>
+<p>limits even when JavaScript has validated the envelope.</p>
+<p>redact credentials and sensitive payloads.</p>
+<ul><li>Prefer secure <code>HttpOnly</code>, <code>SameSite</code> cookies where hosting permits. JavaScript</li><li>Cookie-authenticated mutations require CSRF protection. Composition may inject</li><li>If bearer tokens are selected later, a dedicated auth/composition adapter owns</li><li>PHP derives actor and project access from trusted state and authorizes every</li><li>CORS denies unapproved origins; same-origin is the default fetch policy.</li><li>Future repositories use parameterized database access.</li><li>Server validation covers IDs, lengths, collection sizes, dates, and operation</li><li>Logs may include request ID, operation, actor ID, result, and duration, but</li></ul>
+<p>Authorization may return <code>NOT_FOUND</code> instead of <code>FORBIDDEN</code> where revealing resource existence leaks information. That policy belongs to PHP.</p>
+<h3 id="idempotency-contract">Idempotency contract</h3>
+<p>Every retriable mutation carries an idempotency key. One completed Gantt drag is one intent and one key; all recursive forward-propagation effects remain in the same command.</p>
+<p>The PHP uniqueness scope is equivalent to:</p>
+<pre><code>(authenticated principal or tenant, operation, operation version, idempotency key)</code></pre>
+<p>Store canonical payload hash, lifecycle state, HTTP status, normalized response, and expiry/audit timestamps.</p>
+<p>must not execute twice.</p>
+<p>committed response.</p>
+<ul><li>First request claims the key and executes.</li><li>Same key and canonical payload replays the completed result.</li><li>Same key and different payload returns <code>IDEMPOTENCY_CONFLICT</code>.</li><li>Concurrent duplicate waits for/replays the first within a bounded policy; it</li><li>New user intent gets a new key.</li><li>Browser-only cancellation is not a server result and cannot overwrite a</li></ul>
+<p>Idempotency does not replace optimistic revisions. A command may still return <code>CONFLICT</code> when its expected project revision is stale.</p>
+<h3 id="versioning-contract">Versioning contract</h3>
+<p>Three versions remain distinct:</p>
+<ol><li><code>protocolVersion</code> controls common envelope and transport semantics.</li><li><code>operationVersion</code> controls one operation&#39;s payload/data schema.</li><li><code>clientVersion</code> identifies the deployed JavaScript build for diagnostics.</li></ol>
+<p>Protocol <code>1.0</code> uses major/minor notation, but this implementation negotiates an exact string: the response must echo the request version. A breaking envelope change requires a new major. Compatible diagnostic fields may be added inside <code>meta</code> without changing <code>1.0</code>; a future minor must be explicitly supported by both client and server before it is emitted.</p>
+<p>Operation evolution uses a new positive integer. PHP may support adjacent versions simultaneously and adapt each to one application service. Never infer operation schema from <code>clientVersion</code>.</p>
+<p>Unsupported protocol or operation version returns a normalized <code>PROTOCOL_ERROR</code> or <code>UNKNOWN_OPERATION</code>, using a status that still permits the JSON error envelope to reach the client.</p>
+<h3 id="verification-strategy">Verification strategy</h3>
+<p>Run the dependency-free bridge contract directly:</p>
+<pre><code>node --test experimental/gantt-engine/tests/php-bridge.test.mjs</code></pre>
+<p>The suite verifies exact result shape, operation dispatch, Date conversion, unsafe-value rejection, idempotent replay/conflict, caller cancellation, timeout, fetch envelope/headers/signal, structured HTTP errors, network failures, content-type/JSON validation, response correlation, and import separation.</p>
+<p>When PHP exists, integration tests should start it against an isolated database and send the same fixtures through <code>FetchTransport</code>. Cover authentication, CSRF, authorization, transaction rollback, concurrent idempotency, revision conflict, and response compatibility.</p>
+<p>Playwright tests behavior at the user boundary: delegated click invokes one application command, pending UI can cancel, success updates state once, failure leaves committed state unchanged, and retry does not duplicate mutation. Page objects must not call transport or assert PHP class/function names.</p>
+<h3 id="explicit-non-goals">Explicit non-goals</h3>
+<ul><li>No PHP implementation or server process.</li><li>No database, session, CSRF, or token implementation.</li><li>No renderer invalidation or component framework in this boundary.</li><li>No full Gantt operation catalog beyond examples.</li><li>No third-party HTTP, schema, RPC, retry, or cancellation package.</li><li>No automatic retry of mutating operations.</li></ul></div></article>
+<article id="doc-testing-md" data-document><header class="article-header"><p class="eyebrow">TESTING.md</p><h2>Testing and verification manual</h2><p class="section-map">Commands · Current verified baseline · Test layers · Framework tests · Gantt kernel tests · Bridge tests · Browser tests · Process lifecycle · PHP integration tests · Manual visual audit · Completion rule</p></header><div class="article-body"><h2 id="testing-and-verification-manual">Testing and verification manual</h2>
+<h3 id="commands">Commands</h3>
+<p>Run from <code>experimental/gantt-engine</code>:</p>
+<pre><code>npm.cmd run test:unit
+npm.cmd run test:e2e
+npm.cmd test</code></pre>
+<p><code>npm.cmd test</code> is the completion gate. It runs all Node tests followed by all browser tests and must exit with code 0. A passing assertion count followed by a hanging process is a failure.</p>
+<h3 id="current-verified-baseline">Current verified baseline</h3>
+<p>On 2026-08-15 the combined command completed cleanly with:</p>
+<ul><li>45 Node tests passed;</li><li>8 Chrome/Playwright scenarios passed;</li><li>no failed, skipped, cancelled, or unresolved tests;</li><li>the static server terminated normally after Playwright.</li></ul>
+<h3 id="test-layers">Test layers</h3>
+<h4 id="framework-tests">Framework tests</h4>
+<p><code>tests/framework.test.mjs</code> uses Node&#39;s built-in test runner and lightweight fake roots. It verifies:</p>
+<ul><li>command registration, execution, unregistration, duplicate protection, and disposal;</li><li>one delegated root listener per click/submit/change event;</li><li>ignored disabled controls and surfaced unknown commands;</li><li>cancellable microtask, animation-frame, delayed, and async jobs;</li><li><code>AbortSignal</code> propagation;</li><li>coalesced invalidation and explicit refresh;</li><li>no automatic retry loop after render failure;</li><li>application start/stop/dispose and startup rollback.</li></ul>
+<h4 id="gantt-kernel-tests">Gantt kernel tests</h4>
+<p><code>tests/gantt-kernel.test.mjs</code> verifies:</p>
+<p>unrelated-task immutability;</p>
+<ul><li>both PMIS input shapes and canonical derived dependents;</li><li>duplicate/cycle/dangling/self dependency rejection;</li><li>accepted geometry constants and scale widths;</li><li>visible weekday compression, half-day boundaries, and snapping;</li><li>workstream/graph independence and deterministic row positions;</li><li>none/hover/selection/all/critical dependency disclosure;</li><li>normal and cramped continuous connector routes;</li><li>direct dependent clamping and multiple-predecessor latest-end behavior;</li><li>recursive forward-only propagation, duration preservation, no backward pull, and</li><li>PERT expected duration and CPM earliest/latest/slack/critical calculations;</li><li>empty and malformed forecast inputs.</li></ul>
+<h4 id="bridge-tests">Bridge tests</h4>
+<p><code>tests/php-bridge.test.mjs</code> verifies the future PHP boundary without a PHP server:</p>
+<p>unserializable error detail handling.</p>
+<ul><li>application-facing exports exclude concrete transports;</li><li>view/renderer modules do not import transports or PHP details;</li><li>normalized <code>{ok,data,error,meta}</code> results;</li><li>handler failures and unknown operations;</li><li>strict JSON-safe serialization;</li><li>idempotent replay and conflicting key detection;</li><li>deadlines, cancellation, and already-aborted signals;</li><li>fetch wire envelope, auth headers, operation version, and idempotency headers;</li><li>normalized PHP errors, connection failures, malformed responses, content type, and</li></ul>
+<h4 id="browser-tests">Browser tests</h4>
+<p><code>tests/e2e/gantt.spec.mjs</code> opens the static demo in installed Chrome and verifies:</p>
+<p>switching;</p>
+<p>calculated critical bar emphasis;</p>
+<p>preservation;</p>
+<p>and milestone rendering;</p>
+<ol><li>task creation, scoped context-menu bar creation, and dark/light/editorial theme</li><li>dependency preview and commit through the scoped context menu;</li><li>delegated scale and dependency controls, hover disclosure, selected chains, and</li><li>workstream collapse removing matching task rows, bars, and connector endpoints;</li><li>real pointer drag commit with recursive dependent propagation and unrelated-task</li><li>predecessor-left movement leaving a child unchanged;</li><li>two-way vertical scroll synchronization, right-edge range growth, idle compaction,</li><li>scheduled <code>schedule.reload</code> through the injected gateway.</li></ol>
+<h3 id="process-lifecycle">Process lifecycle</h3>
+<p><code>tests/run-e2e.mjs</code> starts <code>static-server.mjs</code> directly and owns its child PID. It waits for HTTP readiness, starts Playwright, captures the Playwright exit code, and terminates the server in <code>finally</code>. Open server sockets are destroyed on termination. This wrapper exists because Playwright&#39;s Windows <code>webServer</code> helper left the child alive after green tests in this repository.</p>
+<p>Test artifacts use the OS temporary directory through <code>playwright.config.mjs</code>; they do not dirty the repository. Chrome is selected through <code>channel: &#39;chrome&#39;</code>, reusing the installed browser rather than downloading a Playwright-managed runtime.</p>
+<h3 id="php-integration-tests">PHP integration tests</h3>
+<p>When a PHP endpoint is added, retain all current tests and add an integration suite that starts the PHP test server on a separate port, injects <code>FetchTransport</code>, and checks the exact contract in <code>PHP_BRIDGE_CONTRACT.md</code>. Minimum cases:</p>
+<ul><li>valid load and commit;</li><li>authentication rejection;</li><li>validation error with stable code;</li><li>idempotent replay and conflicting reuse;</li><li>operation-version mismatch;</li><li>timeout and client cancellation;</li><li>non-JSON response and mismatched request ID;</li><li>concurrent requests resolving out of order without stale state overwrite.</li></ul>
+<p>Do not make Playwright depend on production PHP data. Use deterministic integration fixtures and a disposable test database or in-memory PHP repository.</p>
+<h3 id="manual-visual-audit">Manual visual audit</h3>
+<p>Automated tests prove behavior but not every visual detail. A human audit should check:</p>
+<ul><li>task-list rows and timeline bars remain aligned during deep scrolling;</li><li>long connectors are continuous to the arrowhead;</li><li>cramped connectors approach from above without backward arrows;</li><li>selected resize handles remain usable at all scales;</li><li>day/week/month labels remain legible;</li><li>critical and normal dependency colors are distinct;</li><li>no right inspector, dashboard, or application navigation leaked into the experiment.</li></ul>
+<h3 id="completion-rule">Completion rule</h3>
+<p>Do not claim verification if any required command fails, hangs, requires manual termination, leaves a listening test server, skips a scenario, or only passes a narrower subset than the changed behavior.</p></div></article>
+<article id="doc-theme-and-interaction-contract-md" data-document><header class="article-header"><p class="eyebrow">THEME_AND_INTERACTION_CONTRACT.md</p><h2>Year 0 theme and interaction contract</h2><p class="section-map">Themes · Cell grid settings · Task authoring · Project header: name and logo</p></header><div class="article-body"><h2 id="year-0-theme-and-interaction-contract">Year 0 theme and interaction contract</h2>
+<p>This contract applies to the isolated vanilla demo in <code>experimental/gantt-engine</code>. It does not change the React PMIS application.</p>
+<h3 id="themes">Themes</h3>
+<p>The host application selects one theme with <code>data-theme</code> on <code>.gantt-application</code>. The supported values are <code>dark</code>, <code>light</code>, and <code>editorial</code>. Controls use <code>data-action=&quot;theme.set&quot;</code>; the stylesheet owns the semantic color tokens, so interaction code does not contain palette decisions. The editorial theme uses the project’s paper/ink, green, blue, amber, and red visual language while preserving the same layout and behavior.</p>
+<h3 id="cell-grid-settings">Cell grid settings</h3>
+<p>The timeline is rendered as a cell grid with both date-column and row-boundary lines. Grid presentation is intentionally separated from task scheduling in <code>src/grid.js</code>; the engine accepts a future-facing <code>settings.grid</code> object with these keys:</p>
+<ul><li><code>showVerticalLines</code></li><li><code>showHorizontalLines</code></li><li><code>showMajorLines</code></li><li><code>minorLineColor</code>, <code>majorLineColor</code>, and <code>rowLineColor</code></li><li><code>groupFill</code> and <code>taskFill</code></li></ul>
+<p>The current demo uses the wireframe defaults. A later preference panel can update these settings without changing task geometry, dependency routing, or scheduling rules.</p>
+<h3 id="task-authoring">Task authoring</h3>
+<p>sidebar does not include an inline task-entry field.</p>
+<p><code>Add task bar here</code> (a name field in the context menu). The new bar starts at the clicked date and remains draggable through the existing schedule interaction controller. The name field is cleared each time the menu opens so a fresh menu never reuses the previous task&#39;s name.</p>
+<p>renders a preview connector; clicking the target commits the edge. The canonical <code>predecessorIds</code> and UI-facing <code>dependencies</code> fields are updated together before normalization.</p>
+<ul><li>The activity panel contains an editable task-name field for every task. The</li><li>A right-click in empty timeline space suppresses the browser menu and offers</li><li>Right-clicking a task bar offers <code>Connect to another task</code>. Moving over a target</li><li>Right-clicking a dependency connector offers removal.</li></ul>
+<p>Context-menu suppression is scoped to the Gantt root. Browser behavior outside the demo remains untouched, and Escape cancels an open menu or connection preview.</p>
+<p>The interaction mapping follows the documented Tom’s Planner pattern: names are entered directly in the grid, schedule blocks are drawn on the timeline, and dependencies are created from a source task to a target task.</p>
+<h3 id="project-header-name-and-logo">Project header: name and logo</h3>
+<p>The top navigation brand follows the React PMIS <code>top-nav.tsx</code> header. It exposes two independent controls:</p>
+<p>commits the new name; Escape cancels and restores the previous name. The name is session-only state (no persistence) and shows a status message when changed.</p>
+<p>dialog: an image upload (<code>Choose image</code>), a fixed-square crop frame centered over a 224px crop surface, pointer drag to reposition, and scroll to zoom (scale 0.5–3). <code>Save logo</code> applies the crop to the header logo; <code>Cancel</code> (or Escape, or clicking the backdrop) discards the draft. Like the name, the logo is session-only state.</p>
+<ul><li><strong>Project name.</strong> Clicking the name button swaps it for a textbox. Enter or blur</li><li><strong>Project logo.</strong> Clicking the 32px logo button opens the <code>Customize project logo</code></li></ul>
+<p>Keyboard contract (per <code>STD-HCI.md</code>): the logo and name buttons are tab-reachable and activate with Enter/Space. Inside the dialog, Tab advances Choose image → Save logo → Cancel and then loops back to the first field; Escape closes the dialog and returns focus to the logo button. Accept (<code>Save logo</code>) sits to the left of Decline (<code>Cancel</code>), matching the non-destructive default.</p></div></article>
+<footer class="footer">Generated from the Markdown files in <code>experimental/gantt-engine/docs</code>. Edit Markdown, then run <code>npm run docs:build</code> to refresh this page.</footer>
+</main></div>
+</body></html>

@@ -17,6 +17,7 @@ import {
   computeTimelineData,
   getTimelineScale,
   shiftByVisibleUnits,
+  visibleUnitsBetween,
   snapIncrementUnits,
   startOfCalendarDay,
   xToDate,
@@ -100,6 +101,7 @@ export function createGanttEngine(options) {
     rowOrderDirty: false,
     minDate: initialOrigin,
     previewResult: null,
+    previewDrag: null,
     workstreams: options.workstreams ?? [],
     expandedWorkstreams: new Set(
       (options.workstreams ?? []).map((item) => item.id),
@@ -166,6 +168,33 @@ export function createGanttEngine(options) {
     disposed = false;
 
   const shownTasks = () => state.previewResult?.tasks ?? state.tasks;
+  function leftDragBufferUnits() {
+    const { dayWidth } = getTimelineScale(state.scale);
+    return Math.max(1, Math.ceil(timeline.clientWidth / dayWidth));
+  }
+  function prependLeftDragBuffer() {
+    const { dayWidth } = getTimelineScale(state.scale);
+    const previousMinDate = state.minDate;
+    const nextMinDate = shiftByVisibleUnits(
+      previousMinDate,
+      -leftDragBufferUnits(),
+      state.visibleWeekdays,
+    );
+    const addedUnits = visibleUnitsBetween(
+      nextMinDate,
+      previousMinDate,
+      state.visibleWeekdays,
+    );
+    if (addedUnits <= 0) return 0;
+    state.minDate = nextMinDate;
+    const addedPixels = addedUnits * dayWidth;
+    const targetScrollLeft = timeline.scrollLeft + addedPixels;
+    invalidate("left drag buffer prepared");
+    queueMicrotask(() => {
+      if (!disposed) timeline.scrollLeft = targetScrollLeft;
+    });
+    return addedPixels;
+  }
   const shownOrder = () => state.previewResult?.rowOrder ?? state.rowOrder;
   function buildSnapshot() {
     const tasks = shownTasks(),
@@ -183,11 +212,15 @@ export function createGanttEngine(options) {
         tasks[0].startDate,
       );
       const earliestDay = startOfCalendarDay(earliest);
-      // The origin only ever extends left (when a task genuinely moves before
-      // the current left edge). It never re-anchors right, so dragging or
-      // creating a task cannot shift the whole grid.
-      if (earliestDay.getTime() < state.minDate.getTime())
+      // Preview dates use the existing rendered range. Left drag buffering is
+      // performed in viewport-sized batches at drag start and at the bound,
+      // rather than re-anchoring the origin once per snapped preview date.
+      if (
+        !state.previewResult &&
+        earliestDay.getTime() < state.minDate.getTime()
+      ) {
         state.minDate = earliestDay;
+      }
     }
     const timelineData = computeTimelineData(tasks, {
         scale: state.scale,
@@ -1023,10 +1056,12 @@ export function createGanttEngine(options) {
     },
     onSelect: select,
     onHover: hover,
-    onPreview: (result) => {
+    onPreview: (result, previewDrag) => {
       state.previewResult = result;
+      state.previewDrag = previewDrag ?? null;
       invalidate(result ? "schedule preview" : "schedule preview cancelled");
     },
+    onLeftEdge: () => prependLeftDragBuffer(),
     onCommit: (result) => {
       if (result.kind !== "reorder-group") state.tasks = result.tasks;
       if (result.kind === "reorder") {
@@ -1042,6 +1077,7 @@ export function createGanttEngine(options) {
         state.rowOrderDirty = true;
       }
       state.previewResult = null;
+      state.previewDrag = null;
       state.criticalTaskIds = criticalIds(state.tasks);
       invalidate("schedule committed");
       void persist(result);
@@ -1121,6 +1157,7 @@ export function createGanttEngine(options) {
   const hScroll = root.querySelector(".timeline-hscroll");
   const hThumb = hScroll?.querySelector(".timeline-hscroll__thumb");
   let hScrollDragging = false;
+  let hScrollGrabOffset = 0;
   // Reflects the timeline's horizontal scroll position onto the custom thumb.
   function syncHScroll() {
     if (!hThumb) return;
@@ -1131,23 +1168,32 @@ export function createGanttEngine(options) {
     const ratio = max <= 0 ? 0 : timeline.scrollLeft / max;
     hThumb.style.transform = `translateX(${ratio * Math.max(0, track - thumbWidth)}px)`;
   }
-  function hScrollPointer(event) {
+  function hScrollPointer(event, grabOffset = hScrollGrabOffset) {
     if (!hThumb) return;
     event.preventDefault();
     const trackRect = hScroll.getBoundingClientRect();
     const thumbWidth = parseFloat(hThumb.style.width) || 24;
     const trackWidth = trackRect.width;
     const max = Math.max(1, timeline.scrollWidth - timeline.clientWidth);
-    const pos = (event.clientX - trackRect.left - thumbWidth / 2) /
+    const offset = Number.isFinite(grabOffset)
+      ? grabOffset
+      : thumbWidth / 2;
+    const pos = (event.clientX - trackRect.left - offset) /
       Math.max(1, trackWidth - thumbWidth);
     timeline.scrollLeft = Math.max(0, Math.min(max, pos * max));
   }
   const hScrollDown = (event) => {
     if (!hThumb) return;
     hScrollDragging = true;
+    const thumbRect = hThumb.getBoundingClientRect();
+    const grabbedThumb =
+      event.target === hThumb || hThumb.contains(event.target);
+    hScrollGrabOffset = grabbedThumb
+      ? event.clientX - thumbRect.left
+      : thumbRect.width / 2;
     hThumb.classList.add("timeline-hscroll__thumb--dragging");
     hThumb.setPointerCapture?.(event.pointerId);
-    hScrollPointer(event);
+    hScrollPointer(event, hScrollGrabOffset);
   };
   const hScrollMove = (event) => {
     if (hScrollDragging) hScrollPointer(event);
@@ -1155,6 +1201,7 @@ export function createGanttEngine(options) {
   const hScrollUp = () => {
     if (!hScrollDragging) return;
     hScrollDragging = false;
+    hScrollGrabOffset = 0;
     hThumb?.classList.remove("timeline-hscroll__thumb--dragging");
   };
   function timelineScroll() {

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const serverPath = resolve(import.meta.dirname, 'static-server.mjs');
-const playwrightPath = resolve(projectRoot, '../../node_modules/@playwright/test/cli.js');
+const playwrightPath = resolve(projectRoot, 'node_modules/@playwright/test/cli.js');
 
 function waitForExit(child, timeoutMs) {
   if (child.exitCode !== null) return Promise.resolve(child.exitCode);

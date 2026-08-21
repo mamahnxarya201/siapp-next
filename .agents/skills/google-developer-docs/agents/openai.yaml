@@ -1,0 +1,4 @@
+interface:
+  display_name: "Google developer docs"
+  short_description: "Write clear, accessible technical documentation"
+  default_prompt: "Use $google-developer-docs whenever you write, edit, review, or format documentation."

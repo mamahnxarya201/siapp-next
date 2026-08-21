@@ -1,4 +1,4 @@
-# Bill of Manifest
+# Bill of manifest
 
 ## Runtime dependencies
 
@@ -37,7 +37,7 @@ that this migration does not need.
 - Resolved from the repository's existing parent installation.
 - Purpose: browser-level interaction and layout verification.
 
-Why it is used:
+### Why it is used
 
 - synthetic DOM tests cannot prove pointer drag, SVG visibility, native scrolling,
   sticky headers, label/control behavior, or real browser event propagation;
@@ -45,7 +45,7 @@ Why it is used:
   deterministic test isolation;
 - it is already accepted by the repository and used by the React PMIS tests.
 
-Advantages:
+### Advantages
 
 - real installed Chrome execution;
 - accessible-role and locator assertions;
@@ -53,7 +53,7 @@ Advantages:
 - one worker avoids shared demo-state races;
 - no new production bundle code.
 
-Disadvantages:
+### Disadvantages
 
 - browser startup is slower than Node tests;
 - the test environment needs an installed supported Chrome;

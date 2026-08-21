@@ -47,6 +47,10 @@ import {
   latestPredecessorEnd,
 } from '../src/scheduling.js'
 import {
+  GanttInteractionController,
+  advanceAutoScrollVelocity,
+} from '../src/interaction.js'
+import {
   calculateForecast,
   expectedDuration,
 } from '../src/forecast.js'
@@ -330,6 +334,100 @@ test('dependency routing produces continuous normal and cramped orthogonal paths
     topInset: 11,
     topGap: 5,
   })
+})
+
+test('autoscroll velocity uses elapsed time and pixel-per-second units', () => {
+  const run = (frameMs) => {
+    let velocity = 0;
+    let heldMs = 0;
+    let distance = 0;
+    for (let elapsed = 0; elapsed < 900; elapsed += frameMs) {
+      const delta = Math.min(frameMs, 900 - elapsed);
+      heldMs += delta;
+      velocity = advanceAutoScrollVelocity({
+        velocity,
+        direction: 1,
+        penetration: 1,
+        heldMs,
+        deltaMs: delta,
+      });
+      distance += velocity * delta / 1000;
+    }
+    return { velocity, distance };
+  };
+
+  const at60Hz = run(1000 / 60);
+  const at30Hz = run(1000 / 30);
+  assert.ok(Math.abs(at60Hz.velocity - at30Hz.velocity) < 1);
+  assert.ok(Math.abs(at60Hz.distance - at30Hz.distance) < 20);
+  assert.ok(at60Hz.velocity > 0);
+});
+
+test('autoscroll reversal decelerates through zero before changing direction', () => {
+  const slowing = advanceAutoScrollVelocity({
+    velocity: 400,
+    direction: -1,
+    penetration: 1,
+    heldMs: 900,
+    deltaMs: 100,
+  });
+  const stopped = advanceAutoScrollVelocity({
+    velocity: slowing,
+    direction: -1,
+    penetration: 1,
+    heldMs: 900,
+    deltaMs: 100,
+  });
+  const reversed = advanceAutoScrollVelocity({
+    velocity: stopped,
+    direction: -1,
+    penetration: 1,
+    heldMs: 900,
+    deltaMs: 100,
+  });
+  assert.ok(slowing > 0);
+  assert.equal(stopped, 0);
+  assert.ok(reversed < 0);
+});
+
+test('drag preview reads the current viewport scroll instead of cached scroll delta', () => {
+  const sourceTask = task('scroll-preview', 1, 3)
+  const root = {
+    scrollLeft: 60,
+    scrollWidth: 600,
+    clientWidth: 300,
+  }
+  let preview = null
+  const controller = new GanttInteractionController({
+    root,
+    scheduler: {},
+    getState: () => ({}),
+    getSnapshot: () => null,
+    onSelect: () => {},
+    onHover: () => {},
+    onPreview: (result) => {
+      preview = result
+    },
+    onCommit: () => {},
+  })
+  controller.active = {
+    kind: 'task',
+    taskId: sourceTask.id,
+    mode: 'resize-end',
+    startClientX: 0,
+    pendingClientX: 0,
+    pendingClientY: 0,
+    startScrollLeft: 0,
+    scrollDelta: 0,
+    tasks: [sourceTask],
+    scale: 'day',
+    snapIncrement: 'day',
+    visibleWeekdays: ALL_WEEKDAYS,
+  }
+
+  controller.preview()
+
+  assert.equal(preview.tasks[0].endDate.getTime(), localDate(4).getTime())
 })
 
 test('drag calculations support day and half-day snapping and clamp a child to the latest direct predecessor', () => {

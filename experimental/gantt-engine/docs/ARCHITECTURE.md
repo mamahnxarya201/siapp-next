@@ -3,8 +3,9 @@
 ## Purpose and status
 
 This document describes the implemented experimental engine in this directory.
-It extends [the migration plan](../../../.agent/doc/migration/005-gantt-vanilla-migration.md)
-with the actual framework, Gantt, bridge, and test boundaries delivered by task 006.
+It extends the repository migration plan at
+`../../../.agent/doc/migration/005-gantt-vanilla-migration.md` with the actual
+framework, Gantt, bridge, and test boundaries delivered by task 006.
 
 The implementation is isolated from the React PMIS application. No React, Zustand,
 Next.js, Tailwind, Radix, or component-library code is imported. The experiment does
@@ -278,33 +279,33 @@ slack, project finish, and critical IDs.
    Resize gestures stay horizontal-only; a group-header drag is always a vertical
    workstream reorder.
 4. Pointer moves save the latest X and the pointer row-Y.
-5. Horizontal autoscroll: while a task bar is being dragged, once the pointer
-   enters the 40px band inside the viewport's left or right edge the timeline
-   scrolls continuously. The trigger is the band *inside* the edge rather than the
-   pointer leaving the viewport, because the viewport often sits flush against the
-   browser window edge — the pointer physically cannot travel past it, so a
-   "past the edge" trigger would never fire on that side. The target speed is
-   proportional to how deep the pointer is in the band (deeper = faster), and the
-   actual speed eases toward it each animation frame (gas-motor feel), easing back
-   down to zero when the pointer returns inside the viewport. The dragged date is
-   anchored in timeline space (the pixel delta adds any scroll movement), so the
-   bar stays pinned at the viewport edge — its leading edge rides the separator on
-   the left or the viewport edge on the right — while the content scrolls under it.
-   The existing scroll listener grows or shrinks the grid range as it scrolls, so
-   no wasted scroll data is retained when the user scrolls back to the current
-   date. Group headers and resize handles do not autoscroll.
-6. One animation-frame job computes the snapped date move and forward propagation,
-   combines it with the vertical reorder (new row order plus the per-task workstream
-   reassignment), and the engine stores the result as a preview and invalidates
-   views.
-7. The reorder preview renders a horizontal insertion line at the target row and
+5. Horizontal autoscroll: while a schedule-affecting task gesture (`move`,
+   `resize-start`, or `resize-end`) is active, entering the 40px band inside
+   either viewport edge starts one drag-owned animation loop. The trigger stays
+   inside the edge because the viewport may be flush with the browser window.
+   The target velocity combines elapsed dwell time and pointer penetration and
+   is expressed in screen pixels per second across scales. Elapsed frame time
+   integrates displacement, so frame cadence does not change the feel.
+   Reversal and neutral return decelerate through zero. Overlapping task bars
+   do not suppress the active edge command. The velocity is clamped at the
+   scroll bounds without hidden accumulation. The dragged date is anchored in
+   timeline space by adding scroll movement to the pointer delta, so the bar
+   remains constrained at the edge while the content scrolls underneath.
+6. The same animation-frame job computes the snapped date move, forward
+   propagation, and any free-move row reorder, then stores the result as a
+   preview and invalidates views. Group headers, dependency gestures, and
+   scrollbar-thumb dragging do not auto-pan.
+7. Pointer capture is held by the stable timeline viewport, not the task SVG
+   node that is replaced during preview rendering. Pointer-up commits the
+   final result; pointer-cancel, lost capture, Escape, blur, stop, and dispose
+   cancel the preview and stop the loop immediately.
+8. The reorder preview renders a horizontal insertion line at the target row and
    highlights the destination workstream header in the task list. Reorder targets
-   are computed against the committed rows captured at pointer-down, so the live
-   preview never feeds back into its own target selection.
-8. Pointer up calculates the final result once, commits it atomically, recalculates
-   criticality, and invokes the host callback/bridge. Reorder commits update
-   `state.rowOrder` and any reassigned task workstream.
-9. Escape, blur, pointer cancellation, stop, or dispose cancels the preview.
+   use the committed rows captured at pointer-down, so the live preview never
+   feeds back into its own target selection.
+9. Pointer-up calculates the final result once, commits it atomically,
+   recalculates criticality, and invokes the host callback/bridge. Reorder
+   commits update `state.rowOrder` and any reassigned task workstream.
 
 Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
 rendered under the grid, because Chromium's `::-webkit-scrollbar` styling cannot show

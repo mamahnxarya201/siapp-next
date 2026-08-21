@@ -17,6 +17,24 @@ const svgText = (text, attrs) => {
 };
 const safeStatus = (value) =>
   ["todo", "in-progress", "done", "blocked"].includes(value) ? value : "todo";
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function constrainPreviewPosition(root, position, state) {
+  const drag = state.previewDrag;
+  if (
+    !drag ||
+    drag.taskId !== position.taskId ||
+    drag.edgeDirection === 0
+  ) {
+    return position;
+  }
+  const viewportLeft = root.scrollLeft;
+  const viewportRight = viewportLeft + root.clientWidth;
+  const maxX = Math.max(viewportLeft, viewportRight - position.width);
+  const x = clamp(position.x, viewportLeft, maxX);
+  return x === position.x ? position : { ...position, x };
+}
+
 
 function renderTaskListLegacy(root, state, rows) {
   const fragment = document.createDocumentFragment();
@@ -797,7 +815,8 @@ export function renderTimeline(root, snapshot) {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   for (const pos of positions) {
     const task = byId.get(pos.taskId);
-    if (task) bar(body, task, pos, state);
+    if (task)
+      bar(body, task, constrainPreviewPosition(root, pos, state), state);
   }
   if (state.guide?.visible) {
     body.append(

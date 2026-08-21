@@ -100,7 +100,7 @@ Test artifacts use the OS temporary directory through `playwright.config.mjs`; t
 not dirty the repository. Chrome is selected through `channel: 'chrome'`, reusing the
 installed browser rather than downloading a Playwright-managed runtime.
 
-## PHP integration tests for the next agent
+## PHP integration tests
 
 When a PHP endpoint is added, retain all current tests and add an integration suite that
 starts the PHP test server on a separate port, injects `FetchTransport`, and checks the

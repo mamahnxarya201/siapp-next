@@ -69,7 +69,7 @@ command awaits I/O, application state changes, renderer receives new state.
 | `src/bridge/fetch-transport.mjs` | Future HTTP delivery using platform `fetch`. |
 | `tests/php-bridge.test.mjs` | Executable `node:test` contract. |
 
-## JavaScript Gateway API
+## JavaScript gateway API
 
 Construct the selected transport and gateway once in the composition root:
 
@@ -125,12 +125,12 @@ scheduleStore.acceptCommittedSchedule(result.data);
 
 | Option | Required | Meaning |
 | --- | --- | --- |
-| `transport` | yes | Object implementing `send(request, { signal })`. |
-| `defaultTimeoutMs` | no | Positive integer; defaults to 15 seconds. `null` disables it. |
-| `clientName` | no | Diagnostic client identifier in request metadata. |
-| `clientVersion` | no | Deployed build identifier, independent from protocol version. |
-| `requestIdFactory` | no | Test/host override returning a 1-128 character string. |
-| `now` | no | Test/host clock override returning epoch milliseconds. |
+| `transport` | Yes | Object implementing `send(request, { signal })`. |
+| `defaultTimeoutMs` | No | Positive integer; defaults to 15 seconds. `null` disables it. |
+| `clientName` | No | Diagnostic client identifier in request metadata. |
+| `clientVersion` | No | Deployed build identifier, independent from protocol version. |
+| `requestIdFactory` | No | Test/host override returning a 1-128 character string. |
+| `now` | No | Test/host clock override returning epoch milliseconds. |
 
 ### `execute(operation, payload, options)`
 

@@ -1,6 +1,6 @@
 # PMIS Current State
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Current Objective
 
@@ -220,6 +220,10 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   without changing panel dimensions or removing task and status summaries.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
+- Added the globally triggerable `.agents/skills/google-developer-docs/` skill, summarizing Google's developer documentation guidance for voice, structure, procedures, formatting, accessibility, and final editorial checks.
+- Documented `experimental/gantt-engine` with a Markdown source index and a generated offline HTML portal. The portal includes editorial-tech styling, section navigation, responsive layout, print styling, keyboard-accessible skip navigation, and browser `Ctrl+F` guidance. Browser verification confirmed seven rendered documents, seven navigation links, no search form, and no local search handler.
+- Internal Markdown links in the generated portal now resolve to styled in-page document anchors instead of opening raw `.md` files. Browser verification confirmed the Architecture and PHP bridge links remain on the portal page, with no `.md` navigation targets. The docs index records the static-file limitation: double-click opens the rendered portal, but Markdown changes require regeneration.
+- Aligned `experimental/gantt-engine/docs/` with the Google developer documentation style: corrected duplicate procedure numbering in `ARCHITECTURE.md`, promoted Playwright subsections to headings, standardized `Yes`/`No` table values, normalized sentence-case headings, and converted the migration-plan link to a repository path so the portal has no raw Markdown navigation links. Regenerated and browser-verified the styled portal with seven documents, seven navigation links, and the warm editorial-tech canvas.
 
 ## Files Changed in Latest Work
 
@@ -241,6 +245,13 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `.agents/docs/GANTT_DRAG_PERFORMANCE.md`
 - `.agent/handoff/CURRENT_STATE.md`
 - `components/pmis/gantt-chart.tsx`
+- `.agents/skills/google-developer-docs/SKILL.md`
+- `.agents/skills/google-developer-docs/agents/openai.yaml`
+- `experimental/gantt-engine/README.md`
+- `experimental/gantt-engine/package.json`
+- `experimental/gantt-engine/docs/README.md`
+- `experimental/gantt-engine/docs/build-docs.mjs`
+- `experimental/gantt-engine/docs/index.html`
 - `components/pmis/context-inspector.tsx`
 - `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
@@ -867,3 +878,42 @@ adapter work waits for DBA schema and authentication decisions.
 - Browser visual verification confirmed both buttons render with the primitive's
   6px radius, and the custom Cancel action closes the dialog.
 
+
+## Experimental engine: drag edge auto-pan (2026-08-19)
+
+- `experimental/gantt-engine/src/interaction.js` now integrates edge auto-pan
+  velocity in elapsed-time pixels per second, combining dwell time and pointer
+  penetration within the 40px inside-edge activation band.
+- Auto-pan covers schedule-affecting task move and start/end resize gestures.
+  Reversal and neutral return decelerate through zero; release, cancellation,
+  blur, unmount, and lost pointer capture stop the loop immediately.
+- Pointer capture is held by the stable timeline viewport rather than the
+  re-rendered task SVG node. Header/grid/rows/task preview continue to derive
+  from the canonical timeline scroll position; the fixed task list remains
+  vertical-only synchronized.
+- Added deterministic velocity tests and browser scenarios for reversal, resize
+  auto-pan, and dense-timeline overlap. Validation passed: 56 unit tests and
+  29 Playwright scenarios.
+- Manual verification remains for subjective throttle feel and visual tooltip
+  synchronization against the supplied Tom’s Planner recording.
+
+## Empty Gantt entry loading note (2026-08-19)
+
+- `demo/empty.html` uses relative stylesheet/module paths so the entry resolves
+  correctly when served from the experimental static server.
+- Chromium blocks `empty.js` when the page is opened directly as `file://`
+  because ES modules are rejected by the browser's file-origin CORS policy.
+  The supported launch is `node tests/static-server.mjs`, then
+  `http://127.0.0.1:4173/demo/empty.html`.
+
+## Third-party drag research (2026-08-19)
+
+- `interact.js` 1.10.28 was evaluated as a possible drag/resize lifecycle
+  replacement. Its auto-scroll plugin uses an rAF loop and fixed
+  pixels-per-second speed, not the confirmed gas curve.
+- Live Chromium probes showed its delegated action lifecycle works on ordinary
+  HTML elements but does not fire reliably for this re-rendered SVG task-bar
+  surface. The user chose to keep the native SVG controller rather than add an
+  HTML proxy or rewrite bars as HTML.
+- The temporary dependency and script tags were removed. The native controller
+  remains the supported interaction path.

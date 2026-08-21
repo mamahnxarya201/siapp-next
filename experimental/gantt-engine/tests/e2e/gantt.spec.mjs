@@ -470,6 +470,87 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
   expect(rightCompaction.scroll).toBe(rightCompaction.max);
   expect(rightCompaction.futureDays).toBe(0);
 });
+test('released edge resizing keeps the date range stable during a later center drag', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  const timeline = page.locator('#timeline-viewport');
+  const viewport = await timeline.boundingBox();
+  await page.mouse.click(viewport.x + 200, viewport.y + 80, { button: 'right' });
+  await page.locator('#context-task-name').fill('Range-stable task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+  await page.locator('.gantt-task [data-interaction-mode="move"]').click();
+
+  const endHandle = await page.locator('[data-interaction-mode="resize-end"]').boundingBox();
+  await page.mouse.move(endHandle.x + endHandle.width / 2, endHandle.y + endHandle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width - 2, endHandle.y + endHandle.height / 2, { steps: 8 });
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+
+  const edgeRange = await timeline.evaluate((element) => ({
+    width: element.scrollWidth,
+    max: element.scrollWidth - element.clientWidth,
+  }));
+  await timeline.evaluate((element) => {
+    element.scrollLeft = 0;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  const move = await page.locator('.gantt-task [data-interaction-mode="move"]').boundingBox();
+  await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(move.x + move.width / 2 + 100, move.y + move.height / 2, { steps: 8 });
+  await page.waitForTimeout(250);
+  const during = await timeline.evaluate((element) => ({
+    width: element.scrollWidth,
+    max: element.scrollWidth - element.clientWidth,
+  }));
+  await page.mouse.up();
+  expect(during).toEqual(edgeRange);
+});
+test('compaction preserves the viewport minimum after an expanded range is shrunk', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.evaluate(() => {
+    const base = new Date('2026-08-10T00:00:00');
+    globalThis.ganttDemo.setTasks([{
+      id: 'long-range',
+      name: 'Long range',
+      groupName: null,
+      teamName: 'T',
+      status: 'todo',
+      startDate: base.toISOString(),
+      endDate: new Date(base.getTime() + 30 * 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+  await page.locator('.gantt-task [data-interaction-mode="move"]').click();
+  const timeline = page.locator('#timeline-viewport');
+  await timeline.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().futureDays)).toBe(270);
+  await timeline.evaluate((element) => {
+    element.scrollLeft = Math.max(0, element.scrollWidth - element.clientWidth - 120);
+    element.dispatchEvent(new Event('scroll'));
+  });
+  const handle = await page.locator('[data-interaction-mode="resize-end"]').boundingBox();
+  const viewport = await timeline.boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2 - 160, handle.y + handle.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  const range = await timeline.evaluate((element) => ({
+    width: element.scrollWidth,
+    minimum: element.clientWidth + 20,
+  }));
+  expect(range.width).toBeGreaterThanOrEqual(range.minimum);
+  expect(viewport.width).toBeGreaterThan(0);
+});
 
 test('dense timelines keep autoscrolling while the edge date overlaps other bars', async ({ page }) => {
   const timeline = page.locator('#timeline-viewport');

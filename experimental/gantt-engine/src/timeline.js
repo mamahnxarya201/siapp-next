@@ -633,11 +633,12 @@ export function computeTimelineRange(sourceTasks, options = {}) {
   const minDate = options.minDate
     ? startOfCalendarDay(options.minDate)
     : addCalendarDays(startOfCalendarDay(earliest), -pastDays);
+  const maxDate = options.maxDate
+    ? startOfCalendarDay(options.maxDate)
+    : addCalendarDays(startOfCalendarDay(latest), futureDays);
   return Object.freeze({
     minDate: Object.freeze(minDate),
-    maxDate: Object.freeze(
-      addCalendarDays(startOfCalendarDay(latest), futureDays),
-    ),
+    maxDate: Object.freeze(maxDate),
   });
 }
 

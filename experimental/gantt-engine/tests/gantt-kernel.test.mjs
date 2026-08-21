@@ -252,6 +252,11 @@ test('computeTimelineRange honors a stable minDate origin instead of re-anchorin
   assert.equal(anchored.minDate.getTime(), localDate(0).getTime())
   // The right edge is still derived from the latest task's future buffer.
   assert.equal(anchored.maxDate.getTime(), localDate(95).getTime())
+  const fixed = computeTimelineRange(tasks, {
+    minDate: localDate(0),
+    maxDate: localDate(40),
+  })
+  assert.equal(fixed.maxDate.getTime(), localDate(40).getTime())
 
   // A later origin is honored too; the caller is responsible for never moving
   // the stable origin right of any task (the engine only shrinks it leftward).

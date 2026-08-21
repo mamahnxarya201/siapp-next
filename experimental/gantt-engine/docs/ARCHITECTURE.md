@@ -326,6 +326,10 @@ task list and timeline columns, so both columns always use the same `scrollTop`.
 The task list, timeline viewport, and timeline header do not own vertical scrolling.
 The timeline renderer receives the shared viewport height and keeps row geometry in
 the shared scroll coordinate system.
+The timeline end date is state-owned. Task date changes do not change the rendered
+range; edge scrolling extends the stored end date, and release compaction resets it
+from the committed task dates while preserving a 20px viewport gap after the task
+range when the compacted task span is shorter than the viewport.
 
 The right edge grows the future range by 180 days behind a latch. The left edge grows
 viewport-sized chunks at a low-water threshold during active schedule drags.

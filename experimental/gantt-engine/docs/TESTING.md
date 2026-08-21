@@ -19,7 +19,7 @@ is a failure.
 On 2026-08-21 the separate unit and browser commands completed cleanly with:
 
 - 57 Node tests passed;
-- 31 Chrome/Playwright scenarios passed;
+- 33 Chrome/Playwright scenarios passed;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 
@@ -88,8 +88,10 @@ It verifies:
 8. viewport-sized left buffering without per-date origin re-anchoring;
 9. release-only compaction of unused outer dates with a viewport-sized minimum scope;
 10. custom scrollbar track jumps and grab-offset-preserving thumb drags;
-11. one shared vertical scroll region, sticky task and calendar headers, horizontal
-   timeline scrolling, right-edge range growth, idle compaction, and milestone rendering;
+11. one shared vertical scroll region, sticky task and calendar headers, stable
+   date range during center drags, a 20px post-task viewport minimum, horizontal
+   timeline scrolling, right-edge range growth, idle compaction, and milestone
+   rendering;
 12. scheduled `schedule.reload` through the injected gateway.
 
 ## Process lifecycle

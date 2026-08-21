@@ -332,6 +332,10 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Vertical scrolling now uses one `.gantt-scroll-region` containing both columns.
   The task list and timeline viewport do not own vertical scroll positions, so an
   empty or one-task project has no independent Gantt vertical overflow.
+- The timeline end date is state-owned. Moving or resizing a task away from an
+  edge does not resize the date grid; edge scrolling extends the stored end date,
+  and release compaction recalculates it from committed task dates while preserving
+  a 20px viewport gap when the compacted task span is shorter than the viewport.
 - Task creation remains context-menu only (right-click the grid → Add task); the
   sidebar does not include an inline task-entry field. The `task.create` command
   and the unused legacy renderer's create-row input were removed after a short

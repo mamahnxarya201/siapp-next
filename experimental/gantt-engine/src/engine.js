@@ -29,6 +29,7 @@ const LOGO_HEADER_SIZE = 32;
 const LOGO_MIN_SCALE = 0.5;
 const LOGO_MAX_SCALE = 3;
 const TIMELINE_PAST_DAYS = 7;
+const TIMELINE_VIEWPORT_GAP_PX = 20;
 
 const logoGeometry = (image) => ({
   width: image.naturalWidth || 0,
@@ -105,6 +106,11 @@ export function createGanttEngine(options) {
     onSelectionChange = options.onSelectionChange ?? (() => {});
   const initialTasks = normalizeTasks(options.tasks ?? []);
   const initialOrigin = originFromTasks(initialTasks, startOfCalendarDay(new Date()));
+  const initialLatest = initialTasks.reduce(
+    (max, task) =>
+      task.endDate.getTime() > max.getTime() ? task.endDate : max,
+    initialTasks[0]?.endDate ?? initialOrigin,
+  );
   const state = {
     tasks: initialTasks,
     rowOrder: defaultRowOrder(initialTasks, options.workstreams ?? []),
@@ -127,6 +133,7 @@ export function createGanttEngine(options) {
     visibleWeekdays: options.settings?.visibleWeekdays ?? ALL_WEEKDAYS,
     snapIncrement: options.settings?.snapIncrement ?? "day",
     futureDays: 90,
+    timelineMaxDate: addCalendarDays(initialLatest, 90),
     projectName:
       options.projectName ??
       (root.querySelector(".project-top-nav__name")?.textContent?.trim() ||
@@ -230,7 +237,7 @@ export function createGanttEngine(options) {
     );
     const minimumUnits = Math.max(
       1,
-      Math.ceil(timeline.clientWidth / dayWidth),
+      Math.ceil((timeline.clientWidth + TIMELINE_VIEWPORT_GAP_PX) / dayWidth),
     );
     const emptyUnits = Math.max(0, minimumUnits - occupiedUnits);
     state.minDate = startOfCalendarDay(earliestTaskDate);
@@ -241,8 +248,13 @@ export function createGanttEngine(options) {
         state.visibleWeekdays,
       );
     }
-    state.futureDays =
-      edgeDirection < 0 && emptyUnits > 0 ? Math.ceil(emptyUnits) : 0;
+    const nextFutureDays =
+      edgeDirection > 0 ? 0 : emptyUnits > 0 ? Math.ceil(emptyUnits) : 0;
+    state.futureDays = nextFutureDays;
+    state.timelineMaxDate = addCalendarDays(
+      startOfCalendarDay(latestTaskDate),
+      nextFutureDays,
+    );
     state.leftBufferExpanded = false;
     return true;
   }
@@ -277,7 +289,7 @@ export function createGanttEngine(options) {
         scale: state.scale,
         visibleWeekdays: state.visibleWeekdays,
         pastDays: TIMELINE_PAST_DAYS,
-        futureDays: state.futureDays,
+        maxDate: state.timelineMaxDate,
         minDate: state.minDate,
       }),
       positions = computeTaskPositions(rows, {
@@ -878,9 +890,19 @@ export function createGanttEngine(options) {
     }
     const nextTasks = normalizeTasks(response.data.tasks);
     state.minDate = originFromTasks(nextTasks, startOfCalendarDay(new Date()));
+    const latestTaskDate = nextTasks.reduce(
+      (max, task) =>
+        task.endDate.getTime() > max.getTime() ? task.endDate : max,
+      startOfCalendarDay(new Date()),
+    );
+    state.futureDays = 90;
+    state.timelineMaxDate = addCalendarDays(
+      startOfCalendarDay(latestTaskDate),
+      90,
+    );
+    state.leftBufferExpanded = false;
     state.rowOrder = defaultRowOrder(nextTasks, state.workstreams);
     state.rowOrderDirty = false;
-    replaceTasks(nextTasks, "schedule loaded");
     setStatus("Schedule loaded");
   }
 
@@ -1275,6 +1297,7 @@ export function createGanttEngine(options) {
       if (remaining <= edgeBuffer && !rightLatched) {
         rightLatched = true;
         state.futureDays += 180;
+        state.timelineMaxDate = addCalendarDays(state.timelineMaxDate, 180);
         invalidate("timeline extended");
       }
       if (remaining > edgeBuffer * 2) rightLatched = false;
@@ -1286,6 +1309,15 @@ export function createGanttEngine(options) {
       shrinkJob = application.scheduler.scheduleDelay(() => {
         if (timeline.scrollLeft < edgeBuffer * 2) {
           state.futureDays = 90;
+          const latestTaskDate = state.tasks.reduce(
+            (max, task) =>
+              task.endDate.getTime() > max.getTime() ? task.endDate : max,
+            state.tasks[0]?.endDate ?? state.timelineMaxDate,
+          );
+          state.timelineMaxDate = addCalendarDays(
+            startOfCalendarDay(latestTaskDate),
+            90,
+          );
           rightLatched = false;
           invalidate("timeline compacted");
         }
@@ -1483,6 +1515,17 @@ export function createGanttEngine(options) {
         nextTasks,
         startOfCalendarDay(new Date()),
       );
+      const latestTaskDate = nextTasks.reduce(
+        (max, task) =>
+          task.endDate.getTime() > max.getTime() ? task.endDate : max,
+        startOfCalendarDay(new Date()),
+      );
+      state.futureDays = 90;
+      state.timelineMaxDate = addCalendarDays(
+        startOfCalendarDay(latestTaskDate),
+        90,
+      );
+      state.leftBufferExpanded = false;
       state.rowOrder = defaultRowOrder(nextTasks, state.workstreams);
       state.rowOrderDirty = false;
       replaceTasks(nextTasks, "tasks replaced");

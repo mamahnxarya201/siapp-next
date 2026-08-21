@@ -86,7 +86,17 @@ const criticalIds = (tasks) => {
 export function createGanttEngine(options) {
   const root = requireElement(options.root, "root"),
     taskList = requireElement(options.taskListElement, "taskListElement"),
-    timeline = requireElement(options.timelineElement, "timelineElement");
+    timeline = requireElement(options.timelineElement, "timelineElement"),
+    verticalScroll = requireElement(
+      options.verticalScrollElement ??
+        root.querySelector(".gantt-scroll-region"),
+      "verticalScrollElement",
+    ),
+    timelineHeader = requireElement(
+      options.timelineHeaderElement ??
+        root.querySelector(".timeline-header-slot"),
+      "timelineHeaderElement",
+    );
   const status = options.statusElement,
     selectionStatus = options.selectionStatusElement,
     taskCount = options.taskCountElement,
@@ -165,7 +175,6 @@ export function createGanttEngine(options) {
     rightLatched = false,
     lastScrollLeft = 0,
     shrinkJob = null,
-    syncing = false,
     disposed = false;
 
   const shownTasks = () => state.previewResult?.tasks ?? state.tasks;
@@ -663,8 +672,8 @@ export function createGanttEngine(options) {
   function timelinePoint(event) {
     const rect = timeline.getBoundingClientRect();
     const x = event.clientX - rect.left + timeline.scrollLeft;
-    const y = event.clientY - rect.top + timeline.scrollTop;
-    const rowY = y - HEADER_HEIGHT;
+    const y = event.clientY - rect.top + verticalScroll.scrollTop;
+    const rowY = y;
     const row = snapshot?.rows.find(
       (item) => rowY >= item.y && rowY < item.y + item.height,
     );
@@ -883,7 +892,12 @@ export function createGanttEngine(options) {
     if (brand) renderProjectBrand(brand, state);
   });
   application.registerView("timeline", timeline, () =>
-    renderTimeline(timeline, snapshot),
+    renderTimeline(
+      timeline,
+      snapshot,
+      verticalScroll.clientHeight,
+      timelineHeader,
+    ),
   );
   application.registerView("status", status ?? root, () => {
     if (status) status.textContent = state.status;
@@ -1093,8 +1107,8 @@ export function createGanttEngine(options) {
     getSnapshot: () => snapshot,
     getPointerRowY: (event) => {
       const rect = timeline.getBoundingClientRect();
-      const y = event.clientY - rect.top + timeline.scrollTop;
-      return y - HEADER_HEIGHT;
+      const y = event.clientY - rect.top + verticalScroll.scrollTop;
+      return y;
     },
     onSelect: select,
     onHover: hover,
@@ -1160,7 +1174,7 @@ export function createGanttEngine(options) {
       state.scale,
       state.visibleWeekdays,
     );
-    const y = point.row ? point.row.y + point.row.height / 2 : point.y - HEADER_HEIGHT;
+    const y = point.row ? point.row.y + point.row.height / 2 : point.y;
     if (state.guide?.visible && state.guide.x === x && state.guide.y === y) return;
     state.guide = { x, y, visible: true };
     invalidate("guide updated");
@@ -1197,16 +1211,6 @@ export function createGanttEngine(options) {
           : null;
     if (row && row.dataset.taskId !== related?.dataset.taskId) hover(null);
   };
-  function sync(source, target) {
-    if (syncing) return;
-    syncing = true;
-    if (Math.abs(target.scrollTop - source.scrollTop) > 0.5)
-      target.scrollTop = source.scrollTop;
-    queueMicrotask(() => {
-      syncing = false;
-    });
-  }
-  const taskScroll = () => sync(taskList, timeline);
   const hScroll = root.querySelector(".timeline-hscroll");
   const hThumb = hScroll?.querySelector(".timeline-hscroll__thumb");
   let hScrollDragging = false;
@@ -1261,12 +1265,11 @@ export function createGanttEngine(options) {
     const previousScrollLeft = lastScrollLeft;
     const horizontalDelta = timeline.scrollLeft - previousScrollLeft;
     lastScrollLeft = timeline.scrollLeft;
-    sync(timeline, taskList);
     syncHScroll();
+    timelineHeader.scrollLeft = timeline.scrollLeft;
     const edgeBuffer = getTimelineScale(state.scale).dayWidth * TIMELINE_EDGE_BUFFER_CELLS;
     const remaining =
       timeline.scrollWidth - timeline.clientWidth - timeline.scrollLeft;
-    // Vertical synchronization must never extend the horizontal timeline.
     // Only a horizontal movement that reaches the final two cells may grow it.
     if (horizontalDelta > 0) {
       if (remaining <= edgeBuffer && !rightLatched) {
@@ -1415,7 +1418,6 @@ export function createGanttEngine(options) {
     taskList.addEventListener("click", taskClick);
     taskList.addEventListener("pointerover", taskOver);
     taskList.addEventListener("pointerout", taskOut);
-    taskList.addEventListener("scroll", taskScroll);
     timeline.addEventListener("scroll", timelineScroll);
     if (hScroll) {
       hScroll.addEventListener("pointerdown", hScrollDown);
@@ -1448,7 +1450,6 @@ export function createGanttEngine(options) {
     taskList.removeEventListener("click", taskClick);
     taskList.removeEventListener("pointerover", taskOver);
     taskList.removeEventListener("pointerout", taskOut);
-    taskList.removeEventListener("scroll", taskScroll);
     timeline.removeEventListener("scroll", timelineScroll);
     if (hScroll) {
       hScroll.removeEventListener("pointerdown", hScrollDown);

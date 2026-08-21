@@ -780,20 +780,27 @@ export function renderProjectBrand(root, state) {
   }
 }
 
-export function renderTimeline(root, snapshot) {
+export function renderTimeline(
+  root,
+  snapshot,
+  availableHeight = root.clientHeight,
+  headerRoot = null,
+) {
   const left = root.scrollLeft;
-  const top = root.scrollTop;
   const { rows, timelineData, positions, dependencies, tasks, state } =
     snapshot;
   const bodyHeight = Math.max(
     rows.reduce((height, row) => Math.max(height, row.y + row.height), 0),
-    root.clientHeight - HEADER_HEIGHT + 240,
+    availableHeight - HEADER_HEIGHT,
   );
   const stage = document.createElement("div");
   stage.className = "timeline-stage";
   stage.style.width = `${timelineData.totalWidth}px`;
-  stage.style.minHeight = `${bodyHeight + HEADER_HEIGHT}px`;
-  stage.append(header(timelineData));
+  stage.style.minHeight = `${bodyHeight}px`;
+  if (headerRoot) {
+    headerRoot.replaceChildren(header(timelineData));
+    headerRoot.scrollLeft = left;
+  }
   const body = svg("svg", {
     class: "timeline-svg",
     width: timelineData.totalWidth,
@@ -841,7 +848,7 @@ export function renderTimeline(root, snapshot) {
       state.previewResult?.kind === "reorder-move") &&
     state.previewResult.insertionY != null
   ) {
-    const lineY = HEADER_HEIGHT + state.previewResult.insertionY;
+    const lineY = state.previewResult.insertionY;
     body.append(
       svg("line", {
         class: "gantt-reorder-guide",
@@ -855,5 +862,4 @@ export function renderTimeline(root, snapshot) {
   stage.append(body);
   root.replaceChildren(stage);
   root.scrollLeft = left;
-  root.scrollTop = top;
 }

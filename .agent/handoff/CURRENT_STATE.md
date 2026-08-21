@@ -327,9 +327,11 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   does not retain wasted scroll data.
 - Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and
   thumb under the grid (Chromium cannot show a horizontal-only native scrollbar).
-  The viewport's native scrollbars are hidden; the thumb mirrors `scrollLeft` and
-  dragging it writes `scrollLeft`. Vertical scrolling still works via wheel and the
-  synchronized task list, with no vertical scrollbar shown.
+  The `#timeline-viewport` remains the horizontal scroll owner; the sticky calendar
+  header mirrors its `scrollLeft`.
+- Vertical scrolling now uses one `.gantt-scroll-region` containing both columns.
+  The task list and timeline viewport do not own vertical scroll positions, so an
+  empty or one-task project has no independent Gantt vertical overflow.
 - Task creation remains context-menu only (right-click the grid → Add task); the
   sidebar does not include an inline task-entry field. The `task.create` command
   and the unused legacy renderer's create-row input were removed after a short

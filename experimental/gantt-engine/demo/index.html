@@ -26,50 +26,53 @@
         </div>
       </header>
       <section class="gantt-workspace">
-        <aside class="task-panel" aria-label="Project tasks">
-          <div class="project-panel-toolbar">
-            <span class="project-panel-toolbar__people" aria-label="People in project">
-              <span>AC</span><span>SM</span><span>JW</span><span>ED</span><span>MB</span>
-            </span>
-            <button type="button" class="toolbar-button" aria-label="People in Project">›</button>
-          </div>
-          <div class="task-panel__heading">
-            <h2>Tasks</h2>
-            <div class="task-panel__heading-actions">
-              <span id="task-count" aria-live="polite">0 total</span>
-              <button type="button" class="toolbar-button" data-action="workstream.create" aria-label="Add workstream">+</button>
-              <button type="button" class="toolbar-button" aria-label="Hide task list">▣</button>
+        <div class="project-panel-toolbar">
+          <span class="project-panel-toolbar__people" aria-label="People in project">
+            <span>AC</span><span>SM</span><span>JW</span><span>ED</span><span>MB</span>
+          </span>
+          <button type="button" class="toolbar-button" aria-label="People in Project">›</button>
+        </div>
+        <header class="gantt-toolbar" aria-label="Timeline controls">
+          <div class="gantt-toolbar__left">
+            <fieldset class="scale-control" aria-label="Timeline scale">
+              <legend class="visually-hidden">Timeline scale</legend>
+              <label><input type="radio" name="scale" value="day" data-action="timeline.set-scale" /> Day</label>
+              <label><input type="radio" name="scale" value="week" data-action="timeline.set-scale" checked /> Week</label>
+              <label><input type="radio" name="scale" value="month" data-action="timeline.set-scale" /> Month</label>
+            </fieldset>
+            <div class="gantt-toolbar__history">
+              <button type="button" class="toolbar-button" aria-label="Undo last workspace change" disabled>↶</button>
+              <button type="button" class="toolbar-button" aria-label="Redo last workspace change" disabled>↷</button>
             </div>
           </div>
-          <div id="task-list" class="task-list" tabindex="0"></div>
-        </aside>
-        <section class="timeline-panel" aria-label="Gantt timeline">
-          <header class="gantt-toolbar" aria-label="Timeline controls">
-            <div class="gantt-toolbar__left">
-              <fieldset class="scale-control" aria-label="Timeline scale">
-          <legend class="visually-hidden">Timeline scale</legend>
-          <label><input type="radio" name="scale" value="day" data-action="timeline.set-scale" /> Day</label>
-          <label><input type="radio" name="scale" value="week" data-action="timeline.set-scale" checked /> Week</label>
-          <label><input type="radio" name="scale" value="month" data-action="timeline.set-scale" /> Month</label>
-              </fieldset>
-              <div class="gantt-toolbar__history">
-                <button type="button" class="toolbar-button" aria-label="Undo last workspace change" disabled>↶</button>
-                <button type="button" class="toolbar-button" aria-label="Redo last workspace change" disabled>↷</button>
+          <div class="gantt-toolbar__actions">
+            <button type="button" class="toolbar-button" data-action="timeline.scroll-left" aria-label="Scroll timeline left">←</button>
+            <button type="button" class="toolbar-button" data-action="timeline.scroll-right" aria-label="Scroll timeline right">→</button>
+            <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-all" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0-3-3M6 15a3 3 0 1 0 3 3M15 6H9a3 3 0 0 0-3 3" /></svg><span>All Deps</span></label>
+            <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-critical" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 18H3L12 3Z" /><path d="M12 9v4M12 17h.01" /></svg><span>Critical Path</span></label>
+            <button type="button" class="toolbar-button toolbar-button--text" aria-label="Project timeline settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg><span>Timeline Settings</span></button>
+          </div>
+        </header>
+        <div class="gantt-scroll-region">
+          <aside class="task-panel" aria-label="Project tasks">
+            <div class="task-panel__heading">
+              <h2>Tasks</h2>
+              <div class="task-panel__heading-actions">
+                <span id="task-count" aria-live="polite">0 total</span>
+                <button type="button" class="toolbar-button" data-action="workstream.create" aria-label="Add workstream">+</button>
+                <button type="button" class="toolbar-button" aria-label="Hide task list">▣</button>
               </div>
             </div>
-        <div class="gantt-toolbar__actions">
-          <button type="button" class="toolbar-button" data-action="timeline.scroll-left" aria-label="Scroll timeline left">←</button>
-          <button type="button" class="toolbar-button" data-action="timeline.scroll-right" aria-label="Scroll timeline right">→</button>
-          <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-all" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0-3-3M6 15a3 3 0 1 0 3 3M15 6H9a3 3 0 0 0-3 3" /></svg><span>All Deps</span></label>
-          <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-critical" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 18H3L12 3Z" /><path d="M12 9v4M12 17h.01" /></svg><span>Critical Path</span></label>
-          <button type="button" class="toolbar-button toolbar-button--text" aria-label="Project timeline settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg><span>Timeline Settings</span></button>
+            <div id="task-list" class="task-list" tabindex="0"></div>
+          </aside>
+          <section class="timeline-panel" aria-label="Gantt timeline">
+            <div class="timeline-header-slot"></div>
+            <div id="timeline-viewport" class="timeline-viewport" tabindex="0"></div>
+          </section>
         </div>
-          </header>
-          <div id="timeline-viewport" class="timeline-viewport" tabindex="0"></div>
-          <div class="timeline-hscroll" role="scrollbar" aria-orientation="horizontal" aria-controls="timeline-viewport" aria-label="Scroll timeline">
-            <div class="timeline-hscroll__thumb"></div>
-          </div>
-        </section>
+        <div class="timeline-hscroll" role="scrollbar" aria-orientation="horizontal" aria-controls="timeline-viewport" aria-label="Scroll timeline">
+          <div class="timeline-hscroll__thumb"></div>
+        </div>
       </section>
       <footer class="status-bar">
         <span id="application-status" role="status" aria-live="polite">Ready</span>

@@ -569,6 +569,11 @@ test('edge autoscroll reverses direction without ending the drag', async ({ page
   await page.mouse.move(viewport.x + viewport.width + 40, barBounds.y + barBounds.height / 2, { steps: 8 });
   await page.waitForTimeout(350);
   const right = await timeline.evaluate((element) => element.scrollLeft);
+  const rightStart = await page.evaluate(() => (
+    globalThis.ganttDemo.getState().previewResult?.tasks
+      ?.find((item) => item.id === 'reversible')
+      ?.startDate?.toISOString() ?? null
+  ));
   await page.mouse.move(viewport.x - 40, barBounds.y + barBounds.height / 2, { steps: 8 });
   await page.waitForTimeout(500);
   const left = await timeline.evaluate((element) => element.scrollLeft);
@@ -599,7 +604,11 @@ test('edge autoscroll reverses direction without ending the drag', async ({ page
   expect(previewDuringReversal.active).toBe(true);
   await page.mouse.up();
   expect(right).toBeGreaterThan(0);
-  expect(left).toBeLessThan(right);
+  expect(rightStart).not.toBeNull();
+  expect(previewDuringReversal.start).not.toBeNull();
+  expect(Date.parse(previewDuringReversal.start)).toBeLessThan(
+    Date.parse(rightStart),
+  );
   expect(await page.locator('#application-status').textContent()).not.toContain('Error');
 });
 test('left drag pre-renders a viewport buffer instead of re-anchoring each date', async ({ page }) => {
@@ -736,7 +745,7 @@ test('vertical drag moves a task into another workstream and the sidebar highlig
     const vpr = vp.getBoundingClientRect();
     const snap = globalThis.ganttDemo.getSnapshot();
     const header = snap.rows.find((row) => row.type === 'group-header' && row.group === 'service-migration');
-    return vpr.top + 72 + header.y + 20;
+    return vpr.top + header.y + 20;
   });
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.down();
@@ -794,15 +803,18 @@ test('creating a task lands it on the hovered grid column and the guide crosses 
   expect(minAfter).toBe(minBefore);
 });
 
-test('scrolling stays synchronized and the future range grows then compacts', async ({ page }) => {
+test('shared vertical scrolling keeps the task list and timeline aligned while the range grows then compacts', async ({ page }) => {
+  const scrollRegion = page.locator('.gantt-scroll-region');
   const taskList = page.locator('#task-list');
   const timeline = page.locator('#timeline-viewport');
 
-  await taskList.evaluate((element) => {
-    element.scrollTop = 20;
+  await scrollRegion.evaluate((element) => {
+    element.scrollTop = 160;
     element.dispatchEvent(new Event('scroll'));
   });
-  await expect.poll(() => timeline.evaluate((element) => element.scrollTop)).toBe(20);
+  await expect.poll(() => scrollRegion.evaluate((element) => element.scrollTop)).toBe(160);
+  expect(await taskList.evaluate((element) => element.scrollTop)).toBe(0);
+  expect(await timeline.evaluate((element) => element.scrollTop)).toBe(0);
 
   await timeline.evaluate((element) => {
     element.scrollLeft = element.scrollWidth - element.clientWidth - 65;
@@ -810,7 +822,7 @@ test('scrolling stays synchronized and the future range grows then compacts', as
   });
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().futureDays)).toBe(90);
 
-  await timeline.evaluate((element) => {
+  await scrollRegion.evaluate((element) => {
     element.scrollTop = 40;
     element.dispatchEvent(new Event('scroll'));
   });
@@ -892,6 +904,34 @@ test('empty entry point keeps the React shell without fixture rows or bars', asy
   await expect(page.locator('.task-group')).toHaveCount(0);
   await expect(page.locator('.gantt-task')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks[0].groupName)).toBe(null);
+});
+test('empty project keeps one-task vertical scrolling in the shared viewport', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  const scrollRegion = page.locator('.gantt-scroll-region');
+  const taskList = page.locator('#task-list');
+  const timeline = page.locator('#timeline-viewport');
+  const viewport = await timeline.boundingBox();
+  await page.mouse.click(viewport.x + 110, viewport.y + 100, { button: 'right' });
+  await page.locator('#context-task-name').fill('One task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+
+  const sizes = await page.evaluate(() => {
+    const region = document.querySelector('.gantt-scroll-region');
+    const grid = document.querySelector('#timeline-viewport');
+    return {
+      regionOverflow: region.scrollHeight - region.clientHeight,
+      gridOverflow: grid.scrollHeight - grid.clientHeight,
+    };
+  });
+  expect(sizes.regionOverflow).toBeLessThanOrEqual(0);
+  expect(sizes.gridOverflow).toBeLessThanOrEqual(0);
+
+  await page.mouse.move(viewport.x + viewport.width / 2, viewport.y + viewport.height / 2);
+  await page.mouse.wheel(0, 160);
+  expect(await scrollRegion.evaluate((element) => element.scrollTop)).toBe(0);
+  expect(await taskList.evaluate((element) => element.scrollTop)).toBe(0);
+  expect(await timeline.evaluate((element) => element.scrollTop)).toBe(0);
 });
 
 test('renames the project from the top navigation header', async ({ page }) => {

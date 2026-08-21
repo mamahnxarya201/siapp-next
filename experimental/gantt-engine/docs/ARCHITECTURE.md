@@ -312,17 +312,23 @@ slack, project finish, and critical IDs.
 
 Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
 rendered under the grid because Chromium's `::-webkit-scrollbar` styling cannot show
-only a horizontal native scrollbar. The viewport's native scrollbars are hidden
-(`scrollbar-width: none`). The thumb width and position mirror `timeline.scrollLeft`,
-`scrollWidth`, and `clientWidth`.
+only a horizontal native scrollbar. The `#timeline-viewport` remains the horizontal
+scroll owner; its native scrollbar is hidden (`scrollbar-width: none`). The thumb
+width and position mirror `timeline.scrollLeft`, `scrollWidth`, and `clientWidth`.
 
 Clicking empty track space centers the thumb under the pointer. Pressing on the thumb
-stores the pointer's grab offset and preserves it throughout the drag. Vertical
-scrolling remains available through the wheel and synchronized task list.
+stores the pointer's grab offset and preserves it throughout the drag. The calendar
+header is rendered in a sticky `.timeline-header-slot` and mirrors the timeline's
+horizontal scroll position.
 
-Task-list and timeline scroll containers synchronize `scrollTop` through guarded DOM
-writes. The right edge grows the future range by 180 days behind a latch. The left edge
-grows viewport-sized chunks at a low-water threshold during active schedule drags.
+The `.gantt-scroll-region` is the only vertical scroll container. It contains the
+task list and timeline columns, so both columns always use the same `scrollTop`.
+The task list, timeline viewport, and timeline header do not own vertical scrolling.
+The timeline renderer receives the shared viewport height and keeps row geometry in
+the shared scroll coordinate system.
+
+The right edge grows the future range by 180 days behind a latch. The left edge grows
+viewport-sized chunks at a low-water threshold during active schedule drags.
 Release-only compaction trims unused outer dates while preserving task-containing dates,
 internal gaps, and a minimum viewport-sized scope.
 

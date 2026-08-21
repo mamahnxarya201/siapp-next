@@ -45,6 +45,10 @@ The Markdown files in `docs/` are the source of truth. After editing them, run
 - progressive dependency disclosure and adaptive continuous connector routes;
 - move/start-resize/end-resize preview with one atomic commit;
 - direct-predecessor clamps and recursive forward-only propagation;
+- one-frame drag-coupled edge autoscroll with direction reversal and render-only edge clamping;
+- viewport-sized left range buffering, right future-range extension, and release-only
+  compaction with a viewport-sized minimum scope;
+- custom horizontal scrollbar track jumps and grab-offset-preserving thumb drags;
 - two-way vertical scroll sync and dynamic future-range extension/compaction;
 - PERT expected duration and CPM earliest/latest/slack/critical calculations;
 - editable task renaming from the activity panel;

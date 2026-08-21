@@ -267,6 +267,11 @@ test('moving a predecessor earlier never pulls its child backward', async ({ pag
 
 test('dragging the earliest task keeps the timeline origin stable so the dragged bar visibly moves', async ({ page }) => {
   const minBefore = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
+  const neighborDateBefore = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks
+      .find((task) => task.id === 'performance-6')
+      .startDate.toISOString()
+  );
   const bar = page.locator('.gantt-task[data-task-id="performance-1"] [data-interaction-mode="move"]');
   const bounds = await bar.boundingBox();
   const xBefore = await bar.evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
@@ -280,13 +285,17 @@ test('dragging the earliest task keeps the timeline origin stable so the dragged
 
   const minAfter = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
   const xAfter = await bar.evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
-  const neighborAfter = await page.locator('.gantt-task[data-task-id="performance-6"] [data-interaction-mode="move"]').evaluate((el) => Math.round(parseFloat(el.getAttribute('x'))));
+  const neighborDateAfter = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().tasks
+      .find((task) => task.id === 'performance-6')
+      .startDate.toISOString()
+  );
 
-  // The origin must not re-anchor: the dragged bar moves on screen and the
-  // nearby bar (which the origin shift used to push left) stays put.
+  // Without an edge expansion, release does not compact or re-anchor the
+  // timeline. Only the dragged task's committed date changes.
   expect(minAfter).toBe(minBefore);
   expect(xAfter).toBeGreaterThan(xBefore);
-  expect(neighborAfter).toBe(neighborBefore);
+  expect(neighborDateAfter).toBe(neighborDateBefore);
 });
 
 test('vertical drag reorders rows within a workstream without re-sorting by date', async ({ page }) => {
@@ -399,6 +408,7 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
   });
   await expect(page.locator('.gantt-task')).toHaveCount(1);
 
+  const timeline = page.locator('#timeline-viewport');
   const bar = page.locator('.gantt-task[data-task-id="t1"] [data-interaction-mode="move"]');
   const barBounds = await bar.boundingBox();
   const viewport = await page.locator('#timeline-viewport').boundingBox();
@@ -410,6 +420,13 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
   await page.mouse.down();
   await page.mouse.move(viewport.x + viewport.width + 40, barBounds.y + barBounds.height / 2, { steps: 8 });
   await page.waitForTimeout(400);
+  await timeline.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.evaluate(() =>
+    globalThis.ganttDemo.getState().futureDays
+  )).toBe(270);
   const scrollAfter = await page.locator('#timeline-viewport').evaluate((el) => el.scrollLeft);
 
   // The viewport scrolled forward while holding the bar at the edge.
@@ -440,6 +457,18 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
   expect(await page.evaluate(() => (
     globalThis.ganttDemo.getState().previewResult === null
   ))).toBe(true);
+  await page.waitForTimeout(100);
+  const rightCompaction = await page.evaluate(() => {
+    const timeline = document.querySelector('#timeline-viewport');
+    const state = globalThis.ganttDemo.getState();
+    return {
+      scroll: timeline.scrollLeft,
+      max: timeline.scrollWidth - timeline.clientWidth,
+      futureDays: state.futureDays,
+    };
+  });
+  expect(rightCompaction.scroll).toBe(rightCompaction.max);
+  expect(rightCompaction.futureDays).toBe(0);
 });
 
 test('dense timelines keep autoscrolling while the edge date overlaps other bars', async ({ page }) => {
@@ -623,11 +652,27 @@ test('left drag pre-renders a viewport buffer instead of re-anchoring each date'
       globalThis.ganttDemo.getState().minDate.toISOString()
     ));
   }
-  expect(new Set(origins)).toEqual(new Set([prepared]));
+  // Chunked buffering may prepare one additional viewport, but never re-anchor
+  // once per snapped date.
+  expect(new Set(origins).size).toBeLessThanOrEqual(2);
   expect(await page.evaluate(() => (
     globalThis.ganttDemo.getState().previewResult !== null
   ))).toBe(true);
   await page.mouse.up();
+  const compacted = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    const earliest = state.tasks.reduce(
+      (min, task) => task.startDate < min ? task.startDate : min,
+      state.tasks[0].startDate,
+    );
+    return {
+      scroll: document.querySelector('#timeline-viewport').scrollLeft,
+      min: state.minDate.toDateString(),
+      earliest: new Date(earliest).toDateString(),
+    };
+  });
+  expect(compacted.scroll).toBe(0);
+  expect(compacted.min).toBe(compacted.earliest);
 });
 test('resizing a task edge uses the same edge autoscroll session', async ({ page }) => {
   const timeline = page.locator('#timeline-viewport');

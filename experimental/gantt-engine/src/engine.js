@@ -102,6 +102,7 @@ export function createGanttEngine(options) {
     minDate: initialOrigin,
     previewResult: null,
     previewDrag: null,
+    leftBufferExpanded: false,
     workstreams: options.workstreams ?? [],
     expandedWorkstreams: new Set(
       (options.workstreams ?? []).map((item) => item.id),
@@ -187,13 +188,54 @@ export function createGanttEngine(options) {
     );
     if (addedUnits <= 0) return 0;
     state.minDate = nextMinDate;
+    state.leftBufferExpanded = true;
     const addedPixels = addedUnits * dayWidth;
     const targetScrollLeft = timeline.scrollLeft + addedPixels;
     invalidate("left drag buffer prepared");
     queueMicrotask(() => {
-      if (!disposed) timeline.scrollLeft = targetScrollLeft;
+      if (!disposed) {
+        timeline.scrollLeft = targetScrollLeft;
+        invalidate("left drag buffer applied");
+      }
     });
     return addedPixels;
+  }
+  function compactTimelineToTasks(edgeDirection = 0) {
+    if (state.tasks.length === 0) return false;
+    if (!state.leftBufferExpanded && state.futureDays <= 90) return false;
+    const { dayWidth } = getTimelineScale(state.scale);
+    const earliestTaskDate = state.tasks.reduce(
+      (min, task) =>
+        task.startDate.getTime() < min.getTime() ? task.startDate : min,
+      state.tasks[0].startDate,
+    );
+    const latestTaskDate = state.tasks.reduce(
+      (max, task) =>
+        task.endDate.getTime() > max.getTime() ? task.endDate : max,
+      state.tasks[0].endDate,
+    );
+    const occupiedUnits = visibleUnitsBetween(
+      startOfCalendarDay(earliestTaskDate),
+      startOfCalendarDay(latestTaskDate),
+      state.visibleWeekdays,
+    );
+    const minimumUnits = Math.max(
+      1,
+      Math.ceil(timeline.clientWidth / dayWidth),
+    );
+    const emptyUnits = Math.max(0, minimumUnits - occupiedUnits);
+    state.minDate = startOfCalendarDay(earliestTaskDate);
+    if (edgeDirection > 0 && emptyUnits > 0) {
+      state.minDate = shiftByVisibleUnits(
+        state.minDate,
+        -emptyUnits,
+        state.visibleWeekdays,
+      );
+    }
+    state.futureDays =
+      edgeDirection < 0 && emptyUnits > 0 ? Math.ceil(emptyUnits) : 0;
+    state.leftBufferExpanded = false;
+    return true;
   }
   const shownOrder = () => state.previewResult?.rowOrder ?? state.rowOrder;
   function buildSnapshot() {
@@ -1062,7 +1104,7 @@ export function createGanttEngine(options) {
       invalidate(result ? "schedule preview" : "schedule preview cancelled");
     },
     onLeftEdge: () => prependLeftDragBuffer(),
-    onCommit: (result) => {
+    onCommit: (result, release = {}) => {
       if (result.kind !== "reorder-group") state.tasks = result.tasks;
       if (result.kind === "reorder") {
         state.rowOrder = result.order;
@@ -1076,10 +1118,21 @@ export function createGanttEngine(options) {
         state.rowOrder = result.rowOrder;
         state.rowOrderDirty = true;
       }
+      const compacted =
+        result.kind !== "reorder-group" &&
+        compactTimelineToTasks(release.edgeDirection);
       state.previewResult = null;
       state.previewDrag = null;
       state.criticalTaskIds = criticalIds(state.tasks);
       invalidate("schedule committed");
+      if (compacted) {
+        queueMicrotask(() => {
+          const max = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+          if (release.edgeDirection < 0) timeline.scrollLeft = 0;
+          else if (release.edgeDirection > 0) timeline.scrollLeft = max;
+          else timeline.scrollLeft = Math.min(timeline.scrollLeft, max);
+        });
+      }
       void persist(result);
     },
     onNotice: setStatus,

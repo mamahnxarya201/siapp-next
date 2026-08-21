@@ -16,10 +16,10 @@ is a failure.
 
 ## Current verified baseline
 
-On 2026-08-15 the combined command completed cleanly with:
+On 2026-08-21 the separate unit and browser commands completed cleanly with:
 
-- 45 Node tests passed;
-- 8 Chrome/Playwright scenarios passed;
+- 57 Node tests passed;
+- 30 Chrome/Playwright scenarios passed;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 
@@ -84,9 +84,13 @@ It verifies:
 5. real pointer drag commit with recursive dependent propagation and unrelated-task
    preservation;
 6. predecessor-left movement leaving a child unchanged;
-7. two-way vertical scroll synchronization, right-edge range growth, idle compaction,
+7. uninterrupted right-edge, left-edge, reversal, and resize-edge autoscroll;
+8. viewport-sized left buffering without per-date origin re-anchoring;
+9. release-only compaction of unused outer dates with a viewport-sized minimum scope;
+10. custom scrollbar track jumps and grab-offset-preserving thumb drags;
+11. two-way vertical scroll synchronization, right-edge range growth, idle compaction,
    and milestone rendering;
-8. scheduled `schedule.reload` through the injected gateway.
+12. scheduled `schedule.reload` through the injected gateway.
 
 ## Process lifecycle
 

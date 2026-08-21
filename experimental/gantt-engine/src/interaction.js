@@ -206,6 +206,7 @@ export class GanttInteractionController {
       scale: state.scale,
       snapIncrement: state.snapIncrement,
       visibleWeekdays: state.visibleWeekdays,
+      lastEdgeDirection: 0,
     };
     this.root.setPointerCapture?.(event.pointerId);
   }
@@ -254,6 +255,7 @@ export class GanttInteractionController {
     }
     if (direction !== this.autoScrollDirection)
       this.autoScrollHeldMs = 0;
+    if (direction !== 0) drag.lastEdgeDirection = direction;
     this.autoScrollDirection = direction;
     this.autoScrollPenetration = penetration;
   }
@@ -423,6 +425,7 @@ export class GanttInteractionController {
     const drag = this.active;
     drag.pendingClientX = event.clientX;
     drag.pendingClientY = event.clientY;
+    const release = { edgeDirection: drag.lastEdgeDirection ?? 0 };
     this.stopAutoScroll();
     this.frame?.cancel();
     this.frame = null;
@@ -435,7 +438,7 @@ export class GanttInteractionController {
     }
     const result = this.preview();
     this.active = null;
-    if (result) this.onCommit(result);
+    if (result) this.onCommit(result, release);
   }
   over(event) {
     if (this.active) return;

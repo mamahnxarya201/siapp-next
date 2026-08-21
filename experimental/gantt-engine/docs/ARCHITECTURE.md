@@ -178,7 +178,8 @@ execute commands, call the bridge, or apply scheduling rules.
 
 - microtasks coalesce view invalidation;
 - animation frames throttle pointer previews;
-- delayed work compacts an extended timeline after 260ms idle at the left edge;
+- delayed work compacts an extended timeline after a 260ms idle period near the left edge for ordinary horizontal scrolling;
+- task-release compaction removes unused outer date ranges after an expanded schedule drag;
 - async jobs pass an `AbortSignal` to bridge operations.
 
 Every returned job has cancellation and completion state. `MiniApplication.stop()` and
@@ -237,13 +238,18 @@ targets); dropping below all groups makes the task ungrouped. `reorderWorkstream
 moves a whole workstream block (header and its tasks) to reorder groups relative to
 each other.
 
-The engine keeps the timeline origin (`state.minDate`) stable for the session. It is
-seeded to the earliest task minus a 7-day past buffer and only ever extends leftward
-(when a task is genuinely moved or created before the current left edge). Dragging or
-creating a task never re-anchors the grid rightward, so the bar under the pointer
-moves on screen and a newly created bar lands exactly on the hovered grid column.
-`replaceTasks` (used by `reloadSchedule`/`setTasks`) reseeds the origin from the
-replacement data.
+The engine keeps the timeline origin (`state.minDate`) stable during a drag preview.
+It is seeded to the earliest task minus a 7-day past buffer. When a schedule-affecting
+drag reaches the left low-water threshold, the controller prepends one viewport-sized
+date chunk and preserves the visible pointer/date coordinate. It does not re-anchor the
+origin once per snapped preview date.
+
+On pointer release after range expansion, the engine trims only unused outer dates.
+The retained scope spans the earliest task start and latest task end, but never becomes
+narrower than the visible viewport. Left-edge releases align the scroll position to
+zero; right-edge releases align it to the maximum scroll position. Internal empty gaps
+and task-containing dates remain unchanged. `replaceTasks` (used by `reloadSchedule` and
+`setTasks`) reseeds the origin from replacement data.
 
 The renderer owns the wireframe cell grid. `settings.grid` is normalized by
 `src/grid.js` and controls vertical/horizontal line visibility, major-line visibility,
@@ -281,44 +287,44 @@ slack, project finish, and critical IDs.
 4. Pointer moves save the latest X and the pointer row-Y.
 5. Horizontal autoscroll: while a schedule-affecting task gesture (`move`,
    `resize-start`, or `resize-end`) is active, entering the 40px band inside
-   either viewport edge starts one drag-owned animation loop. The trigger stays
-   inside the edge because the viewport may be flush with the browser window.
-   The target velocity combines elapsed dwell time and pointer penetration and
-   is expressed in screen pixels per second across scales. Elapsed frame time
-   integrates displacement, so frame cadence does not change the feel.
-   Reversal and neutral return decelerate through zero. Overlapping task bars
-   do not suppress the active edge command. The velocity is clamped at the
-   scroll bounds without hidden accumulation. The dragged date is anchored in
-   timeline space by adding scroll movement to the pointer delta, so the bar
-   remains constrained at the edge while the content scrolls underneath.
-6. The same animation-frame job computes the snapped date move, forward
-   propagation, and any free-move row reorder, then stores the result as a
-   preview and invalidates views. Group headers, dependency gestures, and
-   scrollbar-thumb dragging do not auto-pan.
-7. Pointer capture is held by the stable timeline viewport, not the task SVG
-   node that is replaced during preview rendering. Pointer-up commits the
-   final result; pointer-cancel, lost capture, Escape, blur, stop, and dispose
-   cancel the preview and stop the loop immediately.
-8. The reorder preview renders a horizontal insertion line at the target row and
-   highlights the destination workstream header in the task list. Reorder targets
-   use the committed rows captured at pointer-down, so the live preview never
-   feeds back into its own target selection.
-9. Pointer-up calculates the final result once, commits it atomically,
-   recalculates criticality, and invokes the host callback/bridge. Reorder
-   commits update `state.rowOrder` and any reassigned task workstream.
+   either viewport edge starts one drag-owned animation loop. The target velocity
+   combines elapsed dwell time and pointer penetration and is expressed in screen
+   pixels per second across scales. Elapsed frame time integrates displacement.
+   Reversal and neutral return decelerate through zero.
+6. The same animation frame applies the scroll delta, reads the current
+   `scrollLeft`, computes the snapped task preview, applies forward propagation,
+   and invalidates views. This prevents pointer and viewport previews from using
+   different coordinate snapshots.
+7. When a left-edge drag reaches the low-water threshold, the engine prepends one
+   viewport-sized date chunk. Scroll compensation preserves the visible date and
+   pointer position. A latch prevents repeated per-frame expansion.
+8. Pointer capture is held by the stable timeline viewport, not the task SVG node
+   replaced during preview rendering. Pointer-cancel, lost capture, Escape, blur,
+   stop, and dispose cancel the preview and stop the loop immediately.
+9. The reorder preview renders a horizontal insertion line at the target row and
+   highlights the destination workstream header. Group headers, dependency gestures,
+   and scrollbar-thumb dragging do not auto-pan.
+10. Pointer-up calculates the final result once and commits it atomically. If the
+    drag expanded the range, release-only compaction trims unused outer dates,
+    retains a viewport-sized minimum, and aligns the final scroll position with the
+    release edge. Reorder commits update `state.rowOrder` and any reassigned
+    workstream.
 
 Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
-rendered under the grid, because Chromium's `::-webkit-scrollbar` styling cannot show
+rendered under the grid because Chromium's `::-webkit-scrollbar` styling cannot show
 only a horizontal native scrollbar. The viewport's native scrollbars are hidden
-(`scrollbar-width: none`), the thumb width/position mirror `timeline.scrollLeft` /
-`scrollWidth` / `clientWidth`, and dragging the thumb writes `scrollLeft`. Vertical
-scrolling is untouched: it still works via the wheel and the synchronized task list,
-with no vertical scrollbar shown.
+(`scrollbar-width: none`). The thumb width and position mirror `timeline.scrollLeft`,
+`scrollWidth`, and `clientWidth`.
+
+Clicking empty track space centers the thumb under the pointer. Pressing on the thumb
+stores the pointer's grab offset and preserves it throughout the drag. Vertical
+scrolling remains available through the wheel and synchronized task list.
 
 Task-list and timeline scroll containers synchronize `scrollTop` through guarded DOM
-writes. Horizontal timeline scrolling remains native. Near the right edge, the range
-grows by 180 days behind a latch. Returning near the left edge schedules compaction to
-the default 90-day future buffer.
+writes. The right edge grows the future range by 180 days behind a latch. The left edge
+grows viewport-sized chunks at a low-water threshold during active schedule drags.
+Release-only compaction trims unused outer dates while preserving task-containing dates,
+internal gaps, and a minimum viewport-sized scope.
 
 ## Bridge separation
 

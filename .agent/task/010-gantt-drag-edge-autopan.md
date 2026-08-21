@@ -73,6 +73,9 @@ THIS SECTION ACTS AS THE LIAISON BETWEEN THE AGENT AND THE HUMAN.
 - 2026-08-21 implementation retains the unified drag-owned frame, current `scrollLeft` projection, render-only active-bar clamp, direction reversal, and atomic release commit.
 - 2026-08-21 follow-up fixed the first-buffer compensation regression that could place the dragged bar at the opposite edge. The temporary prepended-scroll compensation is cleared after the buffered scroll is applied, and the active bar remains aligned with the left viewport boundary.
 - 2026-08-21 scrollbar refinement reproduced and fixed: dragging the custom horizontal thumb now preserves the pointer's grab offset, while clicking empty track space retains centered track-jump behavior.
+- 2026-08-21 implemented release-only left compaction: after repeated left expansion, empty prefix dates are removed, `minDate` becomes the earliest retained task date, and `scrollLeft` resets to zero. Internal gaps and task-containing dates remain untouched.
+- 2026-08-21 release compaction now trims both unused outer ranges after left or right expansion. The retained viewport spans the earliest and latest task dates; left-edge releases align `scrollLeft` to zero, and right-edge releases align it to the maximum scroll position. Internal gaps remain.
+- 2026-08-21 corrected release compaction to enforce a viewport-sized minimum scope. When the occupied task span is narrower than the screen, empty dates are retained on the side opposite the release edge so the bar remains aligned without collapsing the timeline.
  
 ### STATUS:
 IMPLEMENTED - AUTOMATED VALIDATION PASSED; MANUAL VERIFICATION PENDING
@@ -84,6 +87,9 @@ IMPLEMENTED - AUTOMATED VALIDATION PASSED; MANUAL VERIFICATION PENDING
 - Manual verification remains required for subjective throttle feel, left-edge smoothness against the supplied recordings, reversal, and tooltip/header synchronization.
 - 2026-08-21 added a regression assertion that the first left-edge preview uses the current content boundary instead of spawning the bar from the opposite side.
 - 2026-08-21 scrollbar regression coverage verifies thumb offset preservation during drag; the full 30-scenario browser suite remains passing.
+- 2026-08-21 added release-compaction coverage for earliest-task alignment, preserved neighboring task dates, repeated left expansion, reversal, and scrollbar behavior.
+- 2026-08-21 regression coverage distinguishes ordinary drags from expanded drags, verifies left and right release alignment, and preserves neighboring task dates.
+- 2026-08-21 added minimum-scope coverage for one-task left and right releases; the full 30-scenario browser suite remains passing.
 
 AGENT MAY:
 - USE A SUBAGENT when doing so is permitted and useful.

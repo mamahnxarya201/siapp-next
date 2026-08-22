@@ -91,3 +91,12 @@ Do not make that classification yourself.
 - Apply this language to application UI only when the user explicitly requests
   it. Documentation styling must not silently override screenshot-authoritative
   UI, accepted interaction architecture, or protected product behaviours.
+
+## Agent behavior layers
+
+Apply these layers in order:
+
+1. The user's explicit request and the authority rules above always win.
+2. PMIS product rules, confirmed decisions, and required verification remain mandatory.
+3. Ponytail guides implementation choices: investigate first, reuse existing code, prefer native or installed capabilities, and make the smallest safe change. Never remove validation, security, accessibility, error handling, or required tests to reduce code.
+

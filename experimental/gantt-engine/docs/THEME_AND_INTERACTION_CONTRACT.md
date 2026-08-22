@@ -25,9 +25,13 @@ keys:
 - `minorLineColor`, `majorLineColor`, and `rowLineColor`
 - `groupFill` and `taskFill`
 
-The current demo uses the wireframe defaults. A later preference panel can update
-these settings without changing task geometry, dependency routing, or scheduling
-rules.
+The current demo uses the wireframe defaults. The `Timeline Settings` button in
+`demo/index.html` and `demo/empty.html` opens a modal dialog that updates these
+settings live: three switches (vertical lines, horizontal lines, major lines) and
+five color fields (minor/major/row line colors, group/task fills). Saving applies
+the settings through `normalizeGridSettings` without changing task geometry,
+dependency routing, or scheduling rules; the same seam accepts a future
+persistence backend.
 
 ## Task authoring
 

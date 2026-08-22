@@ -342,6 +342,38 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   experiment with a sidebar textbox, which was reverted at the user's request.
 - Documentation updated in `experimental/gantt-engine/docs/ARCHITECTURE.md`.
 
+## Experimental engine: empty-demo timeline grid settings dialog (2026-08-22)
+
+- Removed the arrow-like `People in Project` toggle button
+  (`/html/body/main/section/div[1]/button`, `.project-panel-toolbar__people` sibling)
+  from `experimental/gantt-engine/demo/empty.html` per user instruction.
+- The `Timeline Settings` button in both `demo/index.html` and `demo/empty.html`
+  (the two demos differ only by fixture data and entry script) now opens a modal
+  `#grid-settings-dialog`: three switches (vertical lines, horizontal lines, major
+  lines) and five color fields (minor/major/row line colors, group/task fills)
+  mapped to `src/grid.js` keys. Save commits via `normalizeGridSettings` and
+  invalidates the timeline; Cancel/Escape/backdrop close without applying.
+- The dialog follows `STD-HCI.md`: focus lands on the panel, Tab loops through all
+  fields then Save → Cancel and back, Accept sits left of Decline (non-destructive),
+  and Escape closes it. `data-action="grid-settings.open|save|cancel"` commands are
+  registered in `src/engine.js` alongside the logo-dialog commands.
+- Playwright config now falls back to the bundled chromium when no system Chrome
+  is installed (the previous hard `channel: 'chrome'` pin failed on machines
+  without Google Chrome); system Chrome is still preferred when present.
+- Added three e2e scenarios in `tests/e2e/gantt.spec.mjs` covering apply/cancel/Escape,
+  the Tab loop, and the main demo path; suite is now 36 Chrome scenarios plus 57
+  Node tests, all green.
+- Fixed: in the empty demo (`demo/empty.html`, zero tasks/rows) the horizontal-line
+  toggle had no visible effect because the renderer drew row lines only at row
+  boundaries. `src/renderer.js` now falls back to the standard task-row pitch
+  (36px) across the canvas when there are no rows, so `Show horizontal lines`
+  visibly toggles the empty grid. Vertical/major lines were already date-based and
+  worked; the popup checkboxes now match `state.grid` (the checkbox invisibility
+  from the previous CSS conflict is fixed).
+- Test infrastructure: `tests/run-e2e.mjs` raised the Playwright process cap from
+  120s to 300s after the growing suite (now ~3min on this machine) tripped the old
+  cap intermittently.
+
 ## Confirmed Decisions Awaiting Implementation
 
 - None recorded.

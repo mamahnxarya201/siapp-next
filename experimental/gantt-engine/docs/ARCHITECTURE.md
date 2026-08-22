@@ -255,7 +255,9 @@ The renderer owns the wireframe cell grid. `settings.grid` is normalized by
 `src/grid.js` and controls vertical/horizontal line visibility, major-line visibility,
 minor/major/row colors, and group/task fills. This keeps later user grid preferences
 at a stable settings seam instead of scattering display decisions across SVG paint
-code.
+code. Horizontal row lines are drawn at row boundaries; an empty project (no rows)
+falls back to the standard task-row pitch so the horizontal-grid toggle stays
+visible on a bare canvas.
 
 `dependencies.js` selects edges by precedence: all, selected chain, hovered direct,
 critical path, then none. Hidden/collapsed endpoints are excluded. It returns one

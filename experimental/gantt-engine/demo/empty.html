@@ -19,16 +19,12 @@
         </label>
         <div class="project-top-nav__actions">
            <button type="button" class="toolbar-button project-top-nav__theme" data-action="theme.toggle" aria-label="Switch to dark mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.7 6.7 0 0 0 21 12.8Z" /></svg></button>
-          <button type="button" class="toolbar-button project-top-nav__planning" aria-label="Planning Intelligence"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M7 15l3-3 3 2 5-6" /></svg><span>Planning Intelligence</span></button>
-          <button type="button" class="toolbar-button project-top-nav__notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" /></svg><span class="notification-count">3</span></button>
-           <button type="button" class="toolbar-button project-top-nav__settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg></button>
           <button type="button" class="project-top-nav__avatar" aria-label="Account">AC</button>
         </div>
       </header>
       <section class="gantt-workspace">
         <div class="project-panel-toolbar">
           <span class="project-panel-toolbar__people" aria-label="People in project"></span>
-          <button type="button" class="toolbar-button" aria-label="People in Project">›</button>
         </div>
         <header class="gantt-toolbar" aria-label="Timeline controls">
           <div class="gantt-toolbar__left">
@@ -48,7 +44,7 @@
             <button type="button" class="toolbar-button" data-action="timeline.scroll-right" aria-label="Scroll timeline right">→</button>
             <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-all" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0-3-3M6 15a3 3 0 1 0 3 3M15 6H9a3 3 0 0 0-3 3" /></svg><span>All Deps</span></label>
             <label class="switch-control"><input type="checkbox" data-action="dependencies.toggle-critical" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 18H3L12 3Z" /><path d="M12 9v4M12 17h.01" /></svg><span>Critical Path</span></label>
-            <button type="button" class="toolbar-button toolbar-button--text" aria-label="Project timeline settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg><span>Timeline Settings</span></button>
+            <button type="button" class="toolbar-button toolbar-button--text" data-action="grid-settings.open" aria-label="Project timeline settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /><path d="M8 4v4M15 10v4M11 16v4" /></svg><span>Timeline Settings</span></button>
           </div>
         </header>
         <div class="gantt-scroll-region">
@@ -128,6 +124,41 @@
           <div class="project-logo-dialog__actions">
             <pmis-button size="sm" class="project-logo-dialog__save" data-action="project.logo.save">Save logo</pmis-button>
             <pmis-button size="sm" variant="outline" class="project-logo-dialog__cancel" data-action="project.logo.cancel">Cancel</pmis-button>
+          </div>
+        </div>
+      </div>
+      <div class="grid-settings-dialog" id="grid-settings-dialog" hidden>
+        <div class="grid-settings-dialog__panel" id="grid-settings-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="grid-settings-dialog-title" tabindex="-1">
+          <h2 class="grid-settings-dialog__title" id="grid-settings-dialog-title">Timeline Grid Settings</h2>
+          <p class="grid-settings-dialog__description">Configure the grid lines and colors for the timeline.</p>
+          <div class="grid-settings-dialog__form">
+            <label class="switch-control"><input type="checkbox" data-setting="showVerticalLines" checked /><span>Show vertical lines</span></label>
+            <label class="switch-control"><input type="checkbox" data-setting="showHorizontalLines" checked /><span>Show horizontal lines</span></label>
+            <label class="switch-control"><input type="checkbox" data-setting="showMajorLines" checked /><span>Show major lines</span></label>
+            <div class="grid-settings-dialog__color-field">
+              <label>Minor line color</label>
+              <input type="color" data-setting="minorLineColor" value="#dededc" />
+            </div>
+            <div class="grid-settings-dialog__color-field">
+              <label>Major line color</label>
+              <input type="color" data-setting="majorLineColor" value="#c9c9c7" />
+            </div>
+            <div class="grid-settings-dialog__color-field">
+              <label>Row line color</label>
+              <input type="color" data-setting="rowLineColor" value="#d8d8d6" />
+            </div>
+            <div class="grid-settings-dialog__color-field">
+              <label>Group row fill</label>
+              <input type="color" data-setting="groupFill" value="#fff8ef" />
+            </div>
+            <div class="grid-settings-dialog__color-field">
+              <label>Task row fill</label>
+              <input type="color" data-setting="taskFill" value="#ffffff" />
+            </div>
+          </div>
+          <div class="grid-settings-dialog__actions">
+            <pmis-button size="sm" class="grid-settings-dialog__save" data-action="grid-settings.save">Save settings</pmis-button>
+            <pmis-button size="sm" variant="outline" class="grid-settings-dialog__cancel" data-action="grid-settings.cancel">Cancel</pmis-button>
           </div>
         </div>
       </div>

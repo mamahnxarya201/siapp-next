@@ -44,10 +44,10 @@ try {
     stdio: 'inherit',
     windowsHide: true,
   });
-  exitCode = await waitForExit(runner, 120_000);
+  exitCode = await waitForExit(runner, 300_000);
   if (exitCode === null) {
     runner.kill('SIGTERM');
-    throw new Error('Playwright did not exit within 120 seconds.');
+    throw new Error('Playwright did not exit within 300 seconds.');
   }
 } finally {
   server.kill('SIGTERM');

@@ -16,10 +16,12 @@ is a failure.
 
 ## Current verified baseline
 
-On 2026-08-21 the separate unit and browser commands completed cleanly with:
+On 2026-08-22 the separate unit and browser commands completed cleanly with:
 
 - 57 Node tests passed;
-- 33 Chrome/Playwright scenarios passed;
+- 35 Chrome/Playwright scenarios passed (33 prior scenarios plus two for the
+  grid-settings dialog on `demo/empty.html`); a further scenario verifies the
+  same dialog on the main `demo/index.html` demo;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 

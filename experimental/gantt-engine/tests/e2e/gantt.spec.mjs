@@ -1088,3 +1088,73 @@ test('logo dialog tab order loops from choose image through save to cancel', asy
   await page.keyboard.press('Escape');
   await expect(page.locator('#project-logo-dialog')).toBeHidden();
 });
+
+test('empty demo: timeline settings dialog applies grid settings and restores them on cancel', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await expect(page.locator('#grid-settings-dialog')).toBeVisible();
+  await expect(page.locator('#grid-settings-dialog-panel')).toBeFocused();
+
+  // Toggle vertical lines off and change a color.
+  const vertical = page.locator('#grid-settings-dialog-panel input[data-setting="showVerticalLines"]');
+  await expect(vertical).toBeChecked();
+  await vertical.uncheck();
+  await page.locator('#grid-settings-dialog-panel input[data-setting="minorLineColor"]').fill('#123456');
+
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(page.locator('#grid-settings-dialog')).toBeHidden();
+  await expect(page.locator('#application-status')).toHaveText('Grid settings updated');
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().grid))
+    .toMatchObject({ showVerticalLines: false, minorLineColor: '#123456' });
+
+  // Vertical lines disappear from the SVG; horizontal lines stay (empty project
+  // draws the row-pitch fallback grid).
+  await expect.poll(() => page.locator('.timeline-grid-line').count()).toBe(0);
+  expect(await page.locator('.timeline-row-line').count()).toBeGreaterThan(1);
+
+  // Cancel restores the previously saved settings.
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await page.locator('#grid-settings-dialog-panel input[data-setting="showVerticalLines"]').check();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('#grid-settings-dialog')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().grid))
+    .toMatchObject({ showVerticalLines: false });
+
+  // Escape closes the dialog without applying changes.
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#grid-settings-dialog')).toBeHidden();
+});
+
+test('empty demo: timeline settings dialog tab order loops through fields to save and cancel', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await expect(page.locator('#grid-settings-dialog-panel')).toBeFocused();
+  const settings = page.locator('#grid-settings-dialog-panel [data-setting]');
+  const count = await settings.count();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#grid-settings-dialog-panel [data-setting]').first()).toBeFocused();
+  for (let index = 1; index < count; index += 1) {
+    await page.keyboard.press('Tab');
+    await expect(page.locator('#grid-settings-dialog-panel [data-setting]').nth(index)).toBeFocused();
+  }
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Save settings' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#grid-settings-dialog-panel [data-setting]').first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#grid-settings-dialog')).toBeHidden();
+});
+
+test('main demo: timeline settings dialog applies grid settings', async ({ page }) => {
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await expect(page.locator('#grid-settings-dialog')).toBeVisible();
+  await expect(page.locator('#grid-settings-dialog-panel')).toBeFocused();
+  await page.locator('#grid-settings-dialog-panel input[data-setting="showHorizontalLines"]').uncheck();
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(page.locator('#grid-settings-dialog')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().grid))
+    .toMatchObject({ showHorizontalLines: false });
+});

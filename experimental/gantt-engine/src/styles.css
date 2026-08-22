@@ -100,10 +100,7 @@ button, input { font: inherit; }
 .project-top-nav__search { justify-self: center; width: min(450px, 42vw); }
 .project-top-nav__search input { width: 100%; height: 32px; padding: 0 12px; border: 0; border-radius: 6px; color: var(--foreground); background: var(--secondary); outline: none; }
 .project-top-nav__search input:focus { outline: 2px solid color-mix(in oklch, var(--primary) 45%, transparent); }
-.project-top-nav__planning { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); font-size: 12px; }
-.project-top-nav__planning svg, .project-top-nav__theme svg, .project-top-nav__notifications svg, .project-top-nav__settings svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.project-top-nav__notifications { position: relative; width: 30px; min-width: 30px; padding: 0; font-size: 16px; }
-.notification-count { position: absolute; top: -2px; right: -2px; display: inline-flex; width: 15px; height: 15px; align-items: center; justify-content: center; border-radius: 999px; color: var(--primary-foreground); background: var(--primary); font-size: 9px; }
+.project-top-nav__theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .project-top-nav__avatar { width: 28px; height: 28px; border: 0; border-radius: 999px; color: var(--primary-foreground); background: var(--primary); font-size: 10px; }
 
 .gantt-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: var(--project-toolbar-height); padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--card); }
@@ -384,3 +381,18 @@ button, input { font: inherit; }
 .project-logo-dialog__hint { margin: 0 0 14px; color: var(--muted-foreground); font-size: 12px; }
 .project-logo-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .project-logo-dialog__save:focus-visible, .project-logo-dialog__cancel:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.grid-settings-dialog { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 20, 24, 0.38); }
+.grid-settings-dialog[hidden] { display: none; }
+.grid-settings-dialog__panel { width: min(28rem, 100%); padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24); outline: none; }
+.grid-settings-dialog__title { margin: 0 0 4px; color: var(--foreground); font-size: 16px; font-weight: 600; }
+.grid-settings-dialog__description { margin: 0 0 14px; color: var(--muted-foreground); font-size: 13px; }
+.grid-settings-dialog__form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.grid-settings-dialog__form .switch-control { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.grid-settings-dialog__form .switch-control input[type="checkbox"] { position: static; width: 16px; height: 16px; opacity: 1; pointer-events: auto; cursor: pointer; }
+.grid-settings-dialog__form .switch-control span { font-size: 13px; color: var(--foreground); }
+.grid-settings-dialog__color-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grid-settings-dialog__color-field label { font-size: 13px; color: var(--foreground); }
+.grid-settings-dialog__color-field input[type="color"] { width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: none; }
+.grid-settings-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.grid-settings-dialog__save:focus-visible, .grid-settings-dialog__cancel:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }

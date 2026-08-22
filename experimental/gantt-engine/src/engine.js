@@ -142,6 +142,7 @@ export function createGanttEngine(options) {
     logo: options.logo ?? null,
     logoDraft: null,
     logoOpen: false,
+    gridSettingsOpen: false,
     status: "Ready",
     markerScope: `gantt-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
     criticalTaskIds: new Set(),
@@ -177,6 +178,8 @@ export function createGanttEngine(options) {
   const logoCropSurface = root.querySelector("#project-logo-crop");
   const logoCropImage = root.querySelector("#project-logo-preview");
   const logoCropEmpty = root.querySelector("#project-logo-empty");
+  const gridSettingsDialog = root.querySelector("#grid-settings-dialog");
+  const gridSettingsDialogPanel = root.querySelector("#grid-settings-dialog-panel");
   let contextMenuState = null,
     snapshot = null,
     rightLatched = false,
@@ -398,6 +401,63 @@ export function createGanttEngine(options) {
     closeLogoDialog();
     queueMicrotask(() => root.querySelector(".project-top-nav__logo")?.focus());
   }
+  function openGridSettingsDialog() {
+    if (!gridSettingsDialog || !gridSettingsDialogPanel) return;
+    const settings = state.grid;
+    gridSettingsDialogPanel.querySelectorAll("[data-setting]").forEach((el) => {
+      const key = el.dataset.setting;
+      if (el.type === "checkbox") el.checked = !!settings[key];
+      else if (el.type === "color") el.value = settings[key] ?? "";
+    });
+    gridSettingsDialog.hidden = false;
+    state.gridSettingsOpen = true;
+    gridSettingsDialogPanel.focus();
+  }
+  function closeGridSettingsDialog() {
+    if (!gridSettingsDialog) return;
+    gridSettingsDialog.hidden = true;
+    state.gridSettingsOpen = false;
+  }
+  function saveGridSettings() {
+    const settings = {};
+    gridSettingsDialogPanel.querySelectorAll("[data-setting]").forEach((el) => {
+      const key = el.dataset.setting;
+      if (el.type === "checkbox") settings[key] = el.checked;
+      else if (el.type === "color") settings[key] = el.value;
+    });
+    state.grid = normalizeGridSettings(settings);
+    closeGridSettingsDialog();
+    invalidate("grid settings updated");
+    setStatus("Grid settings updated");
+  }
+  function cancelGridSettings() {
+    closeGridSettingsDialog();
+  }
+  const gridSettingsDialogKeydown = (event) => {
+    if (event.key !== "Tab" || !gridSettingsDialogPanel) return;
+    const items = Array.from(
+      gridSettingsDialogPanel.querySelectorAll(
+        "button, input, select, textarea, [tabindex], pmis-button, pmis-textfield",
+      ),
+    ).filter(
+      (element) =>
+        !element.disabled &&
+        !element.hasAttribute("disabled") &&
+        !element.hidden &&
+        element.getAttribute("tabindex") !== "-1",
+    );
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
   function beginProjectNameEdit() {
     if (state.logoOpen) return;
     state.projectNameEditing = true;
@@ -1108,6 +1168,9 @@ export function createGanttEngine(options) {
     };
     reader.readAsDataURL(file);
   });
+  application.registerCommand("grid-settings.open", openGridSettingsDialog);
+  application.registerCommand("grid-settings.save", saveGridSettings);
+  application.registerCommand("grid-settings.cancel", cancelGridSettings);
   application.registerCommand("project.name.edit", beginProjectNameEdit);
   application.registerCommand("project.name.commit", ({ source }) =>
     commitProjectName(source.value),
@@ -1335,6 +1398,11 @@ export function createGanttEngine(options) {
         cancelLogo();
         return;
       }
+      if (state.gridSettingsOpen) {
+        event.preventDefault();
+        cancelGridSettings();
+        return;
+      }
       if (state.projectNameEditing) {
         event.preventDefault();
         cancelProjectName();
@@ -1405,6 +1473,9 @@ export function createGanttEngine(options) {
   const logoBackdropClick = (event) => {
     if (event.target === logoDialog) cancelLogo();
   };
+  const gridSettingsBackdropClick = (event) => {
+    if (event.target === gridSettingsDialog) cancelGridSettings();
+  };
   const logoDialogKeydown = (event) => {
     if (event.key !== "Tab" || !logoDialogPanel) return;
     const items = Array.from(
@@ -1467,6 +1538,11 @@ export function createGanttEngine(options) {
     }
     logoDialog?.addEventListener("click", logoBackdropClick);
     logoDialogPanel?.addEventListener("keydown", logoDialogKeydown);
+    gridSettingsDialog?.addEventListener("click", gridSettingsBackdropClick);
+    gridSettingsDialogPanel?.addEventListener(
+      "keydown",
+      gridSettingsDialogKeydown,
+    );
     return api;
   }
   function dispose() {
@@ -1498,6 +1574,11 @@ export function createGanttEngine(options) {
     }
     logoDialog?.removeEventListener("click", logoBackdropClick);
     logoDialogPanel?.removeEventListener("keydown", logoDialogKeydown);
+    gridSettingsDialog?.removeEventListener("click", gridSettingsBackdropClick);
+    gridSettingsDialogPanel?.removeEventListener(
+      "keydown",
+      gridSettingsDialogKeydown,
+    );
     shrinkJob?.cancel();
     application.dispose();
     disposed = true;

@@ -1,5 +1,5 @@
 import { buildDependencyRoutes, routeDependency } from "./dependencies.js";
-import { BAR_HEIGHT, HEADER_HEIGHT, dateToX } from "./timeline.js";
+import { BAR_HEIGHT, HEADER_HEIGHT, TASK_ROW_HEIGHT, dateToX } from "./timeline.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const svg = (name, attrs = {}) => {
@@ -558,17 +558,34 @@ function grid(target, rows, data, height, settings, state) {
         stroke: settings.rowLineColor,
       }),
     );
-    for (const row of rows) {
-      target.append(
-        svg("line", {
-          x1: 0,
-          x2: data.totalWidth,
-          y1: row.y + row.height,
-          y2: row.y + row.height,
-          class: "timeline-row-line",
-          stroke: settings.rowLineColor,
-        }),
-      );
+    if (rows.length > 0) {
+      for (const row of rows) {
+        target.append(
+          svg("line", {
+            x1: 0,
+            x2: data.totalWidth,
+            y1: row.y + row.height,
+            y2: row.y + row.height,
+            class: "timeline-row-line",
+            stroke: settings.rowLineColor,
+          }),
+        );
+      }
+    } else {
+      // No rows yet (empty project): draw the horizontal grid at the standard
+      // task-row pitch so the toggle visibly affects the canvas.
+      for (let y = TASK_ROW_HEIGHT; y < height; y += TASK_ROW_HEIGHT) {
+        target.append(
+          svg("line", {
+            x1: 0,
+            x2: data.totalWidth,
+            y1: y,
+            y2: y,
+            class: "timeline-row-line",
+            stroke: settings.rowLineColor,
+          }),
+        );
+      }
     }
   }
   const now = new Date();

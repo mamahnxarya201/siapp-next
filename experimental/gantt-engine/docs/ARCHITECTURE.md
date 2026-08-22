@@ -103,7 +103,7 @@ and returns an object with `start()`, `dispose()`, `reloadSchedule()`, `setTasks
 2. Start the delegated action listeners.
 3. Start all registered views; each queues its initial refresh.
 4. Start timeline pointer and keyboard listeners.
-5. Attach task-list hover and two-way scroll synchronization listeners.
+5. Attach task-list hover listeners and the timeline's horizontal scroll listener.
 
 `dispose()` cancels gesture work, removes every listener attached by the engine,
 cancels delayed work, disposes views and commands, and rejects reuse. The engine does
@@ -335,6 +335,31 @@ The right edge grows the future range by 180 days behind a latch. The left edge 
 viewport-sized chunks at a low-water threshold during active schedule drags.
 Release-only compaction trims unused outer dates while preserving task-containing dates,
 internal gaps, and a minimum viewport-sized scope.
+
+### Grid behavior and range ownership
+
+The grid uses one vertical scroll owner and one horizontal scroll owner:
+
+- `.gantt-scroll-region` owns vertical scrolling for the task list and timeline
+  columns. The child panes keep `scrollTop` at zero, so a project with one task
+  cannot expose an independent vertical grid scroll.
+- `#timeline-viewport` owns horizontal scrolling. `.timeline-hscroll` controls
+  its `scrollLeft`, and `.timeline-header-slot` mirrors that value for the sticky
+  calendar header.
+
+The engine stores the rendered end date in `state.timelineMaxDate`. Moving or
+resizing a task changes the task preview, but it does not change the grid range.
+The range changes only when an edge mechanic explicitly extends it or when
+release compaction recalculates it from committed task dates. This separation
+prevents the date grid from growing or shrinking as a side effect of ordinary
+pointer movement.
+
+On release, compaction calculates the occupied visible-day span and the minimum
+viewport span. The minimum span is the timeline viewport width plus `20px`,
+rounded up to a whole visible-day unit. If the task span is shorter, compaction
+retains the remaining units after the task range. If the task span is already
+longer than the viewport, compaction does not add artificial trailing range.
+This keeps the viewport usable after a long bar is reduced.
 
 ## Bridge separation
 

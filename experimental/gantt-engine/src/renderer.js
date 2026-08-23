@@ -759,23 +759,25 @@ function bar(target, task, pos, state) {
     );
   }
   if (selected) {
-    const resizeHandleWidth = Math.min(10, pos.width / 2);
+    const resizeHandleInset = Math.min(12, pos.width / 2);
+    const resizeHandleOutset = 8;
+    const resizeHandleWidth = resizeHandleInset + resizeHandleOutset;
     group.append(
       svg("rect", {
-        x: pos.x,
-        y: pos.y,
+        x: pos.x - resizeHandleOutset,
+        y: pos.y - 6,
         width: resizeHandleWidth,
-        height: BAR_HEIGHT,
+        height: BAR_HEIGHT + 12,
         class: "gantt-bar__handle",
         "data-interaction-mode": "resize-start",
       }),
     );
     group.append(
       svg("rect", {
-        x: pos.x + pos.width - resizeHandleWidth,
-        y: pos.y,
+        x: pos.x + pos.width - resizeHandleInset,
+        y: pos.y - 6,
         width: resizeHandleWidth,
-        height: BAR_HEIGHT,
+        height: BAR_HEIGHT + 12,
         class: "gantt-bar__handle",
         "data-interaction-mode": "resize-end",
       }),

@@ -65,6 +65,38 @@ const closestGroup = (target, root) => {
   return el && root.contains(el) ? el : null;
 };
 
+const selectedResizeHit = (event, state, root, taskElement) => {
+  if (!state.selectedTaskId) return null;
+  let selectedTaskElement = taskElement;
+  if (selectedTaskElement?.dataset.taskId !== state.selectedTaskId) {
+    selectedTaskElement = null;
+    for (const candidate of root.querySelectorAll(".gantt-task")) {
+      if (candidate.dataset.taskId === state.selectedTaskId) {
+        selectedTaskElement = candidate;
+        break;
+      }
+    }
+  }
+  if (!selectedTaskElement) return null;
+  for (const handle of selectedTaskElement.querySelectorAll(
+    '[data-interaction-mode^="resize-"]',
+  )) {
+    const bounds = handle.getBoundingClientRect();
+    if (
+      event.clientX >= bounds.left &&
+      event.clientX <= bounds.right &&
+      event.clientY >= bounds.top &&
+      event.clientY <= bounds.bottom
+    ) {
+      return {
+        taskElement: selectedTaskElement,
+        mode: handle.dataset.interactionMode,
+      };
+    }
+  }
+  return null;
+};
+
 // Maps a pointer row-Y to a workstream block index. Each visible group header
 // row is a boundary: the pointer lands on the block whose header row midpoint
 // is nearest. Falls back to the last block when below all headers.
@@ -112,6 +144,7 @@ export class GanttInteractionController {
     this.autoScrollVelocity = 0;
     this.autoScrollHeldMs = 0;
     this.autoScrollLastTimestamp = null;
+    this.resizeHoverElement = null;
     this.autoScrollDirection = 0;
     this.autoScrollPenetration = 0;
     this.leftEdgeExtensionLatched = false;
@@ -139,6 +172,10 @@ export class GanttInteractionController {
   stop() {
     if (!this.started) return false;
     this.cancel();
+    if (this.resizeHoverElement) {
+      this.resizeHoverElement.style.removeProperty("cursor");
+      this.resizeHoverElement = null;
+    }
     for (const type of ["pointerdown", "pointerover", "pointerout", "keydown", "lostpointercapture"])
       this.root.removeEventListener(type, this.listeners[type]);
     for (const type of ["pointermove", "pointerup", "pointercancel", "blur"])
@@ -150,8 +187,12 @@ export class GanttInteractionController {
     if (event.defaultPrevented || event.button !== 0) return;
     const state = this.getState();
     if (state.connection || state.connectionLock) return;
-    const taskElement = closestTask(event.target, this.root);
-    const groupElement = closestGroup(event.target, this.root);
+    let taskElement = closestTask(event.target, this.root);
+    const resizeHit = selectedResizeHit(event, state, this.root, taskElement);
+    if (resizeHit) taskElement = resizeHit.taskElement;
+    const groupElement = taskElement
+      ? null
+      : closestGroup(event.target, this.root);
     if (!taskElement && !groupElement) return;
 
     if (groupElement) {
@@ -181,9 +222,10 @@ export class GanttInteractionController {
         ? event.target.closest("[data-interaction-mode]")
         : null;
     const mode =
-      interactionElement && taskElement.contains(interactionElement)
+      resizeHit?.mode ??
+      (interactionElement && taskElement.contains(interactionElement)
         ? interactionElement.dataset.interactionMode
-        : "move";
+        : "move");
     event.preventDefault();
     this.onSelect(task.id);
     this.autoScrollVelocity = 0;
@@ -206,11 +248,31 @@ export class GanttInteractionController {
       scale: state.scale,
       snapIncrement: state.snapIncrement,
       visibleWeekdays: state.visibleWeekdays,
-      lastEdgeDirection: 0,
     };
     this.root.setPointerCapture?.(event.pointerId);
   }
   move(event) {
+    if (!this.active) {
+      const state = this.getState();
+      const taskElement = closestTask(event.target, this.root);
+      const resizeHit = selectedResizeHit(
+        event,
+        state,
+        this.root,
+        taskElement,
+      );
+      const nextHoverElement = resizeHit?.taskElement ?? null;
+      if (
+        this.resizeHoverElement &&
+        this.resizeHoverElement !== nextHoverElement
+      ) {
+        this.resizeHoverElement.style.removeProperty("cursor");
+      }
+      if (nextHoverElement)
+        nextHoverElement.style.setProperty("cursor", "ew-resize");
+      this.resizeHoverElement = nextHoverElement;
+      return;
+    }
     this.moveGesture(event);
   }
   moveGesture(event) {
@@ -255,7 +317,6 @@ export class GanttInteractionController {
     }
     if (direction !== this.autoScrollDirection)
       this.autoScrollHeldMs = 0;
-    if (direction !== 0) drag.lastEdgeDirection = direction;
     this.autoScrollDirection = direction;
     this.autoScrollPenetration = penetration;
   }
@@ -425,7 +486,14 @@ export class GanttInteractionController {
     const drag = this.active;
     drag.pendingClientX = event.clientX;
     drag.pendingClientY = event.clientY;
-    const release = { edgeDirection: drag.lastEdgeDirection ?? 0 };
+    if (this.getPointerRowY) {
+      drag.pendingRowY = this.getPointerRowY(event);
+    }
+    this.updateAutoScrollTarget();
+    const release = {
+      edgeDirection:
+        drag.kind === "task" ? this.autoScrollDirection : 0,
+    };
     this.stopAutoScroll();
     this.frame?.cancel();
     this.frame = null;

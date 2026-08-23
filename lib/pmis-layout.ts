@@ -1,4 +1,0 @@
-export const GROUP_HEADER_HEIGHT = 40
-export const TASK_ROW_HEIGHT = 36
-export const PROJECT_PANEL_TOOLBAR_HEIGHT = 48
-export const GANTT_TIMELINE_HEADER_HEIGHT = 72

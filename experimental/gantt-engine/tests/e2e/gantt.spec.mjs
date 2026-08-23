@@ -700,15 +700,233 @@ test('holding a bar at the viewport right edge autoscrolls forward and keeps the
   const rightCompaction = await page.evaluate(() => {
     const timeline = document.querySelector('#timeline-viewport');
     const state = globalThis.ganttDemo.getState();
+    const task = state.tasks.find((item) => item.id === 't1');
+    const bar = document.querySelector(
+      '.gantt-task[data-task-id="t1"] [data-interaction-mode="move"]',
+    );
+    const viewport = timeline.getBoundingClientRect();
+    const bounds = bar.getBoundingClientRect();
     return {
       scroll: timeline.scrollLeft,
       max: timeline.scrollWidth - timeline.clientWidth,
       futureDays: state.futureDays,
+      taskCount: state.tasks.length,
+      domCount: document.querySelectorAll('.gantt-task[data-task-id="t1"]').length,
+      duration: task.endDate.getTime() - task.startDate.getTime(),
+      visible: bounds.right > viewport.left && bounds.left < viewport.right,
     };
   });
-  expect(rightCompaction.scroll).toBe(rightCompaction.max);
-  expect(rightCompaction.futureDays).toBe(0);
+  expect(rightCompaction).toEqual({
+    scroll: rightCompaction.max,
+    max: rightCompaction.max,
+    futureDays: 0,
+    taskCount: 1,
+    domCount: 1,
+    duration: 3 * 24 * 60 * 60 * 1000,
+    visible: true,
+  });
 });
+
+test('empty demo keeps a context-created one-day task after a cross-month drag', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.evaluate(() => {
+    globalThis.__createdTaskDocument = document;
+    globalThis.__createdTaskPageShows = 0;
+    addEventListener('pageshow', () => {
+      globalThis.__createdTaskPageShows += 1;
+    });
+  });
+  const timeline = page.locator('#timeline-viewport');
+  const viewport = await timeline.boundingBox();
+  await page.mouse.click(viewport.x + 16, viewport.y + 80, { button: 'right' });
+  await page.locator('#context-task-name').fill('Cross-month task');
+  await page.locator('#context-task-name').press('Enter');
+  await expect(page.locator('.gantt-task')).toHaveCount(1);
+
+  const created = await page.evaluate(() => {
+    const task = globalThis.ganttDemo.getState().tasks[0];
+    return {
+      id: task.id,
+      url: location.href,
+      historyLength: history.length,
+      start: task.startDate.getTime(),
+      end: task.endDate.getTime(),
+      navigationEntries: performance.getEntriesByType('navigation').length,
+    };
+  });
+  expect(created.end - created.start).toBe(24 * 60 * 60 * 1000);
+
+  const bar = page.locator(
+    `.gantt-task[data-task-id="${created.id}"] [data-interaction-mode="move"]`,
+  );
+  const bounds = await bar.boundingBox();
+  const oneDayWidth = Number(await bar.getAttribute('width'));
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds.x + bounds.width / 2 + oneDayWidth * 13,
+    bounds.y + bounds.height / 2,
+    { steps: 13 },
+  );
+  const release = await page.evaluate((taskId) => {
+    const task = globalThis.ganttDemo.getState().previewResult.tasks
+      .find((item) => item.id === taskId);
+    const barNode = document.querySelector(
+      `.gantt-task[data-task-id="${taskId}"] [data-interaction-mode="move"]`,
+    );
+    return {
+      start: task.startDate.getTime(),
+      end: task.endDate.getTime(),
+      x: Number(barNode.getAttribute('x')),
+    };
+  }, created.id);
+  expect(release.start - created.start).toBe(13 * 24 * 60 * 60 * 1000);
+  expect(release.end - release.start).toBe(24 * 60 * 60 * 1000);
+  await page.mouse.up();
+  await expect(page.locator('#application-status')).toHaveText('Schedule saved');
+  await expect.poll(() => page.evaluate(() =>
+    globalThis.ganttDemo.getState().previewResult
+  )).toBeNull();
+
+  const settled = await page.evaluate(({ id, url, historyLength, navigationEntries }) => {
+    const task = globalThis.ganttDemo.getState().tasks.find((item) => item.id === id);
+    const barNode = document.querySelector(
+      `.gantt-task[data-task-id="${id}"] [data-interaction-mode="move"]`,
+    );
+    return {
+      sameDocument: globalThis.__createdTaskDocument === document,
+      pageShows: globalThis.__createdTaskPageShows,
+      urlUnchanged: location.href === url,
+      historyUnchanged: history.length === historyLength,
+      navigationEntriesUnchanged:
+        performance.getEntriesByType('navigation').length === navigationEntries,
+      taskCount: globalThis.ganttDemo.getState().tasks.length,
+      id: task?.id,
+      start: task?.startDate.getTime(),
+      end: task?.endDate.getTime(),
+      domCount: document.querySelectorAll(`.gantt-task[data-task-id="${id}"]`).length,
+      x: Number(barNode?.getAttribute('x')),
+    };
+  }, created);
+  expect(settled).toEqual({
+    sameDocument: true,
+    pageShows: 0,
+    urlUnchanged: true,
+    historyUnchanged: true,
+    navigationEntriesUnchanged: true,
+    taskCount: 1,
+    id: created.id,
+    start: release.start,
+    end: release.end,
+    domCount: 1,
+    x: release.x,
+  });
+});
+
+test('edge-held connected bar constrains both connector attachments and cue reveal preserves routes', async ({ page }) => {
+  await page.locator('input[data-action="timeline.set-scale"][value="day"]').check({ force: true });
+  await page.evaluate(() => {
+    const base = new Date('2026-08-10T00:00:00');
+    const task = (id, offset, dependencies, dependents) => ({
+      id,
+      name: id,
+      groupName: 'gateway-foundation',
+      teamName: 'T',
+      status: 'todo',
+      startDate: new Date(base.getTime() + offset * 86400000).toISOString(),
+      endDate: new Date(base.getTime() + (offset + 2) * 86400000).toISOString(),
+      color: '#287984',
+      dependencies,
+      dependents,
+    });
+    globalThis.ganttDemo.setTasks([
+      task('incoming', 0, [], ['held']),
+      task('held', 4, ['incoming'], ['outgoing']),
+      task('outgoing', 8, ['held'], []),
+    ]);
+  });
+  await page.locator('input[data-action="dependencies.toggle-all"]').check({ force: true });
+  const timeline = page.locator('#timeline-viewport');
+  const bar = page.locator('.gantt-task[data-task-id="held"] [data-interaction-mode="move"]');
+  const bounds = await bar.boundingBox();
+  const viewport = await timeline.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.x + viewport.width + 40, bounds.y + bounds.height / 2, { steps: 8 });
+  await expect.poll(() => page.evaluate(() =>
+    globalThis.ganttDemo.getState().previewDrag?.edgeDirection
+  )).toBe(1);
+
+  const geometry = await page.evaluate(() => {
+    const held = document.querySelector(
+      '.gantt-task[data-task-id="held"] [data-interaction-mode="move"]',
+    );
+    const readPath = (selector) => {
+      const path = document.querySelector(selector);
+      const start = path.getPointAtLength(0);
+      const end = path.getPointAtLength(path.getTotalLength());
+      return {
+        d: path.getAttribute('d'),
+        start: { x: start.x, y: start.y },
+        end: { x: end.x, y: end.y },
+      };
+    };
+    return {
+      bar: {
+        x: Number(held.getAttribute('x')),
+        y: Number(held.getAttribute('y')),
+        width: Number(held.getAttribute('width')),
+        height: Number(held.getAttribute('height')),
+      },
+      incoming: readPath('.dependency-line[data-from-task-id="incoming"][data-to-task-id="held"]'),
+      outgoing: readPath('.dependency-line[data-from-task-id="held"][data-to-task-id="outgoing"]'),
+    };
+  });
+  expect(geometry.incoming.end.x).toBe(geometry.bar.x);
+  expect(geometry.outgoing.start.x).toBe(geometry.bar.x + geometry.bar.width);
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() =>
+    globalThis.ganttDemo.getState().previewResult
+  )).toBeNull();
+  const committedRoutes = await page.evaluate(() => ({
+    incoming: document.querySelector(
+      '.dependency-line[data-from-task-id="incoming"][data-to-task-id="held"]',
+    ).getAttribute('d'),
+    outgoing: document.querySelector(
+      '.dependency-line[data-from-task-id="held"][data-to-task-id="outgoing"]',
+    ).getAttribute('d'),
+  }));
+  const outgoingPath = page.locator(
+    '.dependency-line[data-from-task-id="held"][data-to-task-id="outgoing"]',
+  );
+  const routePointX = await outgoingPath.evaluate((path) =>
+    path.getPointAtLength(path.getTotalLength() / 2).x
+  );
+  await timeline.evaluate((element, x) => {
+    element.scrollLeft = Math.max(0, x - element.clientWidth / 2);
+  }, routePointX);
+  const hoverPoint = await outgoingPath.evaluate((path) => {
+    const point = path.getPointAtLength(path.getTotalLength() / 2);
+    const matrix = path.getScreenCTM();
+    return {
+      x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+      y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+    };
+  });
+  await page.mouse.move(hoverPoint.x, hoverPoint.y);
+  await expect(
+    outgoingPath.locator('xpath=..').locator('.dependency-cue').first(),
+  ).toHaveCSS('opacity', '1');
+  expect(await page.evaluate(() => ({
+    incoming: document.querySelector(
+      '.dependency-line[data-from-task-id="incoming"][data-to-task-id="held"]',
+    ).getAttribute('d'),
+    outgoing: document.querySelector(
+      '.dependency-line[data-from-task-id="held"][data-to-task-id="outgoing"]',
+    ).getAttribute('d'),
+  }))).toEqual(committedRoutes);
+});
+
 test('released edge resizing keeps the date range stable during a later center drag', async ({ page }) => {
   await page.goto('/demo/empty.html');
   const timeline = page.locator('#timeline-viewport');

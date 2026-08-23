@@ -246,6 +246,91 @@ test('drag commits once and recursively pushes violating dependents', async ({ p
   await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(scrollLeftBefore);
 });
 
+test('move and resize snap to half-days and short-bar handles do not overlap', async ({ page }) => {
+  await page.evaluate(() => {
+    const startDate = new Date(2026, 7, 24);
+    globalThis.ganttDemo.setTasks([{
+      id: 'half-day-interaction',
+      name: 'Half-day interaction',
+      groupName: 'gateway-foundation',
+      workstreamId: 'gateway-foundation',
+      status: 'todo',
+      progress: 0,
+      startDate,
+      endDate: new Date(2026, 7, 25),
+      dependencies: [],
+      isMilestone: false,
+      optimisticDays: 1,
+      mostLikelyDays: 1,
+      pessimisticDays: 1,
+    }]);
+  });
+  const task = page.locator('.gantt-task[data-task-id="half-day-interaction"]');
+  await expect(task).toHaveCount(1);
+  await task.click();
+
+  const dates = () => page.evaluate(() => {
+    const current = globalThis.ganttDemo.getState().tasks[0];
+    return {
+      start: current.startDate.getTime(),
+      end: current.endDate.getTime(),
+    };
+  });
+  const initial = await dates();
+  const bar = task.locator('[data-interaction-mode="move"]');
+  let bounds = await bar.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 16, bounds.y + bounds.height / 2);
+  await page.mouse.up();
+  const moved = await dates();
+  expect(moved.start - initial.start).toBe(12 * 60 * 60 * 1000);
+  expect(moved.end - initial.end).toBe(12 * 60 * 60 * 1000);
+
+  let startHandle = task.locator('[data-interaction-mode="resize-start"]');
+  bounds = await startHandle.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 - 16, bounds.y + bounds.height / 2);
+  await page.mouse.up();
+  const startResized = await dates();
+  expect(startResized.start).toBe(initial.start);
+  expect(startResized.end).toBe(moved.end);
+
+  let endHandle = task.locator('[data-interaction-mode="resize-end"]');
+  bounds = await endHandle.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width / 2 + 16, bounds.y + bounds.height / 2);
+  await page.mouse.up();
+  const endResized = await dates();
+  expect(endResized.end - startResized.end).toBe(12 * 60 * 60 * 1000);
+
+  await page.evaluate(() => {
+    const startDate = new Date(2026, 7, 24);
+    globalThis.ganttDemo.setTasks([{
+      ...globalThis.ganttDemo.getState().tasks[0],
+      startDate,
+      endDate: new Date(2026, 7, 24, 12),
+    }]);
+  });
+  await task.click();
+  startHandle = task.locator('[data-interaction-mode="resize-start"]');
+  endHandle = task.locator('[data-interaction-mode="resize-end"]');
+  const weekStart = await startHandle.boundingBox();
+  const weekEnd = await endHandle.boundingBox();
+  expect(weekStart.width).toBe(8);
+  expect(weekEnd.width).toBe(8);
+  expect(weekStart.x + weekStart.width).toBeLessThanOrEqual(weekEnd.x);
+
+  await page.locator('input[name="scale"][value="month"]').check({ force: true });
+  const monthStart = await startHandle.boundingBox();
+  const monthEnd = await endHandle.boundingBox();
+  expect(monthStart.width).toBe(5);
+  expect(monthEnd.width).toBe(5);
+  expect(monthStart.x + monthStart.width).toBeLessThanOrEqual(monthEnd.x);
+});
+
 test('moving a predecessor earlier never pulls its child backward', async ({ page }) => {
   const childBefore = await page.evaluate(() => (
     globalThis.ganttDemo.getState().tasks.find((task) => task.id === 'performance-6').startDate.toISOString()
@@ -842,7 +927,7 @@ test('vertical drag moves a task into another workstream and the sidebar highlig
   expect(highlighted).toBe(1);
 });
 
-test('creating a task lands it on the hovered grid column and the guide crosses from the left pane', async ({ page }) => {
+test('creating a task snaps to a half-day start and keeps a full-day duration', async ({ page }) => {
   const minBefore = await page.evaluate(() => globalThis.ganttDemo.getSnapshot().timelineData.minDate.toISOString().slice(0, 10));
   const viewport = await page.locator('#timeline-viewport').boundingBox();
   const colIndex = 3;
@@ -871,12 +956,19 @@ test('creating a task lands it on the hovered grid column and the guide crosses 
   await page.locator('#context-task-name').press('Enter');
   await expect(page.locator('.gantt-task')).toHaveCount(241);
 
-  const createdX = await page.evaluate(() => {
-    const task = globalThis.ganttDemo.getState().tasks.find((t) => t.name === 'Origin check task');
-    const position = globalThis.ganttDemo.getSnapshot().positions.find((p) => p.taskId === task.id);
-    return Math.round(position.x);
+  const created = await page.evaluate(() => {
+    const task = globalThis.ganttDemo.getState().tasks.find((item) => item.name === 'Origin check task');
+    const position = globalThis.ganttDemo.getSnapshot().positions.find((item) => item.taskId === task.id);
+    return {
+      x: Math.round(position.x),
+      width: Math.round(position.width),
+      start: task.startDate.getTime(),
+      end: task.endDate.getTime(),
+    };
   });
-  expect(createdX).toBe(colIndex * 32);
+  expect(created.x).toBe(colIndex * 32 + 16);
+  expect(created.width).toBe(32);
+  expect(created.end - created.start).toBe(86400000);
 
   // The origin must not re-anchor: the created bar appears where hovered and
   // the existing grid does not slide.

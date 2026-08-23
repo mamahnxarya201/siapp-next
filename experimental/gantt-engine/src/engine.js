@@ -131,7 +131,7 @@ export function createGanttEngine(options) {
     showAllDependencies: false,
     showCriticalPath: false,
     visibleWeekdays: options.settings?.visibleWeekdays ?? ALL_WEEKDAYS,
-    snapIncrement: options.settings?.snapIncrement ?? "day",
+    snapIncrement: options.settings?.snapIncrement ?? "half-day",
     futureDays: 90,
     timelineMaxDate: addCalendarDays(initialLatest, 90),
     projectName:
@@ -520,11 +520,7 @@ export function createGanttEngine(options) {
       state.visibleWeekdays,
       state.snapIncrement,
     );
-    const end = shiftByVisibleUnits(
-      start,
-      snapIncrementUnits(state.snapIncrement),
-      state.visibleWeekdays,
-    );
+    const end = shiftByVisibleUnits(start, 1, state.visibleWeekdays);
     const task = {
       id: taskId("task"),
       name: name.trim() || "New task",

@@ -127,7 +127,7 @@ export function calculateDraggedTaskDates(options, legacyClientX) {
   }
 
   const scale = getTimelineScale(drag.scale ?? "day");
-  const snapIncrement = drag.snapIncrement ?? "day";
+  const snapIncrement = drag.snapIncrement ?? "half-day";
   const minimumDuration = snapIncrementUnits(snapIncrement);
   const visibleWeekdays = normalizeVisibleWeekdays(drag.visibleWeekdays);
   const pixelDelta = drag.pixelDelta ?? 0;

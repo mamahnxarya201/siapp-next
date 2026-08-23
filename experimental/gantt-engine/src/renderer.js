@@ -711,11 +711,12 @@ function bar(target, task, pos, state) {
     );
   }
   if (selected) {
+    const resizeHandleWidth = Math.min(10, pos.width / 2);
     group.append(
       svg("rect", {
         x: pos.x,
         y: pos.y,
-        width: 10,
+        width: resizeHandleWidth,
         height: BAR_HEIGHT,
         class: "gantt-bar__handle",
         "data-interaction-mode": "resize-start",
@@ -723,9 +724,9 @@ function bar(target, task, pos, state) {
     );
     group.append(
       svg("rect", {
-        x: pos.x + pos.width - 10,
+        x: pos.x + pos.width - resizeHandleWidth,
         y: pos.y,
-        width: 10,
+        width: resizeHandleWidth,
         height: BAR_HEIGHT,
         class: "gantt-bar__handle",
         "data-interaction-mode": "resize-end",

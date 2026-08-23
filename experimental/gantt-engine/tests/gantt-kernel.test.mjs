@@ -179,6 +179,22 @@ test('visible weekday math compresses hidden weekends and supports half-day boun
   assert.equal(shiftByVisibleUnits(monday, -0.5, weekdays).getTime(), fridayNoon.getTime())
   assert.equal(snapPixelDelta(31, 'day', 'day'), 1)
   assert.equal(snapPixelDelta(20, 'day', 'half-day'), 0.5)
+  assert.equal(snapPixelDelta(14, 'day', 'half-day'), 0)
+  assert.equal(snapPixelDelta(15, 'day', 'half-day'), 0.5)
+  assert.equal(snapPixelDelta(7, 'week', 'half-day'), 0)
+  assert.equal(snapPixelDelta(8, 'week', 'half-day'), 0.5)
+  assert.equal(snapPixelDelta(-7, 'week', 'half-day'), 0)
+  assert.equal(snapPixelDelta(-8, 'week', 'half-day'), -0.5)
+  assert.equal(snapPixelDelta(4, 'month', 'half-day'), 0)
+  assert.equal(snapPixelDelta(5, 'month', 'half-day'), 0.5)
+  assert.equal(
+    xToDate(7, friday, 'week', ALL_WEEKDAYS, 'half-day').getTime(),
+    friday.getTime(),
+  )
+  assert.equal(
+    xToDate(16, friday, 'week', ALL_WEEKDAYS, 'half-day').getTime(),
+    fridayNoon.getTime(),
+  )
 
   const visibleDates = buildVisibleDates(friday, monday, weekdays)
   assert.deepEqual(visibleDates.map((date) => date.getDay()), [5, 1])
@@ -487,6 +503,30 @@ test('drag calculations support day and half-day snapping and clamp a child to t
   assert.equal(halfDayMove.startDate.getTime(), localDate(1, 12).getTime())
   assert.equal(halfDayMove.endDate.getTime(), localDate(3, 12).getTime())
 
+  const halfDayStartResize = calculateDraggedTaskDates({
+    tasks,
+    taskId: 'first-parent',
+    mode: 'resize-start',
+    pixelDelta: 30,
+    scale: 'day',
+    snapIncrement: 'half-day',
+  })
+  assert.equal(halfDayStartResize.unitDelta, 0.5)
+  assert.equal(halfDayStartResize.startDate.getTime(), localDate(1, 12).getTime())
+  assert.equal(halfDayStartResize.endDate.getTime(), localDate(3).getTime())
+
+  const halfDayEndResize = calculateDraggedTaskDates({
+    tasks,
+    taskId: 'first-parent',
+    mode: 'resize-end',
+    pixelDelta: -30,
+    scale: 'day',
+    snapIncrement: 'half-day',
+  })
+  assert.equal(halfDayEndResize.unitDelta, -0.5)
+  assert.equal(halfDayEndResize.startDate.getTime(), localDate(1).getTime())
+  assert.equal(halfDayEndResize.endDate.getTime(), localDate(2, 12).getTime())
+
   const normalized = normalizeTasks(tasks)
   const lookup = new Map(normalized.map((item) => [item.id, item]))
   assert.equal(latestPredecessorEnd(lookup.get('child'), lookup).getTime(), localDate(5).getTime())
@@ -519,6 +559,25 @@ test('forward propagation pushes a recursive chain, preserves durations, and lea
   assert.deepEqual(source[0].dependents, [])
   assert.ok(Object.isFrozen(result))
   assert.ok(Object.isFrozen(result.tasks))
+})
+
+test('half-day propagation preserves durations through noon boundaries', () => {
+  const source = [
+    task('a', 1, 3),
+    task('b', 3, 5, { dependencies: ['a'] }),
+    task('c', 5, 6, { dependencies: ['b'] }),
+  ]
+  const result = applyForwardOnlyScheduleChange(
+    source,
+    'a',
+    { startDate: localDate(1, 12), endDate: localDate(3, 12) },
+    { mode: 'move', minimumDurationUnits: 0.5 },
+  )
+  const after = datesOf(result.tasks)
+  assert.deepEqual(after.a, [localDate(1, 12).getTime(), localDate(3, 12).getTime()])
+  assert.deepEqual(after.b, [localDate(3, 12).getTime(), localDate(5, 12).getTime()])
+  assert.deepEqual(after.c, [localDate(5, 12).getTime(), localDate(6, 12).getTime()])
+  assert.deepEqual(result.affectedTaskIds, ['a', 'b', 'c'])
 })
 
 test('moving a predecessor earlier never pulls descendants backward', () => {

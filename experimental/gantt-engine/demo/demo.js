@@ -31,7 +31,7 @@ const engine = createGanttEngine({
   gateway,
   settings: {
     scale: "week",
-    snapIncrement: "day",
+    snapIncrement: "half-day",
     visibleWeekdays: [0, 1, 2, 3, 4, 5, 6],
   },
 });

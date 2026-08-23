@@ -227,7 +227,11 @@ export function snapPixelDelta(
     throw new TypeError("pixelDelta must be finite");
   const { dayWidth } = getTimelineScale(scale);
   const snapUnits = snapIncrementUnits(snapIncrement);
-  return Math.round(pixelDelta / (dayWidth * snapUnits)) * snapUnits;
+  const increments = pixelDelta / (dayWidth * snapUnits);
+  const snappedIncrements = Math.round(Math.abs(increments));
+  return snappedIncrements === 0
+    ? 0
+    : Math.sign(increments) * snappedIncrements * snapUnits;
 }
 
 function workstreamIdOf(task) {

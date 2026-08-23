@@ -9,6 +9,10 @@
     "docs:build": "node docs/build-docs.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "katex": "^0.18.4"
+  },
+  "dependencies": {
+    "vite": "^8.2.2"
   }
 }

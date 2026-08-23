@@ -45,14 +45,38 @@ test('a fresh add-bar menu never reuses the previous task name', async ({ page }
   await expect(page.locator('#context-task-name')).toHaveValue('');
 });
 
-test('previews and commits a dependency through the scoped context menu', async ({ page }) => {
+test('frame-bounds dependency preview without rebuilding the timeline SVG', async ({ page }) => {
   await page.locator('.gantt-task[data-task-id="performance-1"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Add dependency' }).click();
+  const preview = page.locator('.dependency-line--preview');
+  await expect(preview).toHaveCount(1);
   const target = await page.locator('.gantt-task[data-task-id="performance-3"]').boundingBox();
-  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2);
-  await expect(page.locator('.dependency-line--preview')).toHaveCount(1);
+  await page.evaluate(({ x, y }) => {
+    globalThis.__connectionPreviewNode = document.querySelector(
+      '.dependency-line--preview',
+    );
+    for (let index = 0; index < 120; index += 1) {
+      document.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: x + (index % 3),
+          clientY: y,
+        }),
+      );
+    }
+  }, { x: target.x + target.width / 2, y: target.y + target.height / 2 });
+  await page.evaluate(() => new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  ));
+  await expect(preview).toHaveAttribute('data-connection-target', 'performance-3');
+  expect(await page.evaluate(() =>
+    globalThis.__connectionPreviewNode === document.querySelector(
+      '.dependency-line--preview',
+    )
+  )).toBe(true);
+
   await page.locator('.gantt-task[data-task-id="performance-3"]').click();
-  await expect(page.locator('.dependency-line--preview')).toHaveCount(0);
+  await expect(preview).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks.find((task) => task.id === 'performance-3').dependencies)).toContain('performance-1');
 });
 

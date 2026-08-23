@@ -7,7 +7,12 @@ import { MiniApplication } from "./framework/index.mjs";
 import { GanttInteractionController } from "./interaction.js";
 import { normalizeGridSettings } from "./grid.js";
 import { normalizeTasks } from "./model.js";
-import { renderProjectBrand, renderTaskList, renderTimeline } from "./renderer.js";
+import {
+  renderProjectBrand,
+  renderTaskList,
+  renderTimeline,
+  updateConnectionPreview,
+} from "./renderer.js";
 import {
   ALL_WEEKDAYS,
   HEADER_HEIGHT,
@@ -191,7 +196,24 @@ export function createGanttEngine(options) {
     rightLatched = false,
     lastScrollLeft = 0,
     shrinkJob = null,
+    connectionPreviewFrame = null,
     disposed = false;
+  function cancelConnectionPreviewFrame() {
+    connectionPreviewFrame?.cancel();
+    connectionPreviewFrame = null;
+  }
+  function scheduleConnectionPreview() {
+    if (connectionPreviewFrame) return;
+    connectionPreviewFrame = application.scheduler.scheduleAnimationFrame(() => {
+      connectionPreviewFrame = null;
+      if (!state.connection || !snapshot) return;
+      updateConnectionPreview(
+        timeline,
+        state.connection,
+        snapshot.positions,
+      );
+    });
+  }
 
   const shownTasks = () => state.previewResult?.tasks ?? state.tasks;
   function leftDragBufferUnits() {
@@ -913,7 +935,7 @@ export function createGanttEngine(options) {
       pointerY: point.y,
       targetTaskId: target?.dataset.taskId ?? taskIdAtPoint(point),
     };
-    invalidate("dependency connection preview");
+    scheduleConnectionPreview();
   }
   function commitConnection(event) {
     if (!state.connection || event.button !== 0) return;
@@ -927,6 +949,7 @@ export function createGanttEngine(options) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
+    cancelConnectionPreviewFrame();
     interaction.cancel();
     const from = state.connection.fromTaskId;
     const to = targetId;
@@ -1466,6 +1489,7 @@ export function createGanttEngine(options) {
         return;
       }
       if (state.connection) {
+        cancelConnectionPreviewFrame();
         state.connection = null;
         invalidate("dependency connection cancelled");
         setStatus("Connection cancelled.");
@@ -1572,7 +1596,6 @@ export function createGanttEngine(options) {
     root.addEventListener("pointerdown", rootContextMenu);
     root.addEventListener("keydown", keydown);
     document.addEventListener("pointermove", connectionMove, true);
-    document.addEventListener("mousemove", connectionMove, true);
     window.addEventListener("pointerdown", connectionDown, true);
     window.addEventListener("click", connectionClick, true);
     taskList.addEventListener("click", taskClick);
@@ -1617,7 +1640,6 @@ export function createGanttEngine(options) {
     root.removeEventListener("pointerdown", rootContextMenu);
     root.removeEventListener("keydown", keydown);
     document.removeEventListener("pointermove", connectionMove, true);
-    document.removeEventListener("mousemove", connectionMove, true);
     window.removeEventListener("pointerdown", connectionDown, true);
     window.removeEventListener("click", connectionClick, true);
     taskList.removeEventListener("click", taskClick);
@@ -1653,6 +1675,7 @@ export function createGanttEngine(options) {
       gridSettingsDialogInput,
     );
     shrinkJob?.cancel();
+    cancelConnectionPreviewFrame();
     application.dispose();
     disposed = true;
     return true;

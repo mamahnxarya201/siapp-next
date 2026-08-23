@@ -617,6 +617,15 @@ function connectionPreviewGeometry(connection, positions) {
       };
 }
 
+export function updateConnectionPreview(root, connection, positions) {
+  const path = root.querySelector(".dependency-line--preview");
+  const geometry = connectionPreviewGeometry(connection, positions);
+  if (!path || !geometry) return false;
+  path.setAttribute("d", geometry.path);
+  path.dataset.connectionTarget = connection.targetTaskId ?? "";
+  return true;
+}
+
 function connectors(target, edges, positions, scope, connection, appearance) {
   const criticalLineWidth = Number(
     (appearance.lineWidth * DEPENDENCY_CRITICAL_WIDTH_SCALE).toFixed(2),

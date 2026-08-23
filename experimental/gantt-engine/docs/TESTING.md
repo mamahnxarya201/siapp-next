@@ -19,7 +19,7 @@ is a failure.
 On 2026-08-23 the completion gate finished cleanly with:
 
 - 60 Node tests passed;
-- 39 Chrome/Playwright scenarios passed;
+- 41 Chrome/Playwright scenarios passed;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 
@@ -87,17 +87,21 @@ It verifies:
    non-overlapping short-bar handles at week and month scales;
 6. workstream collapse removing matching rows, bars, and connector endpoints;
 7. real pointer drag commit with recursive dependent propagation, active-preview
-   connector continuity, and unrelated-task preservation;
+   connector continuity, edge-constrained incoming and outgoing attachments, and
+   unrelated-task preservation;
 8. predecessor-left movement leaving a child unchanged;
 9. uninterrupted right-edge, left-edge, reversal, and resize-edge autoscroll;
 10. viewport-sized left buffering without per-date origin re-anchoring;
-11. release-only compaction of unused outer dates with a viewport-sized minimum scope;
-12. custom scrollbar track jumps and grab-offset-preserving thumb drags;
-13. one shared vertical scroll region, sticky task and calendar headers, stable
+11. release compaction preserving task identity, duration, DOM presence, viewport
+    visibility, and the viewport-sized minimum range;
+12. context-created cross-month drag preserving the document, URL, history,
+    navigation count, task ID, one-day duration, committed date, and bar geometry;
+13. custom scrollbar track jumps and grab-offset-preserving thumb drags;
+14. one shared vertical scroll region, sticky task and calendar headers, stable
     date range during center drags, a 20px post-task viewport minimum, horizontal
     timeline scrolling, right-edge range growth, idle compaction, and milestone
     rendering;
-14. scheduled `schedule.reload` through the injected gateway.
+15. scheduled `schedule.reload` through the injected gateway.
 
 ## Process lifecycle
 

@@ -452,6 +452,15 @@ task. The normal selection halo extends 2px outside the bar and is rendered afte
 dependency paths; leaving it visible would paint over the connector endpoint and
 create an apparent gap even though the route geometry remains attached.
 
+`renderTimeline()` derives one `renderedPositions` array from the raw schedule
+positions. When edge autoscroll constrains the held bar to the viewport, the same
+constrained position is supplied to dependency routing and bar rendering. Raw
+snapshot positions remain unchanged for date calculations and final commit.
+
+Release and idle compaction may replace timeline geometry, but they do not remove
+tasks. A context-created task must retain its ID, duration, committed date, DOM
+bar, and viewport visibility after compaction settles.
+
 Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
 rendered under the grid because Chromium's `::-webkit-scrollbar` styling cannot show
 only a horizontal native scrollbar. The `#timeline-viewport` remains the horizontal
@@ -502,6 +511,42 @@ rounded up to a whole visible-day unit. If the task span is shorter, compaction
 retains the remaining units after the task range. If the task span is already
 longer than the viewport, compaction does not add artificial trailing range.
 This keeps the viewport usable after a long bar is reduced.
+
+### Current compaction investigation status
+
+Status on 2026-08-23: the reported task disappearance remains unresolved. The
+reported sequence creates a task on Sunday, 2026-08-23, drags it to Saturday,
+2026-09-05, and appears to refresh the page after release.
+
+The current investigation produced these results:
+
+- the exact cross-month drag survived at week and day scales;
+- the browser retained the same `document`, URL, history length, navigation-entry
+  count, engine instance, task ID, one-day duration, DOM bar, and committed
+  position;
+- a real right-edge release compaction changed `futureDays` from `270` to `0`
+  while preserving task identity, duration, DOM presence, and viewport
+  visibility;
+- no compaction source defect was reproduced, so the range algorithm was not
+  changed.
+
+Permanent Playwright scenarios in `tests/e2e/gantt.spec.mjs` cover the exact
+cross-month drag and actual release compaction. A new investigation must not
+assume that a full SVG replacement is a browser navigation.
+
+If the issue reproduces, collect these facts before editing:
+
+1. Record the active timeline scale, viewport width, start half-day, and release
+   half-day.
+2. Compare `document`, `location.href`, `history.length`, `pageshow` count, and
+   `performance.getEntriesByType("navigation")` before and after release.
+3. Record `state.futureDays`, `state.leftBufferExpanded`, `state.minDate`,
+   `state.timelineMaxDate`, `scrollLeft`, and maximum scroll before release and
+   after compaction settles.
+4. Record the task ID, start, end, duration, row order, matching DOM count, and
+   bounding rectangle at creation, held preview, release, and 300ms after release.
+5. If a real navigation occurred, investigate the reload trigger separately from
+   compaction.
 
 ## Bridge separation
 

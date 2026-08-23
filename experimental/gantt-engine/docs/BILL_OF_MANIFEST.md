@@ -110,6 +110,17 @@ The following are not third-party manifest entries:
   separate entry point so empty-state work can be tested without changing the
   populated demo fixture.
 
+Both demos keep schedule commits in a module-scoped `storedTasks` array behind
+`InMemoryTransport`. This storage survives engine renders and timeline
+compaction, but it does not survive a full browser or Vite module reload. Reloading
+the page recreates the module and restores the entry point's initial fixture:
+240 tasks for `demo/index.html` and no tasks for `demo/empty.html`.
+
+This reload boundary is separate from compaction. If a reported task loss also
+changes the `document` or navigation entry, investigate the reload trigger before
+changing range logic. Persistent schedule storage requires a future host or
+gateway implementation.
+
 ## UI primitive storyboard
 
 - `demo/ui-primitives-storyboard.html` compares the existing React button/input

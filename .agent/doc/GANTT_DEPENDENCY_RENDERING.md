@@ -179,6 +179,15 @@ dependency paths and would otherwise cover the connector endpoint. The preview
 bar remains visible and continues to cover only the intentional segment beneath
 the bar itself.
 
+During edge autoscroll, the renderer creates one constrained position map and
+uses it for both dependency paths and preview bars. Scheduling continues to use
+the raw snapshot positions. Mixing raw connector coordinates with a constrained
+bar coordinate creates a visible source gap and an overlapping incoming endpoint.
+
+Timeline compaction may change the rendered date range and scroll alignment. It
+must preserve every task's identity, duration, committed date, DOM bar, and
+visibility at the aligned release edge.
+
 ## Performance Characteristics
 
 Let:

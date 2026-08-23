@@ -625,6 +625,8 @@ Consequences:
 - Preserve configurable line width, configurable cue size, the 12px hover
   corridor, progressive disclosure, and scheduling semantics.
 - Terminate committed connectors on the destination bar edge without a gap.
+- During edge autoscroll, derive connectors and preview bars from the same
+  constrained render-position map.
 
 Evidence:
 - User-provided close, distant, long-vertical, and wide-route screenshots.
@@ -643,6 +645,11 @@ Evidence:
   22ms across two animation frames.
 - 2026-08-23 completion gate: 60 Node tests and 39 Playwright scenarios passed
   with a clean exit.
+- 2026-08-23 edge-autoscroll verification: with raw task `x=1088`, the shared
+  constrained render map placed the bar and incoming endpoint at `x=1034` and
+  the outgoing start at the bar's `x=1130` right edge.
+- 2026-08-23 strengthened completion gate: 60 Node tests and 41 Playwright
+  scenarios passed with a clean exit.
 
 Open questions:
 - None.

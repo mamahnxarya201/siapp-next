@@ -1061,3 +1061,24 @@ adapter work waits for DBA schema and authentication decisions.
   hidden, and both the incoming connector endpoint and preview bar had `x=384`.
 - Final verification: `npm test` passed 60 Node tests and 39 Playwright scenarios
   with a clean exit.
+
+## Edge-constrained connectors and compaction regression coverage (2026-08-23)
+
+- `renderTimeline()` now derives one constrained `renderedPositions` array and
+  supplies it to both connector routing and task-bar rendering. Raw snapshot
+  positions remain authoritative for schedule calculations and commit.
+- Before the fix, an edge-held `performance-6` had raw `x=1088` and constrained
+  bar `x=1034`; outgoing and incoming attachments remained 54px away at the raw
+  coordinates. After the fix, the incoming endpoint is `x=1034`, the bar spans
+  `x=1034..1130`, and the outgoing connector starts at `x=1130`.
+- Exact SUN 23 → SAT 5 context-created drags survived in week and day probes with
+  the same engine, document, task ID, one-day duration, DOM bar, and committed
+  geometry.
+- A real right-edge release compaction from `futureDays=270` to `0` preserved the
+  task, its 24-hour duration, its DOM bar, and visibility at the aligned edge. No
+  compaction source defect was reproduced, so range logic was not changed.
+- A delegated test-only subagent expanded the regression suite. The parent
+  corrected its initial zero-duration and false-compaction assumptions, added
+  task and viewport invariants, and integrated the edge-coordinate assertions.
+- Final verification: `npm test` passed 60 Node tests and 41 Playwright scenarios
+  with a clean exit.

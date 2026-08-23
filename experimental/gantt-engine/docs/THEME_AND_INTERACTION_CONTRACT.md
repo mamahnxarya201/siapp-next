@@ -12,12 +12,10 @@ tokens, so interaction code does not contain palette decisions. The editorial th
 uses the project’s paper/ink, green, blue, amber, and red visual language while
 preserving the same layout and behavior.
 
-## Cell grid settings
+## Timeline appearance settings
 
-The timeline is rendered as a cell grid with both date-column and row-boundary
-lines. Grid presentation is intentionally separated from task scheduling in
-`src/grid.js`; the engine accepts a future-facing `settings.grid` object with these
-keys:
+Grid presentation is intentionally separated from task scheduling in `src/grid.js`.
+The engine accepts a future-facing `settings.grid` object with these keys:
 
 - `showVerticalLines`
 - `showHorizontalLines`
@@ -25,13 +23,24 @@ keys:
 - `minorLineColor`, `majorLineColor`, and `rowLineColor`
 - `groupFill` and `taskFill`
 
-The current demo uses the wireframe defaults. The `Timeline Settings` button in
-`demo/index.html` and `demo/empty.html` opens a modal dialog that updates these
-settings live: three switches (vertical lines, horizontal lines, major lines) and
-five color fields (minor/major/row line colors, group/task fills). Saving applies
-the settings through `normalizeGridSettings` without changing task geometry,
-dependency routing, or scheduling rules; the same seam accepts a future
-persistence backend.
+Dependency appearance is normalized separately through
+`settings.dependencyAppearance`:
+
+- `lineWidth`
+- `cueSize`
+
+The **Timeline Settings** button in `demo/index.html` and `demo/empty.html` opens
+a modal dialog for both groups. **Show major lines** appears as a child of **Show
+vertical lines** and is disabled when vertical lines are hidden. The
+**Dependency lines** fieldset provides:
+
+- **Line thickness**, from 1px to 3px in 0.5px steps, with a 1.5px default;
+- **Arrow cue size**, from 3px to 8px in 1px steps, with a 6px default.
+
+The displayed pixel values update while you move either slider. **Save settings**
+normalizes and applies both drafts without changing task geometry, dependency
+routing, or scheduling rules. **Cancel** and Escape discard the drafts. The same
+settings seam accepts a future persistence backend.
 
 ## Task authoring
 

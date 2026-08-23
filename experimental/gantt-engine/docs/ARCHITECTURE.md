@@ -260,10 +260,144 @@ falls back to the standard task-row pitch so the horizontal-grid toggle stays
 visible on a bare canvas.
 
 `dependencies.js` selects edges by precedence: all, selected chain, hovered direct,
-critical path, then none. Hidden/collapsed endpoints are excluded. It returns one
-continuous orthogonal route per edge. Normal routes enter the child from the left;
-cramped routes enter from above. Elbow, parent-exit, top-inset, and top-gap values are
-separate constants.
+critical path, then none. Hidden or collapsed endpoints are excluded. Each edge
+uses one continuous adaptive orthogonal route.
+
+For a predecessor endpoint $(x_f, y_f)$ and elbow gap $g$, the vertical trunk is:
+
+$$
+x_{\text{trunk}} = x_f + g
+$$
+
+When the dependent has enough horizontal clearance, the route uses three straight
+segments and two elbows:
+
+$$
+P_{\text{left}} =
+\left[
+  (x_f, y_f),
+  (x_{\text{trunk}}, y_f),
+  (x_{\text{trunk}}, y_t),
+  (x_t, y_t)
+\right]
+$$
+
+This route leaves the predecessor with a short horizontal segment, follows a
+vertical trunk, and enters the dependent from its left edge. When clearance is
+cramped, the route uses two segments and one elbow:
+
+$$
+P_{\text{vertical}} =
+\left[
+  (x_f, y_f),
+  (x_t + i, y_f),
+  (x_t + i, y_e)
+\right]
+$$
+
+Here, $i$ is the target inset and $y_e$ is the exact nearest target edge. The
+route touches the top edge when the dependent is lower and the bottom edge when
+it is higher. Committed connectors do not leave a visual gap at the destination,
+and no route uses more than two elbows.
+
+### Connector direction cues
+
+Committed dependency connectors keep their continuous orthogonal stroke visible.
+Their arrow cues are hidden until you hover within the connector's 12px invisible
+interaction corridor. This wider hit target does not change the visible stroke
+width. The connection preview keeps its endpoint arrow because it represents an
+interaction in progress.
+
+The renderer evaluates each non-zero straight segment independently. Each segment
+is eligible for at most one cue, so an adaptive route displays at most three
+cues. A zero-length segment is ignored.
+
+For a segment from $p_1 = (x_1, y_1)$ to $p_2 = (x_2, y_2)$, its length is:
+
+$$
+L = |x_2 - x_1| + |y_2 - y_1|
+$$
+
+Because routes are axis-aligned, this Manhattan length equals the segment's visual
+length. A segment receives one cue only when $L \ge 12$ pixels. Shorter route
+stubs receive no cue.
+
+An eligible cue is centered at:
+
+$$
+M =
+\left(
+  \frac{x_1 + x_2}{2},
+  \frac{y_1 + y_2}{2}
+\right)
+$$
+
+The triangle points along the ordered route from predecessor to successor.
+`settings.dependencyAppearance.cueSize` sets both triangle dimensions from 3px
+to 8px; the default is 6px. Its size remains constant within a rendered
+connector and never scales with segment length. Therefore, a 50px segment and a
+900px segment each receive one midpoint cue, not repeated arrows.
+
+`settings.dependencyAppearance.lineWidth` sets normal connector thickness from
+1px to 3px; the default is 1.5px. Critical connector thickness is:
+
+$$
+w_{\text{critical}} = 1.33w_{\text{normal}}
+$$
+
+The renderer rounds the result to two decimal places. The 12px invisible hover
+corridor remains independent from visible line thickness.
+
+### Connection preview rendering
+
+Starting a dependency connection performs one ordinary timeline render to create
+`.dependency-line--preview`. Pointer movement then updates only that SVG path.
+The engine stores the latest pointer and target state and schedules at most one
+imperative path update per animation frame.
+
+Preview movement does not rebuild the timeline snapshot, grid, task bars, or
+committed connectors. The controller listens to `pointermove` only; it does not
+also process compatibility `mousemove` events. Committing or cancelling a
+connection cancels pending preview-frame work before the next full render.
+
+### Half-day snap contract
+
+Move, start-resize, and end-resize gestures snap to the nearest half-day. For
+pixel delta $\Delta x$, day width $w$, and snap increment $q = 0.5$, the snapped
+visible-day delta is:
+
+$$
+\Delta u =
+\operatorname{sgn}(\Delta x)
+\operatorname{round}
+\left(
+  \frac{|\Delta x|}{wq}
+\right)q
+$$
+
+This symmetric form resolves exact half-step ties away from zero in both drag
+directions. Context creation selects the half-day region containing the pointer:
+
+$$
+u_{\text{create}} =
+\operatorname{floor}
+\left(
+  \frac{x}{wq}
+\right)q
+$$
+
+New tasks always receive a one-day duration. Half-day snapping therefore controls
+placement and editing granularity without redefining the initial task duration.
+The minimum resize duration is one half-day.
+
+For bar width $b$, each resize hit zone uses:
+
+$$
+h = \min\left(10, \frac{b}{2}\right)
+$$
+
+This keeps the start and end hit zones separate on short half-day bars at every
+timeline scale.
 
 `scheduling.js` is pure. Dragging/resizing returns new tasks and before/after effects.
 Direct child movement clamps to the latest direct predecessor end. Moving a predecessor
@@ -303,6 +437,7 @@ slack, project finish, and critical IDs.
 8. Pointer capture is held by the stable timeline viewport, not the task SVG node
    replaced during preview rendering. Pointer-cancel, lost capture, Escape, blur,
    stop, and dispose cancel the preview and stop the loop immediately.
+
 9. The reorder preview renders a horizontal insertion line at the target row and
    highlights the destination workstream header. Group headers, dependency gestures,
    and scrollbar-thumb dragging do not auto-pan.
@@ -311,6 +446,11 @@ slack, project finish, and critical IDs.
     retains a viewport-sized minimum, and aligns the final scroll position with the
     release edge. Reorder commits update `state.rowOrder` and any reassigned
     workstream.
+
+During an active task preview, `.gantt-task__selection` is hidden on the previewed
+task. The normal selection halo extends 2px outside the bar and is rendered after
+dependency paths; leaving it visible would paint over the connector endpoint and
+create an apparent gap even though the route geometry remains attached.
 
 Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and thumb
 rendered under the grid because Chromium's `::-webkit-scrollbar` styling cannot show

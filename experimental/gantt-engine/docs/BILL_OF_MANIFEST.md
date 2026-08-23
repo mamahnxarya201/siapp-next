@@ -60,6 +60,36 @@ that this migration does not need.
 - Windows child-process cleanup requires the local `tests/run-e2e.mjs` wrapper;
 - browser tests require explicit deterministic fixtures.
 
+## Development dependency: `katex`
+
+- Declared version: `^0.18.4` in `package.json`.
+- License: MIT.
+- Purpose: build-time rendering of KaTeX-compatible Markdown equations in the
+  offline documentation portal.
+
+### Why it is used
+
+- the Markdown contracts contain inline and display equations for connector
+  geometry, snapping, and forecast calculations;
+- the previous generator emitted `$...$` and `$$...$$` as literal text;
+- KaTeX produces static HTML and accessible MathML without browser-side
+  JavaScript.
+
+### Runtime and portal impact
+
+- KaTeX is not imported by the Gantt runtime;
+- `npm run docs:build` renders equations and inlines the KaTeX stylesheet and
+  font files as data URLs;
+- `docs/index.html` remains usable through `file://` without a server or network
+  request;
+- embedded fonts increase the generated HTML size.
+
+### Replacement strategy
+
+If the documentation portal moves to a generator with native KaTeX support,
+remove the custom equation parsing and direct `katex` dependency. Keep the
+KaTeX-compatible Markdown source unchanged.
+
 ## Built-in development facilities
 
 The following are not third-party manifest entries:

@@ -17,5 +17,8 @@ Use the [documentation portal](./index.html) when you want a readable reference 
 
 Edit the Markdown files in this directory. Run `npm run docs:build` from `experimental/gantt-engine` to regenerate `docs/index.html`. You do not need to run a command to read the documentation: open `docs/index.html` directly in a browser.
 Double-clicking `docs/index.html` opens the rendered layout immediately. A browser cannot run the Node generator or reliably read sibling Markdown files from a `file://` page, so regenerate the portal after documentation changes.
+The generator renders `$...$` and `$$...$$` equations with KaTeX. It embeds
+KaTeX CSS and fonts in `index.html`, so equations remain available when you open
+the portal through `file://` without network access.
 
 The generated portal includes the full Markdown content, section navigation, and keyboard-accessible skip navigation. It does not require a server or network access.

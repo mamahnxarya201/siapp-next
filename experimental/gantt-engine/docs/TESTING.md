@@ -16,12 +16,10 @@ is a failure.
 
 ## Current verified baseline
 
-On 2026-08-22 the separate unit and browser commands completed cleanly with:
+On 2026-08-23 the completion gate finished cleanly with:
 
-- 57 Node tests passed;
-- 35 Chrome/Playwright scenarios passed (33 prior scenarios plus two for the
-  grid-settings dialog on `demo/empty.html`); a further scenario verifies the
-  same dialog on the main `demo/index.html` demo;
+- 60 Node tests passed;
+- 39 Chrome/Playwright scenarios passed;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 
@@ -79,22 +77,27 @@ It verifies:
 
 1. task creation, scoped context-menu bar creation, and dark/light/editorial theme
    switching;
-2. dependency preview and commit through the scoped context menu;
+2. frame-bounded dependency preview, commit through the scoped context menu,
+   stable preview-node identity, and connected cramped-route endpoints;
 3. delegated scale and dependency controls, hover disclosure, selected chains, and
    calculated critical bar emphasis;
-4. workstream collapse removing matching task rows, bars, and connector endpoints;
-5. real pointer drag commit with recursive dependent propagation and unrelated-task
-   preservation;
-6. predecessor-left movement leaving a child unchanged;
-7. uninterrupted right-edge, left-edge, reversal, and resize-edge autoscroll;
-8. viewport-sized left buffering without per-date origin re-anchoring;
-9. release-only compaction of unused outer dates with a viewport-sized minimum scope;
-10. custom scrollbar track jumps and grab-offset-preserving thumb drags;
-11. one shared vertical scroll region, sticky task and calendar headers, stable
-   date range during center drags, a 20px post-task viewport minimum, horizontal
-   timeline scrolling, right-edge range growth, idle compaction, and milestone
-   rendering;
-12. scheduled `schedule.reload` through the injected gateway.
+4. adaptive Tom-style connector geometry, a 12px invisible hover corridor,
+   hover-only segment cues, and at most three cues per route;
+5. half-day movement and both resize edges, one-day task creation, and
+   non-overlapping short-bar handles at week and month scales;
+6. workstream collapse removing matching rows, bars, and connector endpoints;
+7. real pointer drag commit with recursive dependent propagation, active-preview
+   connector continuity, and unrelated-task preservation;
+8. predecessor-left movement leaving a child unchanged;
+9. uninterrupted right-edge, left-edge, reversal, and resize-edge autoscroll;
+10. viewport-sized left buffering without per-date origin re-anchoring;
+11. release-only compaction of unused outer dates with a viewport-sized minimum scope;
+12. custom scrollbar track jumps and grab-offset-preserving thumb drags;
+13. one shared vertical scroll region, sticky task and calendar headers, stable
+    date range during center drags, a 20px post-task viewport minimum, horizontal
+    timeline scrolling, right-edge range growth, idle compaction, and milestone
+    rendering;
+14. scheduled `schedule.reload` through the injected gateway.
 
 ## Process lifecycle
 

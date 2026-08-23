@@ -1,6 +1,6 @@
 # PMIS Current State
 
-Last updated: 2026-08-12
+Last updated: 2026-08-23
 
 ## Current Objective
 
@@ -220,6 +220,10 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
   without changing panel dimensions or removing task and status summaries.
 - Added `.agents/docs/GANTT_DRAG_PERFORMANCE.md` with the rationale, interaction
   model, preserved scheduling rules, and verification evidence for this change.
+- Added the globally triggerable `.agents/skills/google-developer-docs/` skill, summarizing Google's developer documentation guidance for voice, structure, procedures, formatting, accessibility, and final editorial checks.
+- Documented `experimental/gantt-engine` with a Markdown source index and a generated offline HTML portal. The portal includes editorial-tech styling, section navigation, responsive layout, print styling, keyboard-accessible skip navigation, and browser `Ctrl+F` guidance. Browser verification confirmed seven rendered documents, seven navigation links, no search form, and no local search handler.
+- Internal Markdown links in the generated portal now resolve to styled in-page document anchors instead of opening raw `.md` files. Browser verification confirmed the Architecture and PHP bridge links remain on the portal page, with no `.md` navigation targets. The docs index records the static-file limitation: double-click opens the rendered portal, but Markdown changes require regeneration.
+- Aligned `experimental/gantt-engine/docs/` with the Google developer documentation style: corrected duplicate procedure numbering in `ARCHITECTURE.md`, promoted Playwright subsections to headings, standardized `Yes`/`No` table values, normalized sentence-case headings, and converted the migration-plan link to a repository path so the portal has no raw Markdown navigation links. Regenerated and browser-verified the styled portal with seven documents, seven navigation links, and the warm editorial-tech canvas.
 
 ## Files Changed in Latest Work
 
@@ -241,6 +245,13 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - `.agents/docs/GANTT_DRAG_PERFORMANCE.md`
 - `.agent/handoff/CURRENT_STATE.md`
 - `components/pmis/gantt-chart.tsx`
+- `.agents/skills/google-developer-docs/SKILL.md`
+- `.agents/skills/google-developer-docs/agents/openai.yaml`
+- `experimental/gantt-engine/README.md`
+- `experimental/gantt-engine/package.json`
+- `experimental/gantt-engine/docs/README.md`
+- `experimental/gantt-engine/docs/build-docs.mjs`
+- `experimental/gantt-engine/docs/index.html`
 - `components/pmis/context-inspector.tsx`
 - `components/pmis/project-view.tsx`
 - `components/pmis/top-nav.tsx`
@@ -280,6 +291,89 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Plan History loads read-only Change Records from the SQLite-backed API, and
   Scenario creation posts a snapshot of the current Active Plan through the
   planning command endpoint.
+
+## Experimental engine: vertical row reorder (2026-08-18)
+
+- The isolated `experimental/gantt-engine` gained an explicit row-order model.
+  Rows are no longer derived from the date-sort; `buildVisibleRows` accepts a flat
+  `{ type, id }` order (workstream headers, tasks, ungrouped) and the engine keeps
+  `state.rowOrder`, seeded from `defaultRowOrder` (the old date-sort) and kept
+  consistent by `reconcileRowOrder` on task/workstream changes.
+- A horizontal drag that changes a task's date no longer re-ranks its row, fixing
+  the "bar jumps to the top of its workstream when dragged past another bar's date"
+  bug.
+- `src/reorder.js` adds vertical-reorder geometry. Task bars and workstream group
+  headers are draggable vertically, and a full task move is free: one gesture
+  changes both the date (horizontal) and the row/workstream (vertical)
+  simultaneously. A live preview shows a horizontal insertion line and highlights
+  the destination workstream header in the task list; release commits the new dates
+  and row order together. A task can be moved into/out of a workstream by crossing
+  its header (reassigning `groupName`); collapsed workstreams are not drop targets.
+  Row order flows through the existing commit/persist seam for a future persistence
+  backend but is ephemeral in the current in-memory demo.
+- Fixed: the add-bar context menu no longer reuses the previous task's name — the
+  `#context-task-name` field is cleared each time the menu opens.
+- Horizontal autoscroll: dragging a task bar into the 40px band inside the
+  viewport's left or right edge scrolls the timeline continuously in both
+  directions, throttle-style. The trigger is the band *inside* the edge (not the
+  pointer leaving the viewport) because the viewport sits flush against the browser
+  window edge — the pointer cannot travel past it, so a "past the edge" trigger
+  would never fire on that side. The target speed is proportional to how deep the
+  pointer is in the band (deeper = faster), and the actual speed eases toward it
+  each frame (gas-motor feel). The dragged date is anchored in timeline space so the
+  bar stays pinned at the viewport edge (leading edge rides the left separator or
+  the right viewport edge) while content scrolls under it. The existing scroll
+  listener grows/shrinks the grid range, so scrolling out to a far date and back
+  does not retain wasted scroll data.
+- Horizontal scrolling is exposed through a custom `.timeline-hscroll` track and
+  thumb under the grid (Chromium cannot show a horizontal-only native scrollbar).
+  The `#timeline-viewport` remains the horizontal scroll owner; the sticky calendar
+  header mirrors its `scrollLeft`.
+- Vertical scrolling now uses one `.gantt-scroll-region` containing both columns.
+  The task list and timeline viewport do not own vertical scroll positions, so an
+  empty or one-task project has no independent Gantt vertical overflow.
+- The timeline range is state-owned and behaves as a viewport-capacity arena.
+  Edge interaction grows the stored range. Returning to the viewport interior
+  retains that allocation; an edge release compacts only when unused capacity
+  exceeds one viewport. **Compact timeline** forces compaction and retains a
+  20px viewport gap when the task span is shorter than the viewport.
+- Task creation remains context-menu only (right-click the grid → Add task); the
+  sidebar does not include an inline task-entry field. The `task.create` command
+  and the unused legacy renderer's create-row input were removed after a short
+  experiment with a sidebar textbox, which was reverted at the user's request.
+- Documentation updated in `experimental/gantt-engine/docs/ARCHITECTURE.md`.
+
+## Experimental engine: empty-demo timeline grid settings dialog (2026-08-22)
+
+- Removed the arrow-like `People in Project` toggle button
+  (`/html/body/main/section/div[1]/button`, `.project-panel-toolbar__people` sibling)
+  from `experimental/gantt-engine/demo/empty.html` per user instruction.
+- The `Timeline Settings` button in both `demo/index.html` and `demo/empty.html`
+  (the two demos differ only by fixture data and entry script) now opens a modal
+  `#grid-settings-dialog`: three switches (vertical lines, horizontal lines, major
+  lines) and five color fields (minor/major/row line colors, group/task fills)
+  mapped to `src/grid.js` keys. Save commits via `normalizeGridSettings` and
+  invalidates the timeline; Cancel/Escape/backdrop close without applying.
+- The dialog follows `STD-HCI.md`: focus lands on the panel, Tab loops through all
+  fields then Save → Cancel and back, Accept sits left of Decline (non-destructive),
+  and Escape closes it. `data-action="grid-settings.open|save|cancel"` commands are
+  registered in `src/engine.js` alongside the logo-dialog commands.
+- Playwright config now falls back to the bundled chromium when no system Chrome
+  is installed (the previous hard `channel: 'chrome'` pin failed on machines
+  without Google Chrome); system Chrome is still preferred when present.
+- Added three e2e scenarios in `tests/e2e/gantt.spec.mjs` covering apply/cancel/Escape,
+  the Tab loop, and the main demo path; suite is now 36 Chrome scenarios plus 57
+  Node tests, all green.
+- Fixed: in the empty demo (`demo/empty.html`, zero tasks/rows) the horizontal-line
+  toggle had no visible effect because the renderer drew row lines only at row
+  boundaries. `src/renderer.js` now falls back to the standard task-row pitch
+  (36px) across the canvas when there are no rows, so `Show horizontal lines`
+  visibly toggles the empty grid. Vertical/major lines were already date-based and
+  worked; the popup checkboxes now match `state.grid` (the checkbox invisibility
+  from the previous CSS conflict is fixed).
+- Test infrastructure: `tests/run-e2e.mjs` raised the Playwright process cap from
+  120s to 300s after the growing suite (now ~3min on this machine) tripped the old
+  cap intermittently.
 
 ## Confirmed Decisions Awaiting Implementation
 
@@ -419,3 +513,595 @@ adapter work waits for DBA schema and authentication decisions.
   dashboard now exposes projects as directly clickable cards. The helper now
   clicks the requested project card; all three E2E scenarios completed
   successfully afterward.
+
+## Routing (2026-08-14)
+
+- Replaced the single SPA entry behavior with App Router routes: `/` redirects
+  to `/dashboard`, and `/project/timeline/[projectId]` renders a validated
+  project timeline deep link.
+- Dashboard project cards now navigate with the project URL while preserving
+  the existing three-panel timeline and Zustand workspace behavior.
+- Added route-focused Playwright coverage and documented the current/future
+  sitemap in `.agents/docs/ROUTING.md`.
+- Removed build-time `next/font/google` downloads from the root layout so local
+  test/server startup does not hang when outbound Google Fonts access is
+  unavailable; the existing CSS fallback font stack remains active.
+- Routing test runs reached passing assertions, but the local Playwright
+  command still experiences Windows child-process cleanup and occasional
+  retries when orphaned Next processes remain from prior runs.
+
+## Navigation layout (2026-08-14)
+
+- Renamed the Gantt display control to `Timeline Settings` while preserving its
+  settings icon and behavior.
+- Renamed the header planning action to `Planning Intelligence` and changed its
+  icon to a line chart. The existing Forecast, History, Scenarios, Baselines,
+  and Proposals sheet remains unchanged in scope.
+- Added editable task labels with add/edit/delete controls in the existing task
+  edit form; labels are stored in the same in-memory Zustand workspace and are
+  shown in the read-only inspector.
+- Checklist delete controls now have a destructive red border/background cue.
+- Save now calls the edit form's `requestSubmit()` explicitly, fixing reliance
+  on an external button `form` attribute.
+- Strict TypeScript validation and unit tests pass. The focused Playwright run
+  was attempted but the reused localhost dev server again emitted HMR
+  `ERR_INVALID_HTTP_RESPONSE` errors before completion.
+
+- Follow-up verification fixed the route-hydration failure (`Router action
+  dispatched before initialization`) by using native project anchors, hardened
+  malformed project-logo crop storage parsing, corrected label test naming, and
+  made workstream-menu activation deterministic after route hydration.
+- Full Playwright coverage now reports all four scenarios passed with zero
+  retries: routing, task edit/save and labels, workstream continuation, and
+  weighted checklist behavior. The Windows shell still retains Next child
+  processes after reporting the passing scenarios, so the final summary line
+  is not emitted before manual interruption.
+
+## Isolated vanilla Gantt experiment (2026-08-15)
+
+- Implemented migration tasks 005 and 006 under `experimental/gantt-engine/` without
+  changing the React PMIS implementation.
+- Added a minimal event-oriented application shell with named commands, root action
+  delegation, explicit invalidation/refresh, cancellable scheduling, and deterministic
+  lifecycle cleanup. Its control flow is documented for WinForms/Delphi/Qt/GTK-era
+  auditors in `experimental/gantt-engine/docs/ARCHITECTURE.md`.
+- Added an application-facing `Gateway` and separate in-memory/fetch transports. The
+  future PHP boundary is documented in
+  `experimental/gantt-engine/docs/PHP_BRIDGE_CONTRACT.md`; no PHP endpoint or
+  production persistence was added.
+- Implemented the task-list/DOM and timeline/SVG Gantt slice: scales, scroll sync,
+  range growth/compaction, group collapse, milestones, task gestures, progressive
+  dependencies, adaptive routes, forward-only recursive propagation, and PERT/CPM.
+- Runtime dependencies remain zero. `@playwright/test` is the only development
+  dependency and is recorded in `experimental/gantt-engine/docs/BILL_OF_MANIFEST.md`.
+- Verification: `npm.cmd test` in `experimental/gantt-engine` completed cleanly with
+  45 Node tests and 6 Chrome/Playwright scenarios. Unlike the main Next.js E2E issue
+  above, the experiment's test wrapper owns and terminates its static server process.
+- This experiment does not authorize replacing or integrating the React Gantt. That
+  remains a separate user-approved task.
+
+### Demo root-route rendering fix (2026-08-15)
+
+- Fixed the standalone demo asset URLs in `experimental/gantt-engine/demo/index.html`.
+  The test server serves the same document at `/`, so relative `./demo.js` resolved to
+  a nonexistent `/demo.js` and left the shell empty even though the page had no console
+  error visible in the shell.
+- Stylesheet and module paths now use `/src/styles.css` and `/demo/demo.js`, which work
+  from both `/` and `/demo/index.html`.
+- The browser suite now opens `/` in its setup, covering the user-facing entry point.
+  Both routes were manually inspected: 11 task rows, 11 Gantt bars, and no console
+  warnings/errors. Unit tests (45) and browser scenarios (6) pass.
+
+### Vanilla Year 0 interaction/theme slice (2026-08-15)
+
+- The isolated `experimental/gantt-engine` demo now supports direct task creation
+  and renaming in the activity panel, scoped right-click task-bar creation, and
+  right-click dependency connect/remove with a live preview connector.
+- The demo suppresses the browser context menu only inside its Gantt root and
+  supports `dark`, `light`, and `editorial` themes through semantic CSS tokens.
+  The layout keeps the wireframe-inspired Activity/Resource/Status grid; the React
+  application was not changed.
+- Dependency authoring updates both canonical `predecessorIds` and UI-facing
+  `dependencies` before normalization, preserving the model contract.
+- Durable behavior is documented in
+  `experimental/gantt-engine/docs/THEME_AND_INTERACTION_CONTRACT.md`.
+- Verification after this slice: 45 Node tests and 8 Chrome/Playwright scenarios
+  pass, including task/bar creation, theme switching, dependency preview/commit,
+  and the prior scheduling, scroll, and forecast coverage.
+
+### Wireframe UI replacement (2026-08-15)
+
+- Replaced the isolated demo’s dark product-shell presentation with the supplied
+  `.agent/rendered wireframe.png` geometry: a 350px activity pane, 72px calendar
+  header, orange workstream bands, white spreadsheet canvas, hairline date grid,
+  and synchronized scroll surfaces.
+- Kept the existing command, task authoring, drag/resize, dependency, forecast, and
+  gateway behavior behind the new presentation. React PMIS remains unchanged.
+- Verification: 45 unit tests and 8 browser scenarios pass against the replacement
+  UI.
+
+### Tom’s Planner-style cell grid/sidebar refinement (2026-08-15)
+
+- Refined the wireframe replacement to match the supplied example: 454px numbered
+  Activity/Resource/Status sidebar, numbered workstreams and tasks, calendar glyph,
+  centered year/month/day header bands, and explicit horizontal plus vertical cell
+  lines across the Gantt surface.
+- Added `experimental/gantt-engine/src/grid.js` as the adjustable grid-settings seam.
+  It currently controls line visibility, major/minor/row colors, and group/task
+  fills through `settings.grid`.
+- Verification: 45 unit tests and 8 browser scenarios pass after the refinement.
+
+### Experiment readability refactor (2026-08-15)
+
+- Applied a behavior-preserving Prettier formatting pass to every JavaScript and
+  MJS module in `experimental/gantt-engine`, including the engine, renderer,
+  scheduling, timeline, bridge, and framework layers plus the demo entrypoint.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios;
+  `git diff --check` passes.
+
+### Ndang Lulus UI port (2026-08-15)
+
+- Reworked the isolated experiment's presentation to follow the reference Svelte
+  app at `D:/siapp-labs/ndang-lulus`: compact command strip, white spreadsheet
+  canvas, 358px label pane, 64px calendar header, orange workstream bands,
+  compact Activity/Resource/Status columns, and neutral Gantt bar colors.
+- Kept the experiment's existing SVG renderer, progressive dependency disclosure,
+  adaptive routing, drag/resize scheduling, context menus, gateway, and lifecycle
+  behavior unchanged.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios.
+
+### Ndang Lulus exact geometry pass (2026-08-15)
+
+- Aligned the experiment's engine geometry with the Svelte reference rather than
+  only approximating it in CSS: 42px command strip, 358px label pane, 64px
+  calendar header, 24px rows, 16px bars with 4px inset, and 25px default day
+  cells.
+- Updated the geometry assertions and the engine's header hit-testing offset to
+  match the new dimensions.
+- Verification: `npm.cmd test` passes with 45 unit tests and 8 browser scenarios;
+  `git diff --check` passes.
+
+### Settled spreadsheet layout contract (2026-08-16)
+
+- Documented the finalized experiment geometry and its CSS/JavaScript token
+  ownership in `experimental/gantt-engine/docs/LAYOUT_CONTRACT.md`.
+- The contract records the 42px command strip, 358px activity pane, 64px
+  calendar header, 24px group/task rows, 16px bars with 4px inset, and the
+  50/25/20 day/week/month scale widths.
+
+### React project-view layout alignment (2026-08-16)
+
+- The task brief was refined to make the current React project execution view
+  the visual source of truth. The experiment is being moved away from the prior
+  wireframe/Ndang-Lulus presentation.
+- The in-progress alignment uses React's 56px top navigation, center-only 48px
+  timeline toolbar, 320px default activity pane, 72px calendar header, 40px
+  workstream rows, 36px task rows, 24px bars, and 60/32/20 day/week/month
+  scale widths.
+- Live geometry verification confirms the experiment now places the 56px top
+  navigation at y=0, the task pane directly below it at y=56, and the 48px
+  timeline toolbar only over the center panel. The Tasks header is 72px and the
+  default activity pane is 320px, matching the live React route at a 1280x720
+  viewport.
+- Verification: 45 unit tests, 8 clean Chrome/Playwright scenarios, and
+  `git diff --check` pass. The experiment still intentionally keeps its own
+  fixture and mini-framework boundary; navigation and the React right inspector
+  remain outside this timeline-focused experiment scope.
+
+### React hover-row parity correction (2026-08-16)
+
+- Re-read the React task-list, project-view, Gantt chart, store, theme, and
+  layout sources after visual comparison against the supplied screenshots.
+- Replaced the experiment's task-panel header composition with the React Tasks
+  header and removed the prior Activity/Resource/Status spreadsheet header.
+- Added the missing shared hover state: hovering a task row now marks both the
+  sidebar row and a full-width SVG timeline row with the React-equivalent
+  accent cue. Selected rows use the separate primary tint.
+- Added an E2E assertion covering the full-width `.timeline-row--hovered`
+  element. The final verification remains 45 unit tests, 8 Playwright scenarios,
+  and `git diff --check` passing.
+- It explicitly preserves the separation between presentation grouping and SVG
+  dependency rendering, and gives the required verification checklist for future
+  geometry changes.
+- Live visual inspection confirmed the root demo renders 11 task rows and 11
+  bars with aligned sidebar/timeline rows and synchronized scroll surfaces.
+
+### React sidebar parity implementation (2026-08-16)
+
+- Replaced the experiment's grouped sidebar markup with React-shaped workstream
+  headers and task rows. Group headers now have an isolated collapse control,
+  hover/focus-revealed add/manage affordances, workstream icon boxes, task
+  counts, and blocked/active/done summaries.
+- Added deterministic fixture metadata for assignee initials/colors, team,
+  priority, blockers, and critical-path flags. Task rows now render the status
+  dot, editable name, avatar, compact dependency count, and wide-panel team and
+  status badges while preserving the current task selection/rename behavior.
+- Compact sidebar behavior is container-based rather than viewport-based, so
+  the 280-320px panel keeps the name column readable while the same row contract
+  can expose badges in a wider host panel.
+- Added workstream-scoped task creation and explicit manage feedback through the
+  existing delegated command bus. No dependency or schedule rules were changed.
+- Live verification at the compact panel width reports five workstreams, eleven
+  task rows, hidden compact team/status chips, visible avatars, and a single
+  full-width SVG hover row (`width=4224px`). Verification: 45 unit tests and 9
+  Playwright scenarios pass; `git diff --check` passes.
+- Sidebar workstream/action icons use vendored Lucide 0.564.0 SVG path geometry;
+  the experiment BOM records the ISC source, rationale, and replacement path.
+
+### React p3 parity completion (2026-08-16)
+
+- Completed the React `p3` fixture port in the isolated experiment: 240
+  deterministic tasks across five workstreams, including assignee initials,
+  teams, statuses, milestones, blockers, critical-path metadata, and
+  forward-scheduled dependency dates.
+- Completed the React project-view shell: 56px top navigation, center-only
+  48px timeline toolbar, 320px activity pane, 72px three-tier calendar header,
+  40px workstream rows, 36px task rows, 24px bars, hidden compact gutters, and
+  no experiment-only footer space.
+- Completed the sidebar interaction parity pass: isolated collapse control,
+  hover/focus group actions, Lucide-derived SVG icons, task avatars/team and
+  status metadata, dependency counts, selection, and full-width horizontal
+  hover cue synchronized with the timeline row.
+- The Bill of Manifest now records the vendored Lucide 0.564.0 ISC geometry,
+  Playwright development dependency, and replacement strategy. The React app
+  remains unchanged; this work is isolated to `experimental/gantt-engine`.
+- Final verification: `npm.cmd test` passes 45 unit tests and 9 Playwright
+  scenarios; `git diff --check` passes; live root demo inspection shows 240
+  tasks/bars, five groups, and matching month/weekday/date header tiers.
+
+### Separate empty demo entry point (2026-08-16)
+
+- Added `experimental/gantt-engine/demo/empty.html` and `empty.js` as a
+  separate empty-state host. It reuses the same React-aligned HTML/CSS shell,
+  controls, gateway boundary, and engine, but starts with zero workstreams and
+  zero tasks so the timeline contains no bars or dependency connectors.
+- Added a browser regression scenario for `/demo/empty.html`; final verification
+  passes 45 unit tests and 10 Playwright scenarios.
+
+### Workstream context-menu deletion (2026-08-16)
+
+- Fixed context-menu positioning so menus opened from lower sidebar rows are
+  measured after becoming visible and clamped inside the viewport.
+- Verified the Delete workstream action: empty workstreams are confirmed and
+  removed from the sidebar/timeline; populated workstreams remain protected
+  with the `Reassign tasks before deleting this workstream.` status message.
+- Final verification: `npm.cmd test` passes 45 unit tests and 11 Playwright
+  scenarios.
+
+### Context-menu taskbar rework (2026-08-16)
+
+- Removed the inline sidebar task-entry field. Grid right-click now opens a
+  contextual task form with a task name, palette swatches, advanced native hex
+  color picker, and Enter submission.
+- Bar and sidebar task contexts now support Add dependency, Remove dependency,
+  Change color, and Delete task. Task deletion removes the task/bar and cleans
+  both incoming and outgoing dependency links; removing dependencies only
+  removes links.
+- Workstream context now supports Collapse, Rename, and Delete. The context
+  menu continues to clamp inside the viewport for lower rows.
+- Final verification: `npm.cmd test` passes 45 unit tests and 12 Playwright
+  scenarios; `git diff --check` passes.
+
+### Experimental navigation/theme refinement (2026-08-18)
+
+- Kept the moon control as the sole theme switcher in the experimental project
+  shell. Its light-mode icon is a moon and its dark-mode icon is a sun; the
+  accessible action label changes between `Switch to dark mode` and `Switch to
+  light mode` with the theme state.
+- Replaced the settings glyph that visually resembled a sun with a distinct
+  slider/settings glyph, reducing ambiguity between settings and theme control.
+- Changed the top navigation to a three-column grid so the search field is
+  centered independently of the unequal brand and action widths.
+- Applied the same shell changes to both `demo/index.html` and
+  `demo/empty.html`. Unit tests pass; the theme browser assertions pass. The
+  full browser run reached 13/14 scenarios, with the remaining failure in the
+  pre-existing grid-hover guide scenario rather than this refinement.
+
+### Dark theme task highlight refinement (2026-08-18)
+
+- Removed the enlarged SVG task selection layer in dark mode so selected or
+  hovered bars no longer show a light outline. Light mode keeps its existing
+  visual cue; row highlighting and task interaction behavior are unchanged.
+
+### Project header port: name rename + logo picker (2026-08-18)
+
+- Ported the React `components/pmis/top-nav.tsx` project image/name header to the
+  isolated vanilla experiment. Both `demo/index.html` and `demo/empty.html` now
+  expose a 32px project-logo button and a project-name button in the top nav.
+- Clicking the project name swaps it for an inline textbox; Enter or blur commits,
+  Escape cancels, and a status message confirms the rename. The name is
+  session-only engine state (`state.projectName`), no persistence.
+- Clicking the logo button opens a `Customize project logo` dialog that mirrors the
+  React implementation: file upload via `FileReader.readAsDataURL`, a fixed 144px
+  square crop frame centered over a 224px crop surface, Pointer-Events drag with
+  `setPointerCapture`, and wheel zoom clamped to 0.5–3. `Save logo` applies the
+  draft to the header; Cancel/Escape/backdrop discard it. The logo is session-only
+  (`state.logo`), no persistence.
+- Keyboard handling follows `STD-HCI.md`: the dialog traps Tab in the order Choose
+  image → Save logo → Cancel and loops; Accept sits left of Decline; Escape closes
+  and returns focus to the logo button. The logo/name buttons are native `<button>`
+  elements reachable by Tab.
+- Added the `project-brand` view (`renderProjectBrand` in `src/renderer.js`) plus
+  commands `project.logo.open/save/cancel/file` and
+  `project.name.edit/commit`. The Enter keydown branch now only intercepts rename
+  inputs so native button activation (Enter/Space) still works for the new buttons.
+- `docs/BILL_OF_MANIFEST.md` records the feature adds no dependency: the crop is a
+  re-implementation of the React custom crop (FileReader + Pointer Events + wheel)
+  with the Lucide upload glyph vendored. `docs/ARCHITECTURE.md` and
+  `docs/THEME_AND_INTERACTION_CONTRACT.md` were updated.
+- Verification: `npm.cmd test` unit suite passes 46 tests; the browser suite passes
+  16/17 scenarios including the three new header scenarios (rename commit + Escape
+  cancel, logo upload/drag/save/cancel, dialog tab-order loop). The single failure
+  is the pre-existing grid-hover guide scenario from the prior uncommitted work
+  (documented above on 2026-08-18); it is unrelated to the header port and its
+  `updateGuide` instrumentation still reports the pointer target as a row rect.
+  A stale `node` process on test port 4173 caused an `EADDRINUSE` server abort in
+  the first E2E attempt; after terminating it, the suite ran cleanly except for that
+  pre-existing scenario.
+
+### Project logo crop refinement (2026-08-18)
+
+- Fixed the logo picker empty-state three-line glyph so it is explicitly hidden
+  after an image is selected; the `[hidden]` display rule now wins over the
+  component's `display:flex` styling.
+- Uploaded images now load their natural dimensions and start at a cover scale
+  for the locked 144px square crop frame, preserving aspect ratio instead of
+  rendering at intrinsic one-pixel or arbitrary dimensions.
+- Saved crop geometry stores the image dimensions and reuses the same scale and
+  position in the 32px project-header box. The header hides the fallback glyph
+  once a logo is committed.
+- Added browser assertions for empty-state visibility, crop dimensions,
+  header sizing, and existing Save/Cancel behavior.
+- Verification: `npm.cmd test` passes 46 unit tests and all 17 Playwright
+  scenarios with clean exit.
+
+### Experimental Gantt: stable timeline origin (2026-08-18)
+
+- Root-caused two interaction bugs in `experimental/gantt-engine` to the timeline
+  origin (`minDate`) being re-derived from the earliest task on every render:
+  dragging the earliest task kept it frozen on screen while the grid slid (a
+  nearby bar appeared to move), and creating a task earlier than the current
+  earliest re-anchored the grid so the new bar appeared several columns from the
+  hover point.
+- `computeTimelineRange` now accepts an optional `minDate` origin that is honored
+  verbatim instead of recomputed from the earliest task.
+- The engine seeds `state.minDate` to the earliest task minus a 7-day buffer and
+  only extends it leftward when a task is genuinely moved/created before the
+  current left edge. `reloadSchedule`/`setTasks` reseed the origin from the
+  replacement data; incremental mutations (create/rename/delete/color/deps) no
+  longer reset it.
+- The grid-hover crosshair's horizontal guide line now runs from the left activity
+  pane edge to the hovered column (meeting the vertical line) instead of spanning
+  the full timeline width.
+- Added kernel coverage for the `minDate` override and two Playwright scenarios
+  (origin stability on drag, and add-task landing on the hovered column plus the
+  anchored crosshair).
+- Verification: `npm.cmd test` passes 47 unit tests and 19 Playwright scenarios
+  with clean exit.
+
+### Experimental UI primitives storyboard (2026-08-18)
+
+- Added `experimental/gantt-engine/src/ui-primitives.js` with dependency-free
+  `pmis-button` and `pmis-textfield` custom elements. They mirror the narrow
+  React button/input contracts for variants, sizes, disabled state, focus
+  treatment, invalid fields, and native event behavior.
+- Added `experimental/gantt-engine/demo/ui-primitives-storyboard.html`, showing
+  the React reference markup beside the opt-in Web Component implementation.
+- Existing experimental Gantt controls were not replaced; the primitives are
+  available for new host surfaces.
+- Updated `experimental/gantt-engine/docs/BILL_OF_MANIFEST.md`; no package was
+  added.
+- Verification: `node --check src/ui-primitives.js` passed. Browser smoke loaded
+  the storyboard, confirmed both custom elements were registered, confirmed four
+  experimental buttons rendered, toggled all experimental controls disabled,
+  and observed native click event propagation without console errors.
+
+### Logo dialog Web Component adoption (2026-08-18)
+
+- Loaded `src/ui-primitives.js` from both experimental demo entry modules.
+- Replaced the logo dialog Save and Cancel controls in `demo/index.html` and
+  `demo/empty.html` with `pmis-button` elements.
+- Extended action delegation and the dialog focus trap to recognize custom
+  buttons while preserving command names and keyboard order.
+- Verification: 47 unit tests passed. Browser verification confirmed the dialog
+  renders both custom buttons and Tab order remains Choose image → Save logo →
+  Cancel.
+
+### Logo dialog primitive styling correction (2026-08-18)
+
+- Removed legacy host-level background and hover overrides from
+  `.project-logo-dialog__save`; those styles painted square corners behind the
+  shadow button.
+- The logo dialog now inherits the same rounded `pmis-button` surface as the
+  storyboard for Save and Cancel.
+- Browser visual verification confirmed both buttons render with the primitive's
+  6px radius, and the custom Cancel action closes the dialog.
+
+
+## Experimental engine: drag edge auto-pan (2026-08-19)
+
+- `experimental/gantt-engine/src/interaction.js` now integrates edge auto-pan
+  velocity in elapsed-time pixels per second, combining dwell time and pointer
+  penetration within the 40px inside-edge activation band.
+- Auto-pan covers schedule-affecting task move and start/end resize gestures.
+  Reversal and neutral return decelerate through zero; release, cancellation,
+  blur, unmount, and lost pointer capture stop the loop immediately.
+- Pointer capture is held by the stable timeline viewport rather than the
+  re-rendered task SVG node. Header/grid/rows/task preview continue to derive
+  from the canonical timeline scroll position; the fixed task list remains
+  vertical-only synchronized.
+- Added deterministic velocity tests and browser scenarios for reversal, resize
+  auto-pan, and dense-timeline overlap. Validation passed: 56 unit tests and
+  29 Playwright scenarios.
+- Manual verification remains for subjective throttle feel and visual tooltip
+  synchronization against the supplied Tom’s Planner recording.
+
+## Empty Gantt entry loading note (2026-08-19)
+
+- `demo/empty.html` uses relative stylesheet/module paths so the entry resolves
+  correctly when served from the experimental static server.
+- Chromium blocks `empty.js` when the page is opened directly as `file://`
+  because ES modules are rejected by the browser's file-origin CORS policy.
+  The supported launch is `node tests/static-server.mjs`, then
+  `http://127.0.0.1:4173/demo/empty.html`.
+
+## Third-party drag research (2026-08-19)
+
+- `interact.js` 1.10.28 was evaluated as a possible drag/resize lifecycle
+  replacement. Its auto-scroll plugin uses an rAF loop and fixed
+  pixels-per-second speed, not the confirmed gas curve.
+- Live Chromium probes showed its delegated action lifecycle works on ordinary
+  HTML elements but does not fire reliably for this re-rendered SVG task-bar
+  surface. The user chose to keep the native SVG controller rather than add an
+  HTML proxy or rewrite bars as HTML.
+- The temporary dependency and script tags were removed. The native controller
+  remains the supported interaction path.
+
+## Experimental timeline settings dependency (2026-08-23)
+
+- In both experimental demo entries, **Show major lines** is now visually nested
+  under **Show vertical lines** with a tree connector and prerequisite text.
+- The engine disables **Show major lines** whenever vertical lines are hidden and
+  restores the control when vertical lines are shown. The saved major-line
+  preference remains intact while its prerequisite is disabled.
+- Browser verification on `demo/empty.html` confirmed the 25px child indentation,
+  native disabled state, muted presentation, and accessible prerequisite
+  description.
+- Verification: `npm test` passed 57 Node tests and 36 Playwright scenarios with
+  a clean exit. The generated documentation portal was rebuilt from the updated
+  theme and interaction contract.
+
+## Experimental Tom-style dependency routing (2026-08-23)
+
+- DEC-014 supersedes DEC-013's strict one-elbow limit. Distant routes use a
+  short predecessor exit, vertical trunk, and horizontal target tail. Cramped
+  routes use one elbow and the nearest vertical target edge.
+- Committed routes use at most three straight segments and two elbows. Each
+  eligible segment receives at most one hover-revealed direction cue.
+- The 12px invisible interaction corridor, configurable connector appearance,
+  progressive disclosure, continuous strokes, and scheduling semantics remain
+  unchanged.
+- Browser verification created and connected distant empty-demo tasks. The route
+  was `M 128 18 H 146 V 54 H 480`, matching the predecessor-exit, vertical-trunk,
+  and target-tail pattern.
+- The React PMIS Gantt renderer has not yet migrated to DEC-014; this task was
+  scoped to `experimental/gantt-engine`.
+
+## Experimental dependency appearance settings (2026-08-23)
+
+- **Timeline Settings** now contains a semantic **Dependency lines** group in
+  both demo entries. **Line thickness** ranges from 1px to 3px in 0.5px steps;
+  **Arrow cue size** ranges from 3px to 8px in 1px steps.
+- Defaults remain 1.5px and 6px. Critical connectors use the selected normal
+  width multiplied by 1.33 and rounded to two decimal places.
+- Slider output labels update while the draft changes. **Save settings** applies
+  normalized values to `state.dependencyAppearance`; **Cancel** and Escape
+  preserve the last saved values.
+- Cue eligibility remains a 12px minimum segment length. The invisible 12px
+  interaction corridor remains independent from visible line width.
+- Browser verification saved the maximum 3px and 8px values, created and
+  connected two empty-demo tasks, and observed a 3px committed connector with
+  two 8px cues. Drafting the minimum values and cancelling restored 3px and 8px.
+- Verification: `npm test` passed 59 Node tests and 37 Playwright scenarios with
+  a clean exit.
+
+## Experimental half-day interaction grid (2026-08-23)
+
+- DEC-015 makes half-day snapping the default for movement, start resize, and
+  end resize. Positive and negative half-step ties resolve symmetrically.
+- Context creation selects the containing half-day region. New tasks retain a
+  one-day initial duration, and the minimum resized duration is one half-day.
+- Resize targets now use an inset of `min(12px, bar width / 2)`, extend 8px
+  beyond the bar edge, and extend 6px above and below the 24px bar. Start and
+  end targets remain separate on 16px week-scale and 10px month-scale half-day
+  bars.
+- Exact noon timestamps remain valid dependency constraints. Unit coverage
+  verifies recursive propagation through noon boundaries without duration loss.
+- Browser verification observed 12-hour move, start-resize, and end-resize
+  commits and a 24-hour newly created task.
+
+## Offline KaTeX documentation (2026-08-23)
+
+- `katex` 0.18.4 is a build-only dependency. `npm run docs:build` renders
+  `$...$` and `$$...$$` Markdown into static HTML and accessible MathML.
+- The generator embeds KaTeX CSS and font data in `docs/index.html`. Opening the
+  portal through `file://` requires no browser script, server, or network access.
+- Browser verification found 9 display equations, 11 inline equations, 20
+  MathML elements, embedded fonts, and zero external resources.
+- Final verification: `npm test` passed 60 Node tests and 38 Playwright
+  scenarios with a clean exit.
+
+## Connected dependency endpoints and preview performance (2026-08-23)
+
+- Cramped top-entry and bottom-entry routes now terminate exactly on the
+  dependent bar edge. The obsolete `DEPENDENCY_TOP_GAP` configuration was
+  removed so a host cannot reintroduce a detached endpoint.
+- Starting **Add dependency** performs one ordinary render to create the preview
+  path. Pointer movement updates only that path through one scheduled animation
+  frame; it no longer rebuilds the timeline snapshot, grid, bars, and committed
+  connectors.
+- The gesture listens to `pointermove` only. Commit, Escape cancellation, and
+  disposal cancel pending preview-frame work.
+- Browser verification rendered cramped route `M 256 18 H 260 V 42`; its endpoint
+  and destination bar both had `y=42`.
+- On the 240-task fixture, a synthetic 120-event pointer burst dispatched in
+  approximately 3.7ms and settled across two frames in 22ms. The preview retained
+  the same DOM node and caused zero child-list mutations.
+- Final verification: `npm test` passed 60 Node tests and 39 Playwright scenarios
+  with a clean exit.
+
+## Drag-preview connector continuity (2026-08-23)
+
+- The apparent connector gap during active drag was not a route-coordinate error.
+  `.gantt-task__selection` extends 2px outside the selected bar and was rendered
+  after dependency paths, so its translucent fill covered the endpoint.
+- `.gantt-preview .gantt-task__selection` is now hidden. Normal selection styling
+  remains unchanged outside an active preview.
+- Permanent Playwright coverage holds a connected task mid-drag, verifies the
+  preview halo is not displayed, and checks that the connector endpoint remains
+  attached to the preview bar for left-entry or vertical-entry routing.
+- Browser verification held `performance-6` during drag: the selection halo was
+  hidden, and both the incoming connector endpoint and preview bar had `x=384`.
+- Final verification: `npm test` passed 60 Node tests and 39 Playwright scenarios
+  with a clean exit.
+
+## Edge-constrained connectors and compaction regression coverage (2026-08-23)
+
+- `renderTimeline()` now derives one constrained `renderedPositions` array and
+  supplies it to both connector routing and task-bar rendering. Raw snapshot
+  positions remain authoritative for schedule calculations and commit.
+- Before the fix, an edge-held `performance-6` had raw `x=1088` and constrained
+  bar `x=1034`; outgoing and incoming attachments remained 54px away at the raw
+  coordinates. After the fix, the incoming endpoint is `x=1034`, the bar spans
+  `x=1034..1130`, and the outgoing connector starts at `x=1130`.
+- Exact SUN 23 → SAT 5 context-created drags survived in week and day probes with
+  the same engine, document, task ID, one-day duration, DOM bar, and committed
+  geometry.
+- A later exact reproduction found that the interaction controller retained the
+  last edge visited during a gesture. Returning an expanded preceding-edge drag
+  to the viewport interior therefore still compacted on release.
+- Release now derives its edge band and row coordinate from the final
+  `pointerup` event. Interior release retains expanded capacity. Edge release
+  compacts only when unused capacity exceeds one viewport.
+- The inert `▣` task-header button is now the accessible **Compact timeline**
+  action. Manual activation bypasses the edge-release requirement but compacts
+  only capacity beyond the one-viewport arena minimum. Repeated activation does
+  not move an already compact arena.
+- The disappearing bar was a rendered-range containment defect, not task
+  deletion. After a compaction reduced `futureDays`, a fast diagonal swipe could
+  commit the task after `timelineMaxDate`, leaving its SVG geometry outside the
+  scrollable range. `ensureTimelineContainsTasks()` now grows either boundary
+  before committed rendering and aligns an edge release with the grown range.
+- Permanent Playwright coverage verifies interior-release retention, manual
+  compaction, viewport capacity, and rapid diagonal swipe persistence. It checks
+  task identity, one-day duration, DOM presence, geometry containment, and
+  visibility.
+- A resize-target regression made the transparent handles difficult to acquire.
+  The enlarged targets now measure 20px × 36px on a one-day week-scale bar,
+  16px × 36px on a half-day week-scale bar, and 13px × 36px on a half-day
+  month-scale bar. Geometric pointer-down hit testing and cursor feedback keep
+  these targets usable outside the painted bar.
+- Handle rectangles do not receive pointer events, so enlarged targets do not
+  block the 12px dependency connector hover corridor beside a selected bar.
+- Final verification: `npm test` passed 60 Node tests and 43 Playwright scenarios
+  with a clean test-server exit.

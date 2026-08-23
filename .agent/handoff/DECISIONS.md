@@ -528,3 +528,174 @@ Evidence:
 
 Open questions:
 - Integration testing remains deferred by explicit user choice.
+
+### DEC-013 -- One-elbow adaptive dependency routing
+
+- Status: SUPERSEDED
+- Date: 2026-08-23
+- Confirmed by: user
+- Scope: UX | implementation
+- Supersedes: the previous multi-elbow geometry within the protected adaptive
+  dependency connector routing rule
+- Source: user confirmation during experimental Gantt connector refinement
+
+Decision:
+Every committed dependency connector uses one orthogonal L route: exactly two
+straight segments joined by one 90-degree elbow. With sufficient horizontal
+clearance, the route travels vertically and then enters the dependent from the
+left. In cramped layouts, it travels horizontally and then approaches the nearest
+vertical edge: the top when the dependent is below, or the bottom when it is
+above.
+
+Connector strokes retain a forgiving invisible hover corridor. Hover-revealed
+direction cues remain segment-based, so an L route can display at most two cues.
+
+Timeline Settings exposes normal connector width from 1px to 3px in 0.5px steps
+and direction cue size from 3px to 8px in 1px steps. Defaults remain 1.5px and
+6px. Critical connectors render at 1.33 times the selected normal width.
+Appearance preferences do not change routing, cue eligibility, or the 12px
+invisible hover corridor.
+
+Rationale:
+Repeated elbows make connector direction harder to parse and create repeated cue
+arrows. A one-elbow L preserves adaptive entry while reducing visual noise. A
+wider invisible hit target removes the need to position the pointer precisely on
+the visible thin stroke.
+
+Consequences:
+- Do not render committed dependency routes with more than one elbow.
+- Keep route traversal ordered from predecessor to dependent.
+- Use the nearest top or bottom edge for cramped vertical entry.
+- Keep the visible connector stroke thin while using a wider invisible hit area.
+- Preserve progressive disclosure, continuous strokes, and dependency semantics.
+- Treat line width and cue size as saved timeline appearance preferences.
+- Preserve the 12px cue-eligibility threshold at every allowed cue size.
+- Scale critical connector width by 1.33 and round to two decimal places.
+
+Evidence:
+- User confirmation on 2026-08-23.
+- `experimental/gantt-engine/src/dependencies.js`
+- `experimental/gantt-engine/src/renderer.js`
+- `experimental/gantt-engine/tests/gantt-kernel.test.mjs`
+- `experimental/gantt-engine/tests/e2e/gantt.spec.mjs`
+- 2026-08-23 empty-demo browser verification: one-elbow
+  `M 128 18 V 54 H 320` route, two direction cues, and successful cue reveal
+  from 5px outside the visible stroke.
+- 2026-08-23 completion gate: 58 Node tests and 37 Playwright scenarios passed
+  with a clean exit.
+- 2026-08-23 appearance verification: **Timeline Settings** saved 3px line
+  width and 8px cue size, the committed SVG rendered those dimensions, and
+  cancelling 1px and 3px drafts preserved the saved values.
+- 2026-08-23 appearance completion gate: 59 Node tests and 37 Playwright
+  scenarios passed with a clean exit.
+
+Open questions:
+- None. DEC-014 supersedes the one-elbow route limit while carrying forward the
+  appearance preferences and hover corridor. The React PMIS Gantt renderer still
+  requires migration; it is outside the current experimental-engine task.
+ 
+### DEC-014 -- Tom-style adaptive dependency routing
+
+- Status: VERIFIED
+- Date: 2026-08-23
+- Confirmed by: user
+- Scope: UX | implementation
+- Supersedes: DEC-013 route geometry; preserves its appearance preferences and
+  hover corridor
+- Source: user-provided Tom's Planner screenshots and current conversation
+
+Decision:
+Committed dependency connectors use at most two elbows. Distant dependents use a
+short predecessor exit, a vertical trunk, and a horizontal tail that enters the
+dependent from the left. Cramped dependents omit the tail and use one elbow to
+approach the nearest top or bottom edge.
+Vertical-entry routes terminate exactly on the dependent bar. A visual endpoint
+gap is not part of the connector contract.
+
+Rationale:
+The Tom's Planner pattern keeps the predecessor exit stable, makes long vertical
+relationships easy to trace, and removes unnecessary repeated bends. A strict
+one-elbow route cannot reproduce distant left-entry examples.
+
+Consequences:
+- Use `DEPENDENCY_ELBOW_GAP` for the predecessor exit and route-selection
+  clearance.
+- Render no more than three straight segments and two elbows.
+- Keep at most one direction cue on each eligible segment.
+- Preserve configurable line width, configurable cue size, the 12px hover
+  corridor, progressive disclosure, and scheduling semantics.
+- Terminate committed connectors on the destination bar edge without a gap.
+- During edge autoscroll, derive connectors and preview bars from the same
+  constrained render-position map.
+
+Evidence:
+- User-provided close, distant, long-vertical, and wide-route screenshots.
+- `experimental/gantt-engine/src/dependencies.js`
+- `experimental/gantt-engine/tests/gantt-kernel.test.mjs`
+- 2026-08-23 empty-demo browser verification:
+  `M 128 18 H 146 V 54 H 480` rendered the confirmed predecessor exit,
+  vertical trunk, and target tail.
+- 2026-08-23 completion gate: 60 Node tests and 38 Playwright scenarios passed
+  with a clean exit.
+- 2026-08-23 endpoint verification: cramped route
+  `M 256 18 H 260 V 42` and its destination bar shared the exact `y=42`
+  boundary.
+- 2026-08-23 preview verification: a 120-event burst on the 240-task fixture
+  retained one preview node, caused zero child-list mutations, and settled in
+  22ms across two animation frames.
+- 2026-08-23 completion gate: 60 Node tests and 39 Playwright scenarios passed
+  with a clean exit.
+- 2026-08-23 edge-autoscroll verification: with raw task `x=1088`, the shared
+  constrained render map placed the bar and incoming endpoint at `x=1034` and
+  the outgoing start at the bar's `x=1130` right edge.
+- 2026-08-23 strengthened completion gate: 60 Node tests and 41 Playwright
+  scenarios passed with a clean exit.
+
+Open questions:
+- None.
+
+### DEC-015 -- Half-day timeline interaction grid
+
+- Status: VERIFIED
+- Date: 2026-08-23
+- Confirmed by: user
+- Scope: UX | scheduling | implementation
+- Supersedes: the previous one-day default snap increment
+- Source: user confirmation in the current conversation
+
+Decision:
+Task movement, start resizing, and end resizing snap to the nearest half-day.
+Context creation selects the half-day region containing the pointer. New tasks
+always receive a one-day initial duration. The minimum resized duration is one
+half-day.
+
+Day, week, and month views remain available. Resize hit zones shrink to half the
+bar width when a half-day bar is narrower than 20px, preventing start and end
+targets from overlapping.
+
+Rationale:
+Half-day snapping matches the Tom's Planner reference without removing existing
+timeline scales or silently reducing the initial duration of newly created tasks.
+
+Consequences:
+- Resolve positive and negative half-step ties symmetrically.
+- Preserve exact noon timestamps through dependency clamping and recursive
+  forward propagation.
+- Keep new-task duration independent from snap increment.
+- Verify movement, both resize edges, creation, propagation, and short-bar
+  handles with permanent unit and Playwright coverage.
+
+Evidence:
+- `experimental/gantt-engine/src/timeline.js`
+- `experimental/gantt-engine/src/scheduling.js`
+- `experimental/gantt-engine/src/engine.js`
+- `experimental/gantt-engine/src/renderer.js`
+- `experimental/gantt-engine/tests/gantt-kernel.test.mjs`
+- `experimental/gantt-engine/tests/e2e/gantt.spec.mjs`
+- 2026-08-23 browser verification: movement, start resize, and end resize each
+  committed a 12-hour change; context creation retained a 24-hour duration.
+- 2026-08-23 completion gate: 60 Node tests and 38 Playwright scenarios passed
+  with a clean exit.
+
+Open questions:
+- None.

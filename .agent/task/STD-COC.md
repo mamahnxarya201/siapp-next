@@ -1,0 +1,12 @@
+# MUST
+- DO NOT create full blown framework or more scope creep features if its not there to achieve the common goals sets by previous bullet point- IF YOU MUST create and API abstraction layer to defer or re render per component
+- DO NOT reach for 3rd party solution unless its for testing or something that lot of programmer will agree, for example E2E test => playwright, Unit Test => Jest
+	- assume the NIH will always take precedence and if you need to reach the 3rd party solution write "Bill of Manifest" for the dependency in separate .md files and write the reasoning, the advantage and the disadvantage
+	- YOU CAN take inspiration for 3rd party framework or library if you only need to steal or use one to 3 features, example:
+		- i need the ability to re render and take granular control
+			- WRONG -> i will use preact
+			- CORRECT -> i will read morphdom from their repo and take what i need and re implemented
+- ALWAYS document the entire structure, the document itself will be read and audited by human and used as source for other agent so always write the factual, dont make assumption, direct and provide the guide to navigate the codebase
+- Default Loop
+	- Do not mark the task complete while any required test is failing, hanging, or blocked. Treat test infrastructure errors as part of the task: investigate and fix them, including stale processes, dev-server configuration, HMR issues, font/network dependencies, and test selectors. Only finish after the required test suite passes cleanly with an exit code of 0 and no unresolved test-runner errors.
+	- If a test command reports passing tests but does not exit cleanly, treat that as a failure until the process-cleanup issue is fixed or the command is run in a configuration that exits cleanly.

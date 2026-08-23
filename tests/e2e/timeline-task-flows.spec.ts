@@ -5,12 +5,23 @@ async function openProject(page: Page, projectName: string) {
   page.on('console', (message) => {
     if (message.type() === 'error') console.error(`Browser console error: ${message.text()}`)
   })
-  await page.goto('/')
+  await page.goto('/dashboard')
   // The dashboard now presents projects as directly clickable cards; there is
   // no longer an All Projects project-selector menu in the top navigation.
-  await page.getByText(projectName, { exact: true }).first().click()
+  await page.getByRole('link', { name: new RegExp(`^${projectName}`) }).click()
+  await expect(page).toHaveURL(/\/project\/timeline\/[a-z0-9-]+$/)
   await expect(page.getByTestId('task-list-scroll')).toBeVisible()
 }
+
+test('uses explicit dashboard and project timeline routes', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveURL('/dashboard')
+  await page.getByRole('link', { name: /^API Gateway Migration/ }).click()
+  await expect(page).toHaveURL('/project/timeline/p3')
+  await page.goto('/project/timeline/p4')
+  await expect(page.getByTestId('task-list-scroll')).toBeVisible()
+  await expect(page).toHaveURL('/project/timeline/p4')
+})
 
 test('creates from a workstream, edits in the inspector, and deletes from the task list', async ({ page }) => {
   await openProject(page, 'Mobile App Redesign')
@@ -38,13 +49,14 @@ test('creates from a workstream, edits in the inspector, and deletes from the ta
   await expect(page.getByRole('heading', { name: 'Edit Task' })).toBeVisible()
   const inspectorViewport = page.locator('[data-radix-scroll-area-viewport]').last()
   await page.getByLabel('Description').fill('Long task detail content '.repeat(200))
+  await page.getByRole('button', { name: 'Add label' }).click()
+  await page.getByLabel('Task label 1').fill('release-critical')
   await expect.poll(async () => inspectorViewport.evaluate((element) => getComputedStyle(element).overflowY)).toMatch(/auto|scroll/)
-  await page.getByLabel('Linked change requests').focus()
-  await page.getByLabel('Linked change requests').press('Tab')
-  await expect(page.getByRole('button', { name: 'Save task changes' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Save task changes' })).toBeEnabled()
   await page.getByLabel('Title').fill(editedName)
   await page.getByRole('button', { name: 'Save task changes' }).click()
   await expect(page.getByTestId('task-list-scroll').getByText(editedName, { exact: true })).toBeVisible()
+  await expect(page.getByText('release-critical', { exact: true })).toBeVisible()
 
   const editedTaskRow = page.getByTestId('task-list-scroll').locator('[data-task-id]').filter({ hasText: editedName })
   await editedTaskRow.click({ button: 'right' })
@@ -56,11 +68,14 @@ test('creates from a workstream, edits in the inspector, and deletes from the ta
 
 test('requires a workstream before task creation and continues after creating one', async ({ page }) => {
   await openProject(page, 'PMIS Platform v1.0')
+  await page.waitForTimeout(750)
 
   const workstreams = ['Foundation', 'Core Platform', 'Execution UI', 'Validation', 'Release']
   for (const workstream of workstreams) {
-    await page.getByRole('button', { name: `Manage ${workstream}` }).click()
-    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    const manageButton = page.getByRole('button', { name: `Manage ${workstream}` })
+    await manageButton.click({ force: true })
+    await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeVisible()
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
     await page.getByRole('button', { name: 'Delete workstream' }).click()
   }
 

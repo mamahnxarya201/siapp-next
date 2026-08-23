@@ -81,6 +81,7 @@ export interface UpdateTaskInput {
   predecessorIds: string[]
   blockers: string[]
   linkedChangeRequests: string[]
+  labels: string[]
   isMilestone: boolean
 }
 
@@ -490,6 +491,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       isMilestone: input.isMilestone,
       isCriticalPath: false,
       linkedChangeRequests: [],
+      labels: [],
       comments: [],
       riskLevel: 'low',
     }
@@ -540,6 +542,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
       .filter((id) => id !== taskId && state.tasks.some((candidate) => candidate.id === id))
     const blockers = input.blockers.map((blocker) => blocker.trim()).filter(Boolean)
     const linkedChangeRequests = input.linkedChangeRequests.map((item) => item.trim()).filter(Boolean)
+    const labels = input.labels.map((item) => item.trim()).filter(Boolean)
 
     if (!name) return { ok: false, error: 'Task title is required.' }
     if (!state.workstreams.some((workstream) => workstream.id === input.workstreamId)) {
@@ -599,6 +602,7 @@ export const usePMISStore = create<PMISState>((set, get) => ({
           dependencies: predecessorIds,
           blockers,
           linkedChangeRequests,
+          labels,
           isMilestone: input.isMilestone,
         }
       }

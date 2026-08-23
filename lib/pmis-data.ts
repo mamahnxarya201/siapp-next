@@ -46,6 +46,7 @@ export interface Task {
   isMilestone: boolean
   isCriticalPath: boolean
   linkedChangeRequests: string[]
+  labels?: string[]
   comments: {
     id: string
     author: string

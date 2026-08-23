@@ -109,13 +109,13 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
               <Button
                 key="save-task"
                 id={`task-save-${task.id}`}
-                type="submit"
-                form={editFormId}
+                type="button"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
                 aria-label="Save task changes"
                 title="Save task changes"
+                onClick={() => (document.getElementById(editFormId) as HTMLFormElement | null)?.requestSubmit()}
               >
                 <Save className="h-4 w-4" />
               </Button>
@@ -217,6 +217,17 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
               {task.description}
             </p>
           </div>
+
+          {task.labels && task.labels.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Labels</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {task.labels.map((label) => <Badge key={label} variant="outline" className="text-xs">{label}</Badge>)}
+              </div>
+            </div>
+          )}
 
           <Separator />
 
@@ -332,7 +343,7 @@ export function ContextInspector({ width = 320 }: { width?: number }) {
                     }
                   }} />
                   <span className="text-[10px] text-muted-foreground">%</span>
-                  <button type="button" aria-label={`Delete ${item.text}`} className="text-muted-foreground hover:text-destructive" onClick={() => {
+                  <button type="button" aria-label={`Delete ${item.text}`} className="rounded-md border border-destructive/40 p-1 text-destructive hover:bg-destructive/10" onClick={() => {
                     const remaining = checklist.filter((candidate) => candidate.id !== item.id)
                     const base = remaining.length ? Math.floor(100 / remaining.length) : 0
                     const remainder = remaining.length ? 100 - base * remaining.length : 0

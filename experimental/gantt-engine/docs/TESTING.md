@@ -19,7 +19,7 @@ is a failure.
 On 2026-08-23 the completion gate finished cleanly with:
 
 - 60 Node tests passed;
-- 41 Chrome/Playwright scenarios passed;
+- 43 Chrome/Playwright scenarios passed;
 - no failed, skipped, cancelled, or unresolved tests;
 - the static server terminated normally after Playwright.
 
@@ -83,25 +83,34 @@ It verifies:
    calculated critical bar emphasis;
 4. adaptive Tom-style connector geometry, a 12px invisible hover corridor,
    hover-only segment cues, and at most three cues per route;
-5. half-day movement and both resize edges, one-day task creation, and
-   non-overlapping short-bar handles at week and month scales;
+5. half-day movement and both resize edges, one-day task creation, enlarged
+   non-overlapping resize targets at week and month scales, and connector hover
+   behavior beside selected bars;
 6. workstream collapse removing matching rows, bars, and connector endpoints;
 7. real pointer drag commit with recursive dependent propagation, active-preview
    connector continuity, edge-constrained incoming and outgoing attachments, and
    unrelated-task preservation;
 8. predecessor-left movement leaving a child unchanged;
-9. uninterrupted right-edge, left-edge, reversal, and resize-edge autoscroll;
-10. viewport-sized left buffering without per-date origin re-anchoring;
-11. release compaction preserving task identity, duration, DOM presence, viewport
+9. uninterrupted following-edge, preceding-edge, reversal, and resize-edge
+   autoscroll;
+10. viewport-sized preceding-range buffering without per-date origin
+    re-anchoring;
+11. interior release retaining an expanded arena, **Compact timeline** removing
+    excess capacity, and repeated activation preserving an already compact
+    viewport;
+12. edge-release compaction preserving task identity, duration, DOM presence,
     visibility, and the viewport-sized minimum range;
-12. context-created cross-month drag preserving the document, URL, history,
-    navigation count, task ID, one-day duration, committed date, and bar geometry;
-13. custom scrollbar track jumps and grab-offset-preserving thumb drags;
-14. one shared vertical scroll region, sticky task and calendar headers, stable
-    date range during center drags, a 20px post-task viewport minimum, horizontal
-    timeline scrolling, right-edge range growth, idle compaction, and milestone
-    rendering;
-15. scheduled `schedule.reload` through the injected gateway.
+13. rapid diagonal swipes after compaction preserving task identity, duration,
+    scrollable geometry, and range containment;
+14. context-created cross-month drag preserving the document, URL, history,
+    navigation count, task ID, one-day duration, committed date, and bar
+    geometry;
+15. custom scrollbar track jumps and grab-offset-preserving thumb drags;
+16. one shared vertical scroll region, sticky task and calendar headers, stable
+    date range during center drags, a 20px post-task viewport minimum,
+    horizontal timeline scrolling, following-edge range growth, idle
+    compaction, and milestone rendering;
+17. scheduled `schedule.reload` through the injected gateway.
 
 ## Process lifecycle
 

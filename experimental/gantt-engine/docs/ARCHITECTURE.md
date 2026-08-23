@@ -179,7 +179,7 @@ execute commands, call the bridge, or apply scheduling rules.
 - microtasks coalesce view invalidation;
 - animation frames throttle pointer previews;
 - delayed work compacts an extended timeline after a 260ms idle period near the left edge for ordinary horizontal scrolling;
-- task-release compaction removes unused outer date ranges after an expanded schedule drag;
+- task-release compaction runs only when the pointer is released in an edge band and the unused range exceeds one viewport;
 - async jobs pass an `AbortSignal` to bridge operations.
 
 Every returned job has cancellation and completion state. `MiniApplication.stop()` and
@@ -238,18 +238,26 @@ targets); dropping below all groups makes the task ungrouped. `reorderWorkstream
 moves a whole workstream block (header and its tasks) to reorder groups relative to
 each other.
 
-The engine keeps the timeline origin (`state.minDate`) stable during a drag preview.
-It is seeded to the earliest task minus a 7-day past buffer. When a schedule-affecting
-drag reaches the left low-water threshold, the controller prepends one viewport-sized
-date chunk and preserves the visible pointer/date coordinate. It does not re-anchor the
-origin once per snapped preview date.
+The engine keeps the timeline origin (`state.minDate`) stable during a drag
+preview. It is seeded to the earliest task minus a 7-day past buffer. When a
+schedule-affecting drag reaches the left low-water threshold, the controller
+prepends one viewport-sized date chunk and preserves the visible pointer/date
+coordinate. It does not re-anchor the origin once per snapped preview date.
 
-On pointer release after range expansion, the engine trims only unused outer dates.
-The retained scope spans the earliest task start and latest task end, but never becomes
-narrower than the visible viewport. Left-edge releases align the scroll position to
-zero; right-edge releases align it to the maximum scroll position. Internal empty gaps
-and task-containing dates remain unchanged. `replaceTasks` (used by `reloadSchedule` and
-`setTasks`) reseeds the origin from replacement data.
+The allocated date range behaves as a viewport-capacity arena. If a drag grows
+the range and returns to the viewport interior before release, the engine
+retains the allocated range. If the pointer is released in an edge band and the
+unused range exceeds one viewport, the engine compacts the unused outer dates.
+The **Compact timeline** button bypasses the edge-release requirement, but it
+does not move an arena that already contains no more than one viewport of
+unused capacity.
+
+Compaction never changes task dates, row order, dependencies, or internal empty
+gaps. It retains at least the viewport width plus `20px`. A preceding-edge
+compaction places the earliest task at the start and retains capacity after the
+latest task. A following-edge compaction places the latest task at the end and
+retains capacity before the earliest task. `replaceTasks` (used by
+`reloadSchedule` and `setTasks`) reseeds the range from replacement data.
 
 The renderer owns the wireframe cell grid. `settings.grid` is normalized by
 `src/grid.js` and controls vertical/horizontal line visibility, major-line visibility,
@@ -390,14 +398,22 @@ New tasks always receive a one-day duration. Half-day snapping therefore control
 placement and editing granularity without redefining the initial task duration.
 The minimum resize duration is one half-day.
 
-For bar width $b$, each resize hit zone uses:
+For bar width $b$, the resize target's inset is:
 
 $$
-h = \min\left(10, \frac{b}{2}\right)
+i = \min\left(12, \frac{b}{2}\right)
 $$
 
-This keeps the start and end hit zones separate on short half-day bars at every
-timeline scale.
+Each target extends 8px beyond its bar edge, so its horizontal width is
+$i + 8$. It also extends 6px above and below the 24px bar, producing a 36px
+vertical target. The start target ends no later than the bar midpoint, and the
+end target begins no earlier than the midpoint. Short half-day bars therefore
+retain separate start and end targets.
+
+The transparent SVG rectangles do not receive pointer events. The interaction
+controller performs geometric pointer-down hit testing and supplies the
+east-west resize cursor. This keeps the larger targets from blocking dependency
+connector hover corridors.
 
 `scheduling.js` is pure. Dragging/resizing returns new tasks and before/after effects.
 Direct child movement clamps to the latest direct predecessor end. Moving a predecessor
@@ -477,15 +493,17 @@ task list and timeline columns, so both columns always use the same `scrollTop`.
 The task list, timeline viewport, and timeline header do not own vertical scrolling.
 The timeline renderer receives the shared viewport height and keeps row geometry in
 the shared scroll coordinate system.
-The timeline end date is state-owned. Task date changes do not change the rendered
-range; edge scrolling extends the stored end date, and release compaction resets it
-from the committed task dates while preserving a 20px viewport gap after the task
-range when the compacted task span is shorter than the viewport.
+The timeline end date is state-owned. Edge scrolling extends the stored range.
+A committed task outside the stored range extends that range before rendering,
+so a fast swipe cannot leave the task beyond the scrollable SVG.
 
-The right edge grows the future range by 180 days behind a latch. The left edge grows
-viewport-sized chunks at a low-water threshold during active schedule drags.
-Release-only compaction trims unused outer dates while preserving task-containing dates,
-internal gaps, and a minimum viewport-sized scope.
+The right edge grows the future range by 180 days behind a latch. The left edge
+grows viewport-sized chunks at a low-water threshold during active schedule
+drags. Returning to the viewport interior retains those allocations. An edge
+release compacts only when the unused range exceeds one viewport. The
+**Compact timeline** button removes excess capacity without requiring an edge
+release. Repeated activation is a no-op after unused capacity reaches one
+viewport.
 
 ### Grid behavior and range ownership
 
@@ -498,55 +516,49 @@ The grid uses one vertical scroll owner and one horizontal scroll owner:
   its `scrollLeft`, and `.timeline-header-slot` mirrors that value for the sticky
   calendar header.
 
-The engine stores the rendered end date in `state.timelineMaxDate`. Moving or
-resizing a task changes the task preview, but it does not change the grid range.
-The range changes only when an edge mechanic explicitly extends it or when
-release compaction recalculates it from committed task dates. This separation
-prevents the date grid from growing or shrinking as a side effect of ordinary
-pointer movement.
+The engine stores the rendered boundaries in `state.minDate` and
+`state.timelineMaxDate`. Preview movement does not resize the grid. Edge
+mechanics grow the stored range explicitly. Before a committed result renders,
+`ensureTimelineContainsTasks()` extends either boundary when a task would
+otherwise fall outside the scrollable SVG.
 
-On release, compaction calculates the occupied visible-day span and the minimum
-viewport span. The minimum span is the timeline viewport width plus `20px`,
-rounded up to a whole visible-day unit. If the task span is shorter, compaction
-retains the remaining units after the task range. If the task span is already
-longer than the viewport, compaction does not add artificial trailing range.
-This keeps the viewport usable after a long bar is reduced.
+Release compaction uses the pointer's current edge band at `pointerup`, not an
+edge visited earlier in the gesture. Releasing in the viewport interior leaves
+an expanded range unchanged. Releasing in an edge band compacts only if the
+unused visible-day span exceeds the viewport capacity.
 
-### Current compaction investigation status
+Compaction calculates the occupied visible-day span and the minimum viewport
+span. The minimum is the timeline viewport width plus `20px`, rounded up to a
+whole visible-day unit. If the task span is shorter, compaction expands one
+opposite edge to retain that minimum. If the task span is longer, compaction
+does not add artificial range.
 
-Status on 2026-08-23: the reported task disappearance remains unresolved. The
-reported sequence creates a task on Sunday, 2026-08-23, drags it to Saturday,
-2026-09-05, and appears to refresh the page after release.
+### Compaction and disappearing-bar resolution
 
-The current investigation produced these results:
+Status on 2026-08-23: resolved in the experimental engine.
 
-- the exact cross-month drag survived at week and day scales;
-- the browser retained the same `document`, URL, history length, navigation-entry
-  count, engine instance, task ID, one-day duration, DOM bar, and committed
-  position;
-- a real right-edge release compaction changed `futureDays` from `270` to `0`
-  while preserving task identity, duration, DOM presence, and viewport
-  visibility;
-- no compaction source defect was reproduced, so the range algorithm was not
-  changed.
+Two state transitions caused the reported behavior:
 
-Permanent Playwright scenarios in `tests/e2e/gantt.spec.mjs` cover the exact
-cross-month drag and actual release compaction. A new investigation must not
-assume that a full SVG replacement is a browser navigation.
+- `lastEdgeDirection` remembered any edge visited during the gesture. A drag
+  that grew the preceding range and returned to the viewport interior still
+  compacted on release.
+- After compaction set `futureDays` to `0`, a fast diagonal swipe could commit a
+  task after `timelineMaxDate`. The task remained in state and in the DOM, but
+  its SVG coordinate fell outside the scrollable range and appeared to
+  disappear.
 
-If the issue reproduces, collect these facts before editing:
+The interaction controller now recalculates the release band and row coordinate
+from the final `pointerup` event. The engine also expands its stored boundaries
+to contain every committed task before rendering. These changes preserve the
+task ID, dates, duration, row order, and DOM bar.
 
-1. Record the active timeline scale, viewport width, start half-day, and release
-   half-day.
-2. Compare `document`, `location.href`, `history.length`, `pageshow` count, and
-   `performance.getEntriesByType("navigation")` before and after release.
-3. Record `state.futureDays`, `state.leftBufferExpanded`, `state.minDate`,
-   `state.timelineMaxDate`, `scrollLeft`, and maximum scroll before release and
-   after compaction settles.
-4. Record the task ID, start, end, duration, row order, matching DOM count, and
-   bounding rectangle at creation, held preview, release, and 300ms after release.
-5. If a real navigation occurred, investigate the reload trigger separately from
-   compaction.
+Permanent Playwright scenarios in `tests/e2e/gantt.spec.mjs` cover:
+
+- viewport-sized preceding-range growth followed by an interior release;
+- forced compaction through **Compact timeline**;
+- viewport minimum capacity after compaction;
+- a rapid diagonal swipe after compaction;
+- task identity, duration, DOM presence, arena geometry, and visibility.
 
 ## Bridge separation
 

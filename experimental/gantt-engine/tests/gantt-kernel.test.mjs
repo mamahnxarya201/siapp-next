@@ -34,10 +34,17 @@ import {
   reorderWorkstreamToIndex,
 } from '../src/reorder.js'
 import {
+  DEFAULT_DEPENDENCY_APPEARANCE,
+  DEPENDENCY_CUE_MIN_SEGMENT_LENGTH,
+  DEPENDENCY_CUE_SIZE_MAX,
+  DEPENDENCY_CUE_SIZE_MIN,
+  DEPENDENCY_CUE_SIZE_STEP,
   DEPENDENCY_ELBOW_GAP,
-  DEPENDENCY_PARENT_EXIT_GAP,
-  DEPENDENCY_TOP_GAP,
+  DEPENDENCY_LINE_WIDTH_MAX,
+  DEPENDENCY_LINE_WIDTH_MIN,
+  DEPENDENCY_LINE_WIDTH_STEP,
   DEPENDENCY_TOP_INSET,
+  normalizeDependencyAppearance,
   routeDependency,
   selectVisibleDependencies,
 } from '../src/dependencies.js'
@@ -325,36 +332,116 @@ test('progressive dependency visibility handles default, hover, selection, all, 
   })), ['a->b'])
 })
 
-test('dependency routing produces continuous normal and cramped orthogonal paths with independent geometry', () => {
+test('dependency routing produces adaptive Tom-style paths with at most two elbows', () => {
   assert.equal(DEPENDENCY_ELBOW_GAP, 18)
-  assert.equal(DEPENDENCY_PARENT_EXIT_GAP, 4)
   assert.equal(DEPENDENCY_TOP_INSET, 4)
-  assert.equal(DEPENDENCY_TOP_GAP, 3)
 
   const from = { x: 0, y: 100, width: 40, height: 24 }
   const normal = routeDependency(from, { x: 100, y: 150, width: 30, height: 24 })
   assert.equal(normal.route, 'left-entry')
-  assert.equal(normal.path, 'M 40 112 H 70 V 162 H 100')
+  assert.equal(normal.path, 'M 40 112 H 58 V 162 H 100')
+  assert.equal(normal.commands.length, 4)
   assert.equal(normal.markerDirection, 'right')
+  assert.deepEqual(
+    normal.cues.map((cue) => cue.direction),
+    ['right', 'down', 'right'],
+  )
   assert.equal(normal.solid, true)
   assert.equal(normal.strokeDasharray, 'none')
   assert.equal(normal.strokeDashoffset, 0)
 
   const cramped = routeDependency(from, { x: 60, y: 150, width: 30, height: 24 }, {
     elbowGap: 22,
-    parentExitGap: 7,
     topInset: 11,
-    topGap: 5,
   })
   assert.equal(cramped.route, 'top-entry')
-  assert.equal(cramped.path, 'M 40 112 H 47 V 128 H 71 V 145')
+  assert.equal(cramped.path, 'M 40 112 H 71 V 150')
+  assert.equal(cramped.commands.length, 3)
   assert.equal(cramped.markerDirection, 'down')
   assert.deepEqual(cramped.geometry, {
     elbowGap: 22,
-    parentExitGap: 7,
     topInset: 11,
-    topGap: 5,
   })
+
+  const above = routeDependency(
+    { x: 0, y: 150, width: 40, height: 24 },
+    { x: 60, y: 50, width: 30, height: 24 },
+  )
+  assert.equal(above.route, 'bottom-entry')
+  assert.equal(above.path, 'M 40 162 H 64 V 74')
+  assert.equal(above.markerDirection, 'up')
+})
+
+test('dependency appearance settings normalize to the confirmed slider contract', () => {
+  assert.deepEqual(DEFAULT_DEPENDENCY_APPEARANCE, {
+    lineWidth: 1.5,
+    cueSize: 6,
+  })
+  assert.equal(DEPENDENCY_LINE_WIDTH_MIN, 1)
+  assert.equal(DEPENDENCY_LINE_WIDTH_MAX, 3)
+  assert.equal(DEPENDENCY_LINE_WIDTH_STEP, 0.5)
+  assert.equal(DEPENDENCY_CUE_SIZE_MIN, 3)
+  assert.equal(DEPENDENCY_CUE_SIZE_MAX, 8)
+  assert.equal(DEPENDENCY_CUE_SIZE_STEP, 1)
+  assert.deepEqual(normalizeDependencyAppearance(), {
+    lineWidth: 1.5,
+    cueSize: 6,
+  })
+  assert.deepEqual(
+    normalizeDependencyAppearance({ lineWidth: 2.74, cueSize: 99 }),
+    { lineWidth: 2.5, cueSize: 8 },
+  )
+})
+
+test('dependency direction cues use adjustable midpoint geometry and a fixed eligibility threshold', () => {
+  assert.equal(DEPENDENCY_CUE_MIN_SEGMENT_LENGTH, 12)
+
+  const from = { x: 0, y: 100, width: 40, height: 24 }
+  const straight = routeDependency(from, { x: 100, y: 100, width: 30, height: 24 })
+  assert.deepEqual(straight.cues, [{
+    direction: 'right',
+    length: 60,
+    points: [
+      { x: 73, y: 112 },
+      { x: 67, y: 115 },
+      { x: 67, y: 109 },
+    ],
+  }])
+
+  const largeCue = routeDependency(
+    from,
+    { x: 100, y: 100, width: 30, height: 24 },
+    { cueSize: 8 },
+  )
+  assert.equal(largeCue.cueSize, 8)
+  assert.deepEqual(largeCue.cues[0].points, [
+    { x: 74, y: 112 },
+    { x: 66, y: 116 },
+    { x: 66, y: 108 },
+  ])
+
+  const veryLong = routeDependency(from, { x: 1000, y: 100, width: 30, height: 24 })
+  assert.equal(veryLong.cues.length, 1)
+  assert.equal(veryLong.cues[0].length, 960)
+
+  const cramped = routeDependency(
+    from,
+    { x: 60, y: 150, width: 30, height: 24 },
+    { elbowGap: 22, topInset: 11 },
+  )
+  assert.deepEqual(
+    cramped.cues.map((cue) => [cue.direction, cue.length]),
+    [['right', 31], ['down', 38]],
+  )
+
+  const reversed = routeDependency(
+    { x: 100, y: 100, width: 40, height: 24 },
+    { x: 20, y: 150, width: 30, height: 24 },
+  )
+  assert.deepEqual(
+    reversed.cues.map((cue) => cue.direction),
+    ['left', 'down'],
+  )
 })
 
 test('autoscroll velocity uses elapsed time and pixel-per-second units', () => {

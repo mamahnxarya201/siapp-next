@@ -1,4 +1,7 @@
-import { selectVisibleDependencies } from "./dependencies.js";
+import {
+  normalizeDependencyAppearance,
+  selectVisibleDependencies,
+} from "./dependencies.js";
 import { calculateForecast } from "./forecast.js";
 import { MiniApplication } from "./framework/index.mjs";
 import { GanttInteractionController } from "./interaction.js";
@@ -128,6 +131,9 @@ export function createGanttEngine(options) {
     scale: options.settings?.scale ?? "week",
     theme: options.settings?.theme ?? "light",
     grid: normalizeGridSettings(options.settings?.grid),
+    dependencyAppearance: normalizeDependencyAppearance(
+      options.settings?.dependencyAppearance,
+    ),
     showAllDependencies: false,
     showCriticalPath: false,
     visibleWeekdays: options.settings?.visibleWeekdays ?? ALL_WEEKDAYS,

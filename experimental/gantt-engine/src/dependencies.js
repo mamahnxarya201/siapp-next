@@ -2,15 +2,52 @@ import { normalizeTasks } from "./model.js";
 import { BAR_HEIGHT } from "./timeline.js";
 
 export const DEPENDENCY_ELBOW_GAP = 18;
-export const DEPENDENCY_PARENT_EXIT_GAP = 4;
 export const DEPENDENCY_TOP_INSET = 4;
-export const DEPENDENCY_TOP_GAP = 3;
+export const DEPENDENCY_CUE_MIN_SEGMENT_LENGTH = 12;
+export const DEPENDENCY_LINE_WIDTH_MIN = 1;
+export const DEPENDENCY_LINE_WIDTH_MAX = 3;
+export const DEPENDENCY_LINE_WIDTH_STEP = 0.5;
+export const DEPENDENCY_CUE_SIZE_MIN = 3;
+export const DEPENDENCY_CUE_SIZE_MAX = 8;
+export const DEPENDENCY_CUE_SIZE_STEP = 1;
+export const DEPENDENCY_CRITICAL_WIDTH_SCALE = 1.33;
 
+export const DEFAULT_DEPENDENCY_APPEARANCE = Object.freeze({
+  lineWidth: 1.5,
+  cueSize: 6,
+});
+
+function normalizeSteppedNumber(value, minimum, maximum, step, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  const clamped = Math.max(minimum, Math.min(maximum, number));
+  return Number(
+    (minimum + Math.round((clamped - minimum) / step) * step).toFixed(2),
+  );
+}
+
+export function normalizeDependencyAppearance(value = {}) {
+  const appearance = value && typeof value === "object" ? value : {};
+  return Object.freeze({
+    lineWidth: normalizeSteppedNumber(
+      appearance.lineWidth,
+      DEPENDENCY_LINE_WIDTH_MIN,
+      DEPENDENCY_LINE_WIDTH_MAX,
+      DEPENDENCY_LINE_WIDTH_STEP,
+      DEFAULT_DEPENDENCY_APPEARANCE.lineWidth,
+    ),
+    cueSize: normalizeSteppedNumber(
+      appearance.cueSize,
+      DEPENDENCY_CUE_SIZE_MIN,
+      DEPENDENCY_CUE_SIZE_MAX,
+      DEPENDENCY_CUE_SIZE_STEP,
+      DEFAULT_DEPENDENCY_APPEARANCE.cueSize,
+    ),
+  });
+}
 export const DEPENDENCY_GEOMETRY = Object.freeze({
   elbowGap: DEPENDENCY_ELBOW_GAP,
-  parentExitGap: DEPENDENCY_PARENT_EXIT_GAP,
   topInset: DEPENDENCY_TOP_INSET,
-  topGap: DEPENDENCY_TOP_GAP,
 });
 
 function visibleIdSet(tasks, visibleTaskIds) {
@@ -150,15 +187,10 @@ function connectorGeometry(overrides = {}) {
       overrides.elbowGap ?? DEPENDENCY_ELBOW_GAP,
       "elbowGap",
     ),
-    parentExitGap: finiteNonNegative(
-      overrides.parentExitGap ?? DEPENDENCY_PARENT_EXIT_GAP,
-      "parentExitGap",
-    ),
     topInset: finiteNonNegative(
       overrides.topInset ?? DEPENDENCY_TOP_INSET,
       "topInset",
     ),
-    topGap: finiteNonNegative(overrides.topGap ?? DEPENDENCY_TOP_GAP, "topGap"),
   });
 }
 
@@ -188,6 +220,93 @@ function pathFromCommands(commands) {
     .join(" ");
 }
 
+function dependencyCuePoints(segment, cueSize) {
+  const midpointX = (segment.from.x + segment.to.x) / 2;
+  const midpointY = (segment.from.y + segment.to.y) / 2;
+  const halfSize = cueSize / 2;
+  const directionX = Math.sign(segment.to.x - segment.from.x);
+  const directionY = Math.sign(segment.to.y - segment.from.y);
+  const normalX = -directionY;
+  const normalY = directionX;
+  const tip = {
+    x: midpointX + directionX * halfSize,
+    y: midpointY + directionY * halfSize,
+  };
+  const base = {
+    x: midpointX - directionX * halfSize,
+    y: midpointY - directionY * halfSize,
+  };
+  return [
+    tip,
+    {
+      x: base.x + normalX * halfSize,
+      y: base.y + normalY * halfSize,
+    },
+    {
+      x: base.x - normalX * halfSize,
+      y: base.y - normalY * halfSize,
+    },
+  ];
+}
+
+function dependencyCuesFromCommands(commands, cueSize) {
+  const segments = [];
+  let point = null;
+  for (const command of commands) {
+    if (command.command === "M") {
+      point = { x: command.x, y: command.y };
+      continue;
+    }
+    if (!point) continue;
+    const nextPoint =
+      command.command === "H"
+        ? { x: command.x, y: point.y }
+        : { x: point.x, y: command.y };
+    const length = Math.abs(nextPoint.x - point.x) + Math.abs(nextPoint.y - point.y);
+    if (length > 0) {
+      const axis = point.x === nextPoint.x ? "vertical" : "horizontal";
+      const direction =
+        axis === "horizontal"
+          ? nextPoint.x > point.x
+            ? "right"
+            : "left"
+          : nextPoint.y > point.y
+            ? "down"
+            : "up";
+      const previous = segments.at(-1);
+      if (previous?.axis === axis && previous.direction === direction) {
+        previous.to = nextPoint;
+        previous.length += length;
+      } else {
+        segments.push({
+          axis,
+          direction,
+          from: point,
+          to: nextPoint,
+          length,
+        });
+      }
+    }
+    point = nextPoint;
+  }
+
+  return Object.freeze(
+    segments
+      .filter((segment) => segment.length >= DEPENDENCY_CUE_MIN_SEGMENT_LENGTH)
+      .map((segment) =>
+        Object.freeze({
+          direction: segment.direction,
+          length: segment.length,
+          points: Object.freeze(
+            dependencyCuePoints(segment, cueSize).map((pointValue) =>
+              Object.freeze(pointValue),
+            ),
+          ),
+        }),
+      ),
+  );
+}
+
 /**
  * Returns one continuous orthogonal SVG path. Styling metadata explicitly keeps
  * the stroke solid so long paths cannot turn into detached dash fragments.
@@ -202,6 +321,9 @@ export function routeDependency(
   const geometry = connectorGeometry(configuration);
 
   const fromX = fromPosition.x + fromPosition.width;
+  const appearance = normalizeDependencyAppearance({
+    cueSize: configuration.cueSize,
+  });
   const fromY = fromPosition.y + fromPosition.height / 2;
   const toX = toPosition.x;
   const toY = toPosition.y + toPosition.height / 2;
@@ -212,30 +334,25 @@ export function routeDependency(
   let commands;
   let markerDirection;
   if (canEnterFromLeft) {
-    const midX = Math.max(
-      fromX + geometry.elbowGap,
-      Math.min(toX - geometry.elbowGap, (fromX + toX) / 2),
-    );
+    const trunkX = fromX + geometry.elbowGap;
     route = "left-entry";
     markerDirection = "right";
     commands = [
       { command: "M", x: fromX, y: fromY },
-      { command: "H", x: midX },
+      { command: "H", x: trunkX },
       { command: "V", y: toY },
       { command: "H", x: toX },
     ];
   } else {
-    const routeX = fromX + geometry.parentExitGap;
     const entryX = toX + geometry.topInset;
-    const endY = toPosition.y - geometry.topGap;
-    // Preserve a downward final segment even when callers tune topGap above elbowGap.
-    const approachY = Math.min(toPosition.y - geometry.elbowGap, endY - 1);
-    route = "top-entry";
-    markerDirection = "down";
+    const targetIsBelow = toY >= fromY;
+    const endY = targetIsBelow
+      ? toPosition.y
+      : toPosition.y + toPosition.height;
+    route = targetIsBelow ? "top-entry" : "bottom-entry";
+    markerDirection = targetIsBelow ? "down" : "up";
     commands = [
       { command: "M", x: fromX, y: fromY },
-      { command: "H", x: routeX },
-      { command: "V", y: approachY },
       { command: "H", x: entryX },
       { command: "V", y: endY },
     ];
@@ -248,6 +365,8 @@ export function routeDependency(
     route,
     path: pathFromCommands(frozenCommands),
     commands: frozenCommands,
+    cues: dependencyCuesFromCommands(frozenCommands, appearance.cueSize),
+    cueSize: appearance.cueSize,
     markerDirection,
     horizontalClearance,
     geometry,

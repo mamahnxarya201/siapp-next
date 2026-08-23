@@ -56,6 +56,45 @@ test('previews and commits a dependency through the scoped context menu', async 
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().tasks.find((task) => task.id === 'performance-3').dependencies)).toContain('performance-1');
 });
 
+test('cramped dependency routes terminate on the destination bar', async ({ page }) => {
+  await page.evaluate(() => {
+    const start = new Date(2026, 7, 24);
+    globalThis.ganttDemo.setTasks([
+      {
+        id: 'gap-source',
+        name: 'Gap source',
+        groupName: 'gateway-foundation',
+        status: 'todo',
+        startDate: start,
+        endDate: new Date(2026, 7, 25),
+        dependencies: [],
+      },
+      {
+        id: 'gap-target',
+        name: 'Gap target',
+        groupName: 'gateway-foundation',
+        status: 'todo',
+        startDate: new Date(2026, 7, 25),
+        endDate: new Date(2026, 7, 26),
+        dependencies: ['gap-source'],
+      },
+    ]);
+  });
+  await page.locator('.gantt-task[data-task-id="gap-target"]').click();
+  const endpoint = await page.locator('.dependency-line').evaluate((path) => {
+    const point = path.getPointAtLength(path.getTotalLength());
+    return { x: point.x, y: point.y };
+  });
+  const target = await page
+    .locator('.gantt-task[data-task-id="gap-target"] .gantt-bar')
+    .evaluate((bar) => ({
+      x: Number(bar.getAttribute('x')),
+      y: Number(bar.getAttribute('y')),
+    }));
+  expect(endpoint.x).toBe(target.x + 4);
+  expect(endpoint.y).toBe(target.y);
+});
+
 test('task context menus change color, remove dependencies, and delete from either surface', async ({ page }) => {
   await page.locator('.gantt-task[data-task-id="performance-6"]').click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: 'Add dependency' })).toBeVisible();

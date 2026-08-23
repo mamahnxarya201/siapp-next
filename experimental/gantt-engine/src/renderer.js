@@ -1,4 +1,8 @@
-import { buildDependencyRoutes, routeDependency } from "./dependencies.js";
+import {
+  buildDependencyRoutes,
+  DEPENDENCY_CRITICAL_WIDTH_SCALE,
+  routeDependency,
+} from "./dependencies.js";
 import { BAR_HEIGHT, HEADER_HEIGHT, TASK_ROW_HEIGHT, dateToX } from "./timeline.js";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -356,22 +360,19 @@ export function renderTaskList(root, state, rows) {
 }
 
 function markers(defs, scope) {
-  for (const [kind, color] of [
-    ["normal", "#5d85a7"],
-    ["critical", "#bd4b3d"],
-  ]) {
-    const marker = svg("marker", {
-      id: `${scope}-arrow-${kind}`,
-      markerWidth: 8,
-      markerHeight: 8,
-      refX: 7,
-      refY: 4,
-      orient: "auto",
-      markerUnits: "strokeWidth",
-    });
-    marker.append(svg("path", { d: "M 0 0 L 8 4 L 0 8 z", fill: color }));
-    defs.append(marker);
-  }
+  const marker = svg("marker", {
+    id: `${scope}-arrow-normal`,
+    markerWidth: 8,
+    markerHeight: 8,
+    refX: 7,
+    refY: 4,
+    orient: "auto",
+    markerUnits: "strokeWidth",
+  });
+  marker.append(
+    svg("path", { d: "M 0 0 L 8 4 L 0 8 z", fill: "#5d85a7" }),
+  );
+  defs.append(marker);
 }
 
 function appendCalendarSegments(result, data, keyOf, labelOf, y, className) {
@@ -600,34 +601,72 @@ function grid(target, rows, data, height, settings, state) {
   }
 }
 
-function connectors(target, edges, positions, scope, connection) {
-  for (const route of buildDependencyRoutes(edges, positions)) {
-    target.append(
+function connectionPreviewGeometry(connection, positions) {
+  if (!connection) return null;
+  const from = positions.find(
+    (position) => position.taskId === connection.fromTaskId,
+  );
+  if (!from) return null;
+  const targetPosition = connection.targetTaskId
+    ? positions.find((position) => position.taskId === connection.targetTaskId)
+    : null;
+  return targetPosition
+    ? routeDependency(from, targetPosition)
+    : {
+        path: `M ${from.x + from.width} ${from.y + from.height / 2} H ${connection.pointerX} V ${connection.pointerY}`,
+      };
+}
+
+function connectors(target, edges, positions, scope, connection, appearance) {
+  const criticalLineWidth = Number(
+    (appearance.lineWidth * DEPENDENCY_CRITICAL_WIDTH_SCALE).toFixed(2),
+  );
+  for (const route of buildDependencyRoutes(edges, positions, {
+    cueSize: appearance.cueSize,
+  })) {
+    const connector = svg("g", {
+      class: `dependency-connector${route.isCritical ? " dependency-connector--critical" : ""}`,
+    });
+    connector.append(
       svg("path", {
         d: route.geometry.path,
         class: `dependency-line${route.isCritical ? " dependency-line--critical" : ""}`,
         "data-from-task-id": route.fromTaskId,
         "data-to-task-id": route.toTaskId,
         "data-route": route.geometry.route,
-        "marker-end": `url(#${scope}-arrow-${route.isCritical ? "critical" : "normal"})`,
         "stroke-dasharray": "none",
+        "vector-effect": "non-scaling-stroke",
+        "stroke-width": route.isCritical
+          ? criticalLineWidth
+          : appearance.lineWidth,
+      }),
+    );
+    connector.append(
+      svg("path", {
+        d: route.geometry.path,
+        class: "dependency-hit-target",
+        "data-from-task-id": route.fromTaskId,
+        "data-to-task-id": route.toTaskId,
+        "data-route": route.geometry.route,
+        "aria-hidden": "true",
         "vector-effect": "non-scaling-stroke",
       }),
     );
+    for (const cue of route.geometry.cues) {
+      connector.append(
+        svg("polygon", {
+          points: cue.points.map((point) => `${point.x},${point.y}`).join(" "),
+          class: `dependency-cue${route.isCritical ? " dependency-cue--critical" : ""}`,
+          "data-direction": cue.direction,
+          "data-segment-length": cue.length,
+          "aria-hidden": "true",
+        }),
+      );
+    }
+    target.append(connector);
   }
-  if (!connection) return;
-  const from = positions.find(
-    (position) => position.taskId === connection.fromTaskId,
-  );
-  if (!from) return;
-  const targetPosition = connection.targetTaskId
-    ? positions.find((position) => position.taskId === connection.targetTaskId)
-    : null;
-  const geometry = targetPosition
-    ? routeDependency(from, targetPosition)
-    : {
-        path: `M ${from.x + from.width} ${from.y + from.height / 2} H ${connection.pointerX} V ${connection.pointerY}`,
-      };
+  const geometry = connectionPreviewGeometry(connection, positions);
+  if (!geometry) return;
   target.append(
     svg("path", {
       d: geometry.path,
@@ -836,6 +875,7 @@ export function renderTimeline(
     positions,
     state.markerScope,
     state.connection,
+    state.dependencyAppearance,
   );
   const byId = new Map(tasks.map((task) => [task.id, task]));
   for (const pos of positions) {

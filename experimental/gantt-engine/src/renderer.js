@@ -859,6 +859,9 @@ export function renderTimeline(
     rows.reduce((height, row) => Math.max(height, row.y + row.height), 0),
     availableHeight - HEADER_HEIGHT,
   );
+  const renderedPositions = positions.map((position) =>
+    constrainPreviewPosition(root, position, state),
+  );
   const stage = document.createElement("div");
   stage.className = "timeline-stage";
   stage.style.width = `${timelineData.totalWidth}px`;
@@ -881,16 +884,15 @@ export function renderTimeline(
   connectors(
     body,
     dependencies,
-    positions,
+    renderedPositions,
     state.markerScope,
     state.connection,
     state.dependencyAppearance,
   );
   const byId = new Map(tasks.map((task) => [task.id, task]));
-  for (const pos of positions) {
+  for (const pos of renderedPositions) {
     const task = byId.get(pos.taskId);
-    if (task)
-      bar(body, task, constrainPreviewPosition(root, pos, state), state);
+    if (task) bar(body, task, pos, state);
   }
   if (state.guide?.visible) {
     body.append(

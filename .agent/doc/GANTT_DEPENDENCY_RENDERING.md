@@ -40,39 +40,113 @@ For a predecessor (`from`) and dependent (`to`):
 
 All connectors use horizontal and vertical SVG path commands (`H` and `V`). Curves are intentionally not used.
 
-## Adaptive Route Selection
+## Adaptive route selection
+
+Committed connectors use the Tom's Planner route pattern. Every route starts at
+the predecessor's right-center edge and uses no more than two elbows.
 
 ### Normal left-entry route
 
 When horizontal clearance is at least twice `DEPENDENCY_ELBOW_GAP`, the line:
 
-1. Leaves the predecessor's right-center edge.
-2. Travels horizontally to an intermediate elbow.
-3. Travels vertically to the dependent's centerline.
+1. Leaves the predecessor by `DEPENDENCY_ELBOW_GAP`.
+2. Turns onto a vertical trunk.
+3. Turns once at the dependent's centerline.
 4. Enters the dependent at its left-center edge.
 
-### Cramped top-entry route
+For predecessor endpoint $(x_f, y_f)$, dependent endpoint $(x_t, y_t)$, and gap
+$g$, the ordered route points are:
 
-When normal left entry would create a short or backward-looking final segment, the line:
+$$
+P_{\text{left}} =
+\left[
+  (x_f, y_f),
+  (x_f + g, y_f),
+  (x_f + g, y_t),
+  (x_t, y_t)
+\right]
+$$
 
-1. Leaves the predecessor by `DEPENDENCY_PARENT_EXIT_GAP`.
-2. Routes vertically above the dependent.
-3. Travels horizontally to `DEPENDENCY_TOP_INSET` from the dependent's left edge.
-4. Travels downward and stops `DEPENDENCY_TOP_GAP` above the bar.
-5. Uses the final downward segment to orient the arrowhead correctly.
+### Cramped vertical-edge route
+
+When normal left entry lacks sufficient clearance, the line:
+
+1. Travels horizontally to `DEPENDENCY_TOP_INSET` from the dependent's left edge.
+2. Turns once toward the nearest vertical edge.
+3. Terminates exactly on the dependent bar.
+
+The connector touches the dependent's top edge when the dependent is lower than
+the predecessor. It touches the bottom edge when the dependent is higher. This
+two-segment route avoids both a detached endpoint and a short or backward
+horizontal tail.
 
 ## Adjustable Geometry
 
-The following top-level constants in `gantt-chart.tsx` independently control connector geometry:
+The following top-level constants independently control connector geometry:
 
 | Constant | Responsibility |
 | --- | --- |
-| `DEPENDENCY_ELBOW_GAP` | Normal-route clearance and vertical approach space |
-| `DEPENDENCY_PARENT_EXIT_GAP` | Short horizontal segment leaving a predecessor in cramped routing |
-| `DEPENDENCY_TOP_INSET` | Horizontal position of the top-entry arrow relative to the dependent's left edge |
-| `DEPENDENCY_TOP_GAP` | Visual gap between the arrow endpoint and the dependent bar |
+| `DEPENDENCY_ELBOW_GAP` | Clearance threshold for normal left entry. |
+| `DEPENDENCY_TOP_INSET` | Horizontal position of a cramped vertical-edge entry. |
 
-Do not combine these values into one constant. Independent tuning prevents one visual correction from damaging another route.
+Keep these values independent so that route-selection clearance and endpoint
+placement remain separately adjustable.
+
+## Appearance preferences
+
+**Timeline Settings** exposes two normalized dependency appearance preferences:
+
+- normal line width: 1px to 3px in 0.5px steps, default 1.5px;
+- direction cue size: 3px to 8px in 1px steps, default 6px.
+
+Critical connector width preserves proportional emphasis:
+
+$$
+w_{\text{critical}} = 1.33w_{\text{normal}}
+$$
+
+The renderer rounds critical width to two decimal places. Cue size changes the
+fixed triangle dimensions for every eligible segment; it does not scale with
+segment length. The minimum eligible segment length remains 12px. The invisible
+12px hover corridor also remains fixed, so thinner visible lines are not harder
+to target.
+
+## Half-day interaction grid
+
+Move, start-resize, and end-resize gestures use the nearest half-day. New tasks
+start in the half-day region containing the pointer but retain a one-day initial
+duration. The minimum resized duration is one half-day.
+
+For pixel delta $\Delta x$, day width $w$, and half-day increment $q = 0.5$:
+
+$$
+\Delta u =
+\operatorname{sgn}(\Delta x)
+\operatorname{round}
+\left(
+  \frac{|\Delta x|}{wq}
+\right)q
+$$
+
+Resize hit zones shrink on short bars:
+
+$$
+h = \min\left(10, \frac{b}{2}\right)
+$$
+
+Here, $b$ is the rendered bar width and $h$ is each edge's hit-zone width. The
+formula prevents overlapping start and end targets at week and month scales.
+
+## Connection preview performance
+
+Beginning a connection creates one preview SVG path through the ordinary render
+pipeline. Pointer movement updates only that path and is coalesced to one update
+per animation frame. It does not rebuild the timeline snapshot or replace the
+grid, task bars, and committed connectors.
+
+The engine listens to `pointermove` for this gesture. It does not also process
+compatibility `mousemove` events. Commit, cancellation, and disposal cancel any
+pending preview frame.
 
 ## Continuous Stroke Requirement
 
@@ -88,7 +162,7 @@ SVG paths are not viewport-cull-rendered by this component. Horizontal scrolling
 
 If a drawing animation is added in the future, it must derive the actual path length per element or use normalized `pathLength`. It must also account for arrow-marker visibility during the animation. A new animation requires visual testing on both short and very long connectors.
 
-## Render Order
+## Render order
 
 The SVG layers are ordered as follows:
 
@@ -98,6 +172,12 @@ The SVG layers are ordered as follows:
 4. Task bars and milestones.
 
 This allows task bars to cover connector segments that pass beneath them. Such occlusion is intentional. A gap in otherwise unobstructed timeline space is not intentional.
+
+The normal selected-task halo extends 2px beyond the bar. During an active drag
+preview, the renderer hides that filled halo because it is painted after
+dependency paths and would otherwise cover the connector endpoint. The preview
+bar remains visible and continues to cover only the intentional segment beneath
+the bar itself.
 
 ## Performance Characteristics
 
@@ -122,12 +202,15 @@ For the current prototype-sized dataset, this is appropriate. If task and edge c
 
 ## Verification Checklist
 
-- [ ] Long connectors render continuously from source to arrowhead.
-- [ ] No arrowhead is detached in empty timeline space.
-- [ ] Normal routes enter the dependent from the left.
-- [ ] Cramped routes enter from above near the upper-left edge.
-- [ ] Arrow direction matches the final path segment.
-- [ ] Normal and critical connectors use their correct theme colors.
+- [ ] Long connectors render as one continuous stroke.
+- [ ] Distant routes use a predecessor exit, vertical trunk, and target tail.
+- [ ] Cramped routes use one elbow and the nearest vertical target edge.
+- [ ] No committed route uses more than two elbows.
+- [ ] Hovering within the invisible interaction corridor reveals direction cues.
+- [ ] Each eligible segment has at most one direction cue.
+- [ ] Half-day movement and both resize edges snap symmetrically.
+- [ ] New tasks retain a one-day duration at midnight or noon starts.
+- [ ] Short-bar resize hit zones do not overlap at any scale.
 - [ ] Hidden tasks do not leave orphan connectors.
 - [ ] Selecting and hovering tasks does not animate or flicker connector strokes.
 - [ ] Day, week, and month scales preserve continuous lines.

@@ -1,6 +1,6 @@
 # PMIS Current State
 
-Last updated: 2026-08-19
+Last updated: 2026-08-23
 
 ## Current Objective
 
@@ -955,3 +955,109 @@ adapter work waits for DBA schema and authentication decisions.
   HTML proxy or rewrite bars as HTML.
 - The temporary dependency and script tags were removed. The native controller
   remains the supported interaction path.
+
+## Experimental timeline settings dependency (2026-08-23)
+
+- In both experimental demo entries, **Show major lines** is now visually nested
+  under **Show vertical lines** with a tree connector and prerequisite text.
+- The engine disables **Show major lines** whenever vertical lines are hidden and
+  restores the control when vertical lines are shown. The saved major-line
+  preference remains intact while its prerequisite is disabled.
+- Browser verification on `demo/empty.html` confirmed the 25px child indentation,
+  native disabled state, muted presentation, and accessible prerequisite
+  description.
+- Verification: `npm test` passed 57 Node tests and 36 Playwright scenarios with
+  a clean exit. The generated documentation portal was rebuilt from the updated
+  theme and interaction contract.
+
+## Experimental Tom-style dependency routing (2026-08-23)
+
+- DEC-014 supersedes DEC-013's strict one-elbow limit. Distant routes use a
+  short predecessor exit, vertical trunk, and horizontal target tail. Cramped
+  routes use one elbow and the nearest vertical target edge.
+- Committed routes use at most three straight segments and two elbows. Each
+  eligible segment receives at most one hover-revealed direction cue.
+- The 12px invisible interaction corridor, configurable connector appearance,
+  progressive disclosure, continuous strokes, and scheduling semantics remain
+  unchanged.
+- Browser verification created and connected distant empty-demo tasks. The route
+  was `M 128 18 H 146 V 54 H 480`, matching the predecessor-exit, vertical-trunk,
+  and target-tail pattern.
+- The React PMIS Gantt renderer has not yet migrated to DEC-014; this task was
+  scoped to `experimental/gantt-engine`.
+
+## Experimental dependency appearance settings (2026-08-23)
+
+- **Timeline Settings** now contains a semantic **Dependency lines** group in
+  both demo entries. **Line thickness** ranges from 1px to 3px in 0.5px steps;
+  **Arrow cue size** ranges from 3px to 8px in 1px steps.
+- Defaults remain 1.5px and 6px. Critical connectors use the selected normal
+  width multiplied by 1.33 and rounded to two decimal places.
+- Slider output labels update while the draft changes. **Save settings** applies
+  normalized values to `state.dependencyAppearance`; **Cancel** and Escape
+  preserve the last saved values.
+- Cue eligibility remains a 12px minimum segment length. The invisible 12px
+  interaction corridor remains independent from visible line width.
+- Browser verification saved the maximum 3px and 8px values, created and
+  connected two empty-demo tasks, and observed a 3px committed connector with
+  two 8px cues. Drafting the minimum values and cancelling restored 3px and 8px.
+- Verification: `npm test` passed 59 Node tests and 37 Playwright scenarios with
+  a clean exit.
+
+## Experimental half-day interaction grid (2026-08-23)
+
+- DEC-015 makes half-day snapping the default for movement, start resize, and
+  end resize. Positive and negative half-step ties resolve symmetrically.
+- Context creation selects the containing half-day region. New tasks retain a
+  one-day initial duration, and the minimum resized duration is one half-day.
+- Resize hit zones use `min(10px, bar width / 2)`, preventing overlap on 16px
+  week-scale and 10px month-scale half-day bars.
+- Exact noon timestamps remain valid dependency constraints. Unit coverage
+  verifies recursive propagation through noon boundaries without duration loss.
+- Browser verification observed 12-hour move, start-resize, and end-resize
+  commits and a 24-hour newly created task.
+
+## Offline KaTeX documentation (2026-08-23)
+
+- `katex` 0.18.4 is a build-only dependency. `npm run docs:build` renders
+  `$...$` and `$$...$$` Markdown into static HTML and accessible MathML.
+- The generator embeds KaTeX CSS and font data in `docs/index.html`. Opening the
+  portal through `file://` requires no browser script, server, or network access.
+- Browser verification found 9 display equations, 11 inline equations, 20
+  MathML elements, embedded fonts, and zero external resources.
+- Final verification: `npm test` passed 60 Node tests and 38 Playwright
+  scenarios with a clean exit.
+
+## Connected dependency endpoints and preview performance (2026-08-23)
+
+- Cramped top-entry and bottom-entry routes now terminate exactly on the
+  dependent bar edge. The obsolete `DEPENDENCY_TOP_GAP` configuration was
+  removed so a host cannot reintroduce a detached endpoint.
+- Starting **Add dependency** performs one ordinary render to create the preview
+  path. Pointer movement updates only that path through one scheduled animation
+  frame; it no longer rebuilds the timeline snapshot, grid, bars, and committed
+  connectors.
+- The gesture listens to `pointermove` only. Commit, Escape cancellation, and
+  disposal cancel pending preview-frame work.
+- Browser verification rendered cramped route `M 256 18 H 260 V 42`; its endpoint
+  and destination bar both had `y=42`.
+- On the 240-task fixture, a synthetic 120-event pointer burst dispatched in
+  approximately 3.7ms and settled across two frames in 22ms. The preview retained
+  the same DOM node and caused zero child-list mutations.
+- Final verification: `npm test` passed 60 Node tests and 39 Playwright scenarios
+  with a clean exit.
+
+## Drag-preview connector continuity (2026-08-23)
+
+- The apparent connector gap during active drag was not a route-coordinate error.
+  `.gantt-task__selection` extends 2px outside the selected bar and was rendered
+  after dependency paths, so its translucent fill covered the endpoint.
+- `.gantt-preview .gantt-task__selection` is now hidden. Normal selection styling
+  remains unchanged outside an active preview.
+- Permanent Playwright coverage holds a connected task mid-drag, verifies the
+  preview halo is not displayed, and checks that the connector endpoint remains
+  attached to the preview bar for left-entry or vertical-entry routing.
+- Browser verification held `performance-6` during drag: the selection halo was
+  hidden, and both the incoming connector endpoint and preview bar had `x=384`.
+- Final verification: `npm test` passed 60 Node tests and 39 Playwright scenarios
+  with a clean exit.

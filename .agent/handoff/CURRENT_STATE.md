@@ -332,10 +332,11 @@ dependency constraints, recursive forward-only propagation, and atomic undo/redo
 - Vertical scrolling now uses one `.gantt-scroll-region` containing both columns.
   The task list and timeline viewport do not own vertical scroll positions, so an
   empty or one-task project has no independent Gantt vertical overflow.
-- The timeline end date is state-owned. Moving or resizing a task away from an
-  edge does not resize the date grid; edge scrolling extends the stored end date,
-  and release compaction recalculates it from committed task dates while preserving
-  a 20px viewport gap when the compacted task span is shorter than the viewport.
+- The timeline range is state-owned and behaves as a viewport-capacity arena.
+  Edge interaction grows the stored range. Returning to the viewport interior
+  retains that allocation; an edge release compacts only when unused capacity
+  exceeds one viewport. **Compact timeline** forces compaction and retains a
+  20px viewport gap when the task span is shorter than the viewport.
 - Task creation remains context-menu only (right-click the grid → Add task); the
   sidebar does not include an inline task-entry field. The `task.create` command
   and the unused legacy renderer's create-row input were removed after a short
@@ -1010,8 +1011,10 @@ adapter work waits for DBA schema and authentication decisions.
   end resize. Positive and negative half-step ties resolve symmetrically.
 - Context creation selects the containing half-day region. New tasks retain a
   one-day initial duration, and the minimum resized duration is one half-day.
-- Resize hit zones use `min(10px, bar width / 2)`, preventing overlap on 16px
-  week-scale and 10px month-scale half-day bars.
+- Resize targets now use an inset of `min(12px, bar width / 2)`, extend 8px
+  beyond the bar edge, and extend 6px above and below the 24px bar. Start and
+  end targets remain separate on 16px week-scale and 10px month-scale half-day
+  bars.
 - Exact noon timestamps remain valid dependency constraints. Unit coverage
   verifies recursive propagation through noon boundaries without duration loss.
 - Browser verification observed 12-hour move, start-resize, and end-resize
@@ -1074,11 +1077,31 @@ adapter work waits for DBA schema and authentication decisions.
 - Exact SUN 23 → SAT 5 context-created drags survived in week and day probes with
   the same engine, document, task ID, one-day duration, DOM bar, and committed
   geometry.
-- A real right-edge release compaction from `futureDays=270` to `0` preserved the
-  task, its 24-hour duration, its DOM bar, and visibility at the aligned edge. No
-  compaction source defect was reproduced, so range logic was not changed.
-- A delegated test-only subagent expanded the regression suite. The parent
-  corrected its initial zero-duration and false-compaction assumptions, added
-  task and viewport invariants, and integrated the edge-coordinate assertions.
-- Final verification: `npm test` passed 60 Node tests and 41 Playwright scenarios
-  with a clean exit.
+- A later exact reproduction found that the interaction controller retained the
+  last edge visited during a gesture. Returning an expanded preceding-edge drag
+  to the viewport interior therefore still compacted on release.
+- Release now derives its edge band and row coordinate from the final
+  `pointerup` event. Interior release retains expanded capacity. Edge release
+  compacts only when unused capacity exceeds one viewport.
+- The inert `▣` task-header button is now the accessible **Compact timeline**
+  action. Manual activation bypasses the edge-release requirement but compacts
+  only capacity beyond the one-viewport arena minimum. Repeated activation does
+  not move an already compact arena.
+- The disappearing bar was a rendered-range containment defect, not task
+  deletion. After a compaction reduced `futureDays`, a fast diagonal swipe could
+  commit the task after `timelineMaxDate`, leaving its SVG geometry outside the
+  scrollable range. `ensureTimelineContainsTasks()` now grows either boundary
+  before committed rendering and aligns an edge release with the grown range.
+- Permanent Playwright coverage verifies interior-release retention, manual
+  compaction, viewport capacity, and rapid diagonal swipe persistence. It checks
+  task identity, one-day duration, DOM presence, geometry containment, and
+  visibility.
+- A resize-target regression made the transparent handles difficult to acquire.
+  The enlarged targets now measure 20px × 36px on a one-day week-scale bar,
+  16px × 36px on a half-day week-scale bar, and 13px × 36px on a half-day
+  month-scale bar. Geometric pointer-down hit testing and cursor feedback keep
+  these targets usable outside the painted bar.
+- Handle rectangles do not receive pointer events, so enlarged targets do not
+  block the 12px dependency connector hover corridor beside a selected bar.
+- Final verification: `npm test` passed 60 Node tests and 43 Playwright scenarios
+  with a clean test-server exit.

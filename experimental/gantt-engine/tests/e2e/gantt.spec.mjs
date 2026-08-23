@@ -203,6 +203,64 @@ test('delegated controls update scale and dependency disclosure', async ({ page 
   await expect(page.locator('.gantt-bar--critical').first()).toBeVisible();
 });
 
+test('committed dependency cues use a forgiving connector hover target', async ({ page }) => {
+  await page.locator('button[data-action="grid-settings.open"]').click();
+  await page
+    .locator('input[data-dependency-setting="lineWidth"]')
+    .fill('2.5');
+  await page
+    .locator('input[data-dependency-setting="cueSize"]')
+    .fill('8');
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await page.locator('#task-list [data-task-id="performance-6"]').click();
+  const connector = page.locator('.dependency-connector').first();
+  const path = connector.locator('.dependency-line');
+  const hitTarget = connector.locator('.dependency-hit-target');
+  const cues = connector.locator('.dependency-cue');
+  await expect(connector).toBeVisible();
+  expect(await cues.count()).toBeGreaterThan(0);
+  expect(await cues.count()).toBeLessThanOrEqual(3);
+  await expect(path).not.toHaveAttribute('marker-end', /.+/);
+  await expect(hitTarget).toHaveCSS('stroke-width', '12px');
+  await expect(cues.first()).toHaveCSS('opacity', '0');
+  const expectedWidth = (await path.evaluate((element) =>
+    element.classList.contains('dependency-line--critical')
+  )) ? '3.33px' : '2.5px';
+  await expect(path).toHaveCSS('stroke-width', expectedWidth);
+  await expect.poll(
+    () => cues.first().evaluate((cue) => ({
+      width: cue.getBBox().width,
+      height: cue.getBBox().height,
+    })),
+  ).toEqual({ width: 8, height: 8 });
+
+  const nearPoint = await path.evaluate((element) => {
+    const distance = element.getTotalLength() / 4;
+    const point = element.getPointAtLength(distance);
+    const before = element.getPointAtLength(Math.max(0, distance - 1));
+    const after = element.getPointAtLength(
+      Math.min(element.getTotalLength(), distance + 1),
+    );
+    const deltaX = after.x - before.x;
+    const deltaY = after.y - before.y;
+    const magnitude = Math.hypot(deltaX, deltaY);
+    const offsetPoint = {
+      x: point.x - (deltaY / magnitude) * 5,
+      y: point.y + (deltaX / magnitude) * 5,
+    };
+    const matrix = element.getScreenCTM();
+    return {
+      x: matrix.a * offsetPoint.x + matrix.c * offsetPoint.y + matrix.e,
+      y: matrix.b * offsetPoint.x + matrix.d * offsetPoint.y + matrix.f,
+    };
+  });
+  await page.mouse.move(nearPoint.x, nearPoint.y);
+  await expect(cues.first()).toHaveCSS('opacity', '1');
+
+  await page.mouse.move(4, 4);
+  await expect(cues.first()).toHaveCSS('opacity', '0');
+});
+
 test('sidebar keeps React task metadata and workstream affordances', async ({ page }) => {
   await expect(page.locator('.task-group')).toHaveCount(5);
   await expect(page.locator('.task-group__icon')).toHaveCount(5);
@@ -1220,7 +1278,7 @@ test('logo dialog tab order loops from choose image through save to cancel', asy
   await expect(page.locator('#project-logo-dialog')).toBeHidden();
 });
 
-test('empty demo: timeline settings dialog applies grid settings and restores them on cancel', async ({ page }) => {
+test('empty demo: timeline settings save and cancel grid and dependency appearance', async ({ page }) => {
   await page.goto('/demo/empty.html');
   await page.locator('button[data-action="grid-settings.open"]').click();
   await expect(page.locator('#grid-settings-dialog')).toBeVisible();
@@ -1229,14 +1287,38 @@ test('empty demo: timeline settings dialog applies grid settings and restores th
   // Toggle vertical lines off and change a color.
   const vertical = page.locator('#grid-settings-dialog-panel input[data-setting="showVerticalLines"]');
   await expect(vertical).toBeChecked();
+  const major = page.locator(
+    '#grid-settings-dialog-panel .grid-settings-dialog__dependent input[data-setting="showMajorLines"]',
+  );
+  await expect(major).toBeEnabled();
   await vertical.uncheck();
+  await expect(major).toBeDisabled();
   await page.locator('#grid-settings-dialog-panel input[data-setting="minorLineColor"]').fill('#123456');
+  const lineWidth = page.locator(
+    '#grid-settings-dialog-panel input[data-dependency-setting="lineWidth"]',
+  );
+  const cueSize = page.locator(
+    '#grid-settings-dialog-panel input[data-dependency-setting="cueSize"]',
+  );
+  await expect(lineWidth).toHaveValue('1.5');
+  await expect(cueSize).toHaveValue('6');
+  await lineWidth.fill('3');
+  await cueSize.fill('8');
+  await expect(
+    page.locator('[data-dependency-setting-value="lineWidth"]'),
+  ).toHaveText('3 px');
+  await expect(
+    page.locator('[data-dependency-setting-value="cueSize"]'),
+  ).toHaveText('8 px');
 
   await page.getByRole('button', { name: 'Save settings' }).click();
   await expect(page.locator('#grid-settings-dialog')).toBeHidden();
-  await expect(page.locator('#application-status')).toHaveText('Grid settings updated');
+  await expect(page.locator('#application-status')).toHaveText('Timeline settings updated');
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().grid))
     .toMatchObject({ showVerticalLines: false, minorLineColor: '#123456' });
+  await expect.poll(
+    () => page.evaluate(() => globalThis.ganttDemo.getState().dependencyAppearance),
+  ).toEqual({ lineWidth: 3, cueSize: 8 });
 
   // Vertical lines disappear from the SVG; horizontal lines stay (empty project
   // draws the row-pitch fallback grid).
@@ -1246,10 +1328,16 @@ test('empty demo: timeline settings dialog applies grid settings and restores th
   // Cancel restores the previously saved settings.
   await page.locator('button[data-action="grid-settings.open"]').click();
   await page.locator('#grid-settings-dialog-panel input[data-setting="showVerticalLines"]').check();
+  await expect(major).toBeEnabled();
+  await lineWidth.fill('1');
+  await cueSize.fill('3');
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('#grid-settings-dialog')).toBeHidden();
   await expect.poll(() => page.evaluate(() => globalThis.ganttDemo.getState().grid))
     .toMatchObject({ showVerticalLines: false });
+  await expect.poll(
+    () => page.evaluate(() => globalThis.ganttDemo.getState().dependencyAppearance),
+  ).toEqual({ lineWidth: 3, cueSize: 8 });
 
   // Escape closes the dialog without applying changes.
   await page.locator('button[data-action="grid-settings.open"]').click();
@@ -1261,20 +1349,22 @@ test('empty demo: timeline settings dialog tab order loops through fields to sav
   await page.goto('/demo/empty.html');
   await page.locator('button[data-action="grid-settings.open"]').click();
   await expect(page.locator('#grid-settings-dialog-panel')).toBeFocused();
-  const settings = page.locator('#grid-settings-dialog-panel [data-setting]');
+  const settings = page.locator(
+    '#grid-settings-dialog-panel [data-setting], #grid-settings-dialog-panel [data-dependency-setting]',
+  );
   const count = await settings.count();
   await page.keyboard.press('Tab');
-  await expect(page.locator('#grid-settings-dialog-panel [data-setting]').first()).toBeFocused();
+  await expect(settings.first()).toBeFocused();
   for (let index = 1; index < count; index += 1) {
     await page.keyboard.press('Tab');
-    await expect(page.locator('#grid-settings-dialog-panel [data-setting]').nth(index)).toBeFocused();
+    await expect(settings.nth(index)).toBeFocused();
   }
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Save settings' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.locator('#grid-settings-dialog-panel [data-setting]').first()).toBeFocused();
+  await expect(settings.first()).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.locator('#grid-settings-dialog')).toBeHidden();
 });

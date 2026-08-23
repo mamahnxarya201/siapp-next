@@ -131,12 +131,34 @@
       </div>
       <div class="grid-settings-dialog" id="grid-settings-dialog" hidden>
         <div class="grid-settings-dialog__panel" id="grid-settings-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="grid-settings-dialog-title" tabindex="-1">
-          <h2 class="grid-settings-dialog__title" id="grid-settings-dialog-title">Timeline Grid Settings</h2>
-          <p class="grid-settings-dialog__description">Configure the grid lines and colors for the timeline.</p>
+          <h2 class="grid-settings-dialog__title" id="grid-settings-dialog-title">Timeline Settings</h2>
+          <p class="grid-settings-dialog__description">Configure grid and dependency appearance.</p>
           <div class="grid-settings-dialog__form">
-            <label class="switch-control"><input type="checkbox" data-setting="showVerticalLines" checked /><span>Show vertical lines</span></label>
+            <div class="grid-settings-dialog__setting-group" role="group" aria-label="Vertical line options">
+              <label class="switch-control"><input type="checkbox" data-setting="showVerticalLines" checked /><span>Show vertical lines</span></label>
+              <div class="grid-settings-dialog__dependent">
+                <label class="switch-control"><input type="checkbox" data-setting="showMajorLines" aria-describedby="major-lines-requirement" checked /><span>Show major lines</span></label>
+                <span class="grid-settings-dialog__requirement" id="major-lines-requirement">Requires vertical lines</span>
+              </div>
+            </div>
             <label class="switch-control"><input type="checkbox" data-setting="showHorizontalLines" checked /><span>Show horizontal lines</span></label>
-            <label class="switch-control"><input type="checkbox" data-setting="showMajorLines" checked /><span>Show major lines</span></label>
+            <fieldset class="grid-settings-dialog__appearance">
+              <legend>Dependency lines</legend>
+              <div class="grid-settings-dialog__range-field">
+                <div class="grid-settings-dialog__range-heading">
+                  <label for="dependency-line-width">Line thickness</label>
+                  <output for="dependency-line-width" data-dependency-setting-value="lineWidth">1.5 px</output>
+                </div>
+                <input id="dependency-line-width" type="range" min="1" max="3" step="0.5" value="1.5" data-dependency-setting="lineWidth" />
+              </div>
+              <div class="grid-settings-dialog__range-field">
+                <div class="grid-settings-dialog__range-heading">
+                  <label for="dependency-cue-size">Arrow cue size</label>
+                  <output for="dependency-cue-size" data-dependency-setting-value="cueSize">6 px</output>
+                </div>
+                <input id="dependency-cue-size" type="range" min="3" max="8" step="1" value="6" data-dependency-setting="cueSize" />
+              </div>
+            </fieldset>
             <div class="grid-settings-dialog__color-field">
               <label>Minor line color</label>
               <input type="color" data-setting="minorLineColor" value="#dededc" />

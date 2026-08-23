@@ -407,6 +407,31 @@ export function createGanttEngine(options) {
     closeLogoDialog();
     queueMicrotask(() => root.querySelector(".project-top-nav__logo")?.focus());
   }
+  function syncGridSettingsDependencies() {
+    if (!gridSettingsDialogPanel) return;
+    const verticalLines = gridSettingsDialogPanel.querySelector(
+      'input[data-setting="showVerticalLines"]',
+    );
+    const majorLines = gridSettingsDialogPanel.querySelector(
+      'input[data-setting="showMajorLines"]',
+    );
+    if (!verticalLines || !majorLines) return;
+    majorLines.disabled = !verticalLines.checked;
+    majorLines
+      .closest(".grid-settings-dialog__dependent")
+      ?.classList.toggle("is-disabled", majorLines.disabled);
+  }
+  function syncDependencyAppearanceLabels() {
+    if (!gridSettingsDialogPanel) return;
+    gridSettingsDialogPanel
+      .querySelectorAll("input[data-dependency-setting]")
+      .forEach((input) => {
+        const output = gridSettingsDialogPanel.querySelector(
+          `[data-dependency-setting-value="${input.dataset.dependencySetting}"]`,
+        );
+        if (output) output.textContent = `${input.value} px`;
+      });
+  }
   function openGridSettingsDialog() {
     if (!gridSettingsDialog || !gridSettingsDialogPanel) return;
     const settings = state.grid;
@@ -415,6 +440,15 @@ export function createGanttEngine(options) {
       if (el.type === "checkbox") el.checked = !!settings[key];
       else if (el.type === "color") el.value = settings[key] ?? "";
     });
+    gridSettingsDialogPanel
+      .querySelectorAll("input[data-dependency-setting]")
+      .forEach((input) => {
+        input.value =
+          state.dependencyAppearance[input.dataset.dependencySetting] ??
+          input.value;
+      });
+    syncDependencyAppearanceLabels();
+    syncGridSettingsDependencies();
     gridSettingsDialog.hidden = false;
     state.gridSettingsOpen = true;
     gridSettingsDialogPanel.focus();
@@ -432,13 +466,34 @@ export function createGanttEngine(options) {
       else if (el.type === "color") settings[key] = el.value;
     });
     state.grid = normalizeGridSettings(settings);
+    const dependencyAppearance = {};
+    gridSettingsDialogPanel
+      .querySelectorAll("input[data-dependency-setting]")
+      .forEach((input) => {
+        dependencyAppearance[input.dataset.dependencySetting] = Number(
+          input.value,
+        );
+      });
+    state.dependencyAppearance = normalizeDependencyAppearance(
+      dependencyAppearance,
+    );
     closeGridSettingsDialog();
-    invalidate("grid settings updated");
-    setStatus("Grid settings updated");
+    invalidate("timeline settings updated");
+    setStatus("Timeline settings updated");
   }
   function cancelGridSettings() {
     closeGridSettingsDialog();
   }
+  const gridSettingsDialogChange = (event) => {
+    if (event.target?.matches('input[data-setting="showVerticalLines"]')) {
+      syncGridSettingsDependencies();
+    }
+  };
+  const gridSettingsDialogInput = (event) => {
+    if (event.target?.matches("input[data-dependency-setting]")) {
+      syncDependencyAppearanceLabels();
+    }
+  };
   const gridSettingsDialogKeydown = (event) => {
     if (event.key !== "Tab" || !gridSettingsDialogPanel) return;
     const items = Array.from(
@@ -1545,6 +1600,14 @@ export function createGanttEngine(options) {
       "keydown",
       gridSettingsDialogKeydown,
     );
+    gridSettingsDialogPanel?.addEventListener(
+      "change",
+      gridSettingsDialogChange,
+    );
+    gridSettingsDialogPanel?.addEventListener(
+      "input",
+      gridSettingsDialogInput,
+    );
     return api;
   }
   function dispose() {
@@ -1580,6 +1643,14 @@ export function createGanttEngine(options) {
     gridSettingsDialogPanel?.removeEventListener(
       "keydown",
       gridSettingsDialogKeydown,
+    );
+    gridSettingsDialogPanel?.removeEventListener(
+      "change",
+      gridSettingsDialogChange,
+    );
+    gridSettingsDialogPanel?.removeEventListener(
+      "input",
+      gridSettingsDialogInput,
     );
     shrinkJob?.cancel();
     application.dispose();

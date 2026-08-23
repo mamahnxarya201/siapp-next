@@ -388,13 +388,26 @@ button, input { font: inherit; }
 
 .grid-settings-dialog { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 20, 24, 0.38); }
 .grid-settings-dialog[hidden] { display: none; }
-.grid-settings-dialog__panel { width: min(28rem, 100%); padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24); outline: none; }
+.grid-settings-dialog__panel { width: min(28rem, 100%); max-height: calc(100vh - 32px); padding: 20px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.24); outline: none; }
 .grid-settings-dialog__title { margin: 0 0 4px; color: var(--foreground); font-size: 16px; font-weight: 600; }
 .grid-settings-dialog__description { margin: 0 0 14px; color: var(--muted-foreground); font-size: 13px; }
 .grid-settings-dialog__form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.grid-settings-dialog__setting-group { display: flex; flex-direction: column; gap: 8px; }
+.grid-settings-dialog__dependent { position: relative; margin-left: 7px; padding-left: 17px; border-left: 1px solid var(--border); }
+.grid-settings-dialog__dependent::before { position: absolute; top: 10px; left: 0; width: 10px; border-top: 1px solid var(--border); content: ""; }
+.grid-settings-dialog__dependent.is-disabled { opacity: 0.55; }
+.grid-settings-dialog__requirement { display: block; margin: 3px 0 0 24px; color: var(--muted-foreground); font-size: 11px; }
 .grid-settings-dialog__form .switch-control { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .grid-settings-dialog__form .switch-control input[type="checkbox"] { position: static; width: 16px; height: 16px; opacity: 1; pointer-events: auto; cursor: pointer; }
+.grid-settings-dialog__form .switch-control:has(input:disabled) { cursor: not-allowed; }
+.grid-settings-dialog__form .switch-control input[type="checkbox"]:disabled { cursor: not-allowed; }
 .grid-settings-dialog__form .switch-control span { font-size: 13px; color: var(--foreground); }
+.grid-settings-dialog__appearance { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.grid-settings-dialog__appearance legend { padding: 0 5px; color: var(--foreground); font-size: 13px; font-weight: 600; }
+.grid-settings-dialog__range-field { display: flex; flex-direction: column; gap: 7px; }
+.grid-settings-dialog__range-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--foreground); font-size: 13px; }
+.grid-settings-dialog__range-heading output { min-width: 3.5rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; text-align: right; }
+.grid-settings-dialog__range-field input[type="range"] { width: 100%; margin: 0; accent-color: var(--primary); cursor: pointer; }
 .grid-settings-dialog__color-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .grid-settings-dialog__color-field label { font-size: 13px; color: var(--foreground); }
 .grid-settings-dialog__color-field input[type="color"] { width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: none; }

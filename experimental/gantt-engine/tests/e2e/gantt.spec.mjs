@@ -350,6 +350,39 @@ test('drag commits once and recursively pushes violating dependents', async ({ p
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width / 2 + 64, bounds.y + bounds.height / 2, { steps: 4 });
+  const draggedTask = page.locator(
+    '.gantt-task[data-task-id="performance-6"]',
+  );
+  await expect(draggedTask).toHaveClass(/gantt-preview/);
+  await expect(
+    draggedTask.locator('.gantt-task__selection'),
+  ).toHaveCSS('display', 'none');
+  const continuity = await page.evaluate(() => {
+    const path = document.querySelector(
+      '.dependency-line[data-to-task-id="performance-6"]',
+    );
+    const target = document.querySelector(
+      '.gantt-task[data-task-id="performance-6"] .gantt-bar',
+    );
+    const endpoint = path.getPointAtLength(path.getTotalLength());
+    return {
+      route: path.dataset.route,
+      endpoint: { x: endpoint.x, y: endpoint.y },
+      target: {
+        x: Number(target.getAttribute('x')),
+        y: Number(target.getAttribute('y')),
+        height: Number(target.getAttribute('height')),
+      },
+    };
+  });
+  if (continuity.route === 'left-entry') {
+    expect(continuity.endpoint.x).toBe(continuity.target.x);
+  } else {
+    expect([
+      continuity.target.y,
+      continuity.target.y + continuity.target.height,
+    ]).toContain(continuity.endpoint.y);
+  }
   await page.mouse.up();
 
   await expect(page.locator('#application-status')).toHaveText('Schedule saved');

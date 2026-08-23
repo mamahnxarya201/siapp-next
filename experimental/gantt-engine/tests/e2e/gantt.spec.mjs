@@ -443,9 +443,11 @@ test('move and resize snap to half-days and short-bar handles do not overlap', a
 
   let startHandle = task.locator('[data-interaction-mode="resize-start"]');
   bounds = await startHandle.boundingBox();
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  expect(bounds.width).toBe(20);
+  expect(bounds.height).toBe(36);
+  await page.mouse.move(bounds.x + 2, bounds.y + bounds.height / 2);
   await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width / 2 - 16, bounds.y + bounds.height / 2);
+  await page.mouse.move(bounds.x - 14, bounds.y + bounds.height / 2);
   await page.mouse.up();
   const startResized = await dates();
   expect(startResized.start).toBe(initial.start);
@@ -453,9 +455,17 @@ test('move and resize snap to half-days and short-bar handles do not overlap', a
 
   let endHandle = task.locator('[data-interaction-mode="resize-end"]');
   bounds = await endHandle.boundingBox();
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  expect(bounds.width).toBe(20);
+  expect(bounds.height).toBe(36);
+  await page.mouse.move(
+    bounds.x + bounds.width - 2,
+    bounds.y + bounds.height / 2,
+  );
   await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width / 2 + 16, bounds.y + bounds.height / 2);
+  await page.mouse.move(
+    bounds.x + bounds.width + 14,
+    bounds.y + bounds.height / 2,
+  );
   await page.mouse.up();
   const endResized = await dates();
   expect(endResized.end - startResized.end).toBe(12 * 60 * 60 * 1000);
@@ -473,15 +483,15 @@ test('move and resize snap to half-days and short-bar handles do not overlap', a
   endHandle = task.locator('[data-interaction-mode="resize-end"]');
   const weekStart = await startHandle.boundingBox();
   const weekEnd = await endHandle.boundingBox();
-  expect(weekStart.width).toBe(8);
-  expect(weekEnd.width).toBe(8);
+  expect(weekStart.width).toBe(16);
+  expect(weekEnd.width).toBe(16);
   expect(weekStart.x + weekStart.width).toBeLessThanOrEqual(weekEnd.x);
 
   await page.locator('input[name="scale"][value="month"]').check({ force: true });
   const monthStart = await startHandle.boundingBox();
   const monthEnd = await endHandle.boundingBox();
-  expect(monthStart.width).toBe(5);
-  expect(monthEnd.width).toBe(5);
+  expect(monthStart.width).toBe(13);
+  expect(monthEnd.width).toBe(13);
   expect(monthStart.x + monthStart.width).toBeLessThanOrEqual(monthEnd.x);
 });
 
@@ -1220,6 +1230,186 @@ test('left drag pre-renders a viewport buffer instead of re-anchoring each date'
   });
   expect(compacted.scroll).toBe(0);
   expect(compacted.min).toBe(compacted.earliest);
+});
+
+test('returning an expanded left drag to the viewport retains the arena until manual compaction', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.evaluate(() => {
+    const start = new Date('2027-01-16T00:00:00');
+    globalThis.ganttDemo.setTasks([{
+      id: 'arena-retained',
+      name: 'Arena retained',
+      groupName: null,
+      teamName: 'T',
+      status: 'todo',
+      startDate: start.toISOString(),
+      endDate: new Date(start.getTime() + 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  const timeline = page.locator('#timeline-viewport');
+  const bar = page.locator(
+    '.gantt-task[data-task-id="arena-retained"] [data-interaction-mode="move"]',
+  );
+  await expect(bar).toBeVisible();
+  const beforeMin = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().minDate.toISOString()
+  );
+  const viewport = await timeline.boundingBox();
+  const barBounds = await bar.boundingBox();
+  await page.mouse.move(
+    barBounds.x + barBounds.width / 2,
+    barBounds.y + barBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(viewport.x - 30, barBounds.y + barBounds.height / 2, {
+    steps: 8,
+  });
+  await page.waitForTimeout(350);
+  const expandedMin = await page.evaluate(() =>
+    globalThis.ganttDemo.getState().minDate.toISOString()
+  );
+  expect(Date.parse(expandedMin)).toBeLessThan(Date.parse(beforeMin));
+  await page.mouse.move(
+    viewport.x + viewport.width / 2,
+    barBounds.y + barBounds.height / 2,
+    { steps: 12 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+
+  const retained = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    return {
+      min: state.minDate.toISOString(),
+      taskCount: state.tasks.length,
+      taskId: state.tasks[0]?.id,
+      domCount: document.querySelectorAll(
+        '.gantt-task[data-task-id="arena-retained"]',
+      ).length,
+    };
+  });
+  expect(retained).toEqual({
+    min: expandedMin,
+    taskCount: 1,
+    taskId: 'arena-retained',
+    domCount: 1,
+  });
+  await expect(bar).toBeVisible();
+
+  await page.getByRole('button', { name: 'Compact timeline' }).click();
+  await page.waitForTimeout(100);
+  const compacted = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    const root = document.querySelector('#timeline-viewport');
+    return {
+      min: state.minDate.toDateString(),
+      taskStart: state.tasks[0].startDate.toDateString(),
+      width: root.scrollWidth,
+      minimumWidth: root.clientWidth + 20,
+      taskCount: state.tasks.length,
+      domCount: document.querySelectorAll(
+        '.gantt-task[data-task-id="arena-retained"]',
+      ).length,
+    };
+  });
+  expect(compacted.min).toBe(compacted.taskStart);
+  expect(compacted.width).toBeGreaterThanOrEqual(compacted.minimumWidth);
+  expect(compacted.taskCount).toBe(1);
+  expect(compacted.domCount).toBe(1);
+  const compactedRange = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    return {
+      min: state.minDate.getTime(),
+      max: state.timelineMaxDate.getTime(),
+    };
+  });
+  await page.getByRole('button', { name: 'Compact timeline' }).click();
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    return {
+      min: state.minDate.getTime(),
+      max: state.timelineMaxDate.getTime(),
+    };
+  })).toEqual(compactedRange);
+  await expect(bar).toBeVisible();
+});
+
+test('a fast diagonal swipe after compaction keeps the committed bar inside the timeline arena', async ({ page }) => {
+  await page.goto('/demo/empty.html');
+  await page.evaluate(() => {
+    const start = new Date('2027-01-16T00:00:00');
+    globalThis.ganttDemo.setTasks([{
+      id: 'diagonal-swipe',
+      name: 'Diagonal swipe',
+      groupName: null,
+      teamName: 'T',
+      status: 'todo',
+      startDate: start.toISOString(),
+      endDate: new Date(start.getTime() + 86400000).toISOString(),
+      color: '#287984',
+      dependencies: [],
+      dependents: [],
+    }]);
+  });
+  const timeline = page.locator('#timeline-viewport');
+  const bar = page.locator(
+    '.gantt-task[data-task-id="diagonal-swipe"] [data-interaction-mode="move"]',
+  );
+  await expect(bar).toBeVisible();
+  await page.getByRole('button', { name: 'Compact timeline' }).click();
+  await page.waitForTimeout(100);
+  const viewport = await timeline.boundingBox();
+  const barBounds = await bar.boundingBox();
+  await page.mouse.move(
+    barBounds.x + barBounds.width / 2,
+    barBounds.y + barBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    viewport.x + viewport.width + 240,
+    barBounds.y + barBounds.height / 2 + 180,
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  const committed = await page.evaluate(() => {
+    const state = globalThis.ganttDemo.getState();
+    const root = document.querySelector('#timeline-viewport');
+    const task = state.tasks.find((item) => item.id === 'diagonal-swipe');
+    const taskElement = document.querySelector(
+      '.gantt-task[data-task-id="diagonal-swipe"] [data-interaction-mode="move"]',
+    );
+    const x = Number(taskElement.getAttribute('x'));
+    const width = Number(taskElement.getAttribute('width'));
+    return {
+      taskCount: state.tasks.length,
+      domCount: document.querySelectorAll(
+        '.gantt-task[data-task-id="diagonal-swipe"]',
+      ).length,
+      duration: task.endDate.getTime() - task.startDate.getTime(),
+      maxDay: new Date(
+        state.timelineMaxDate.getFullYear(),
+        state.timelineMaxDate.getMonth(),
+        state.timelineMaxDate.getDate(),
+      ).getTime(),
+      taskEndDay: new Date(
+        task.endDate.getFullYear(),
+        task.endDate.getMonth(),
+        task.endDate.getDate(),
+      ).getTime(),
+      geometryInsideArena: x >= 0 && x + width <= root.scrollWidth,
+    };
+  });
+  expect(committed.taskCount).toBe(1);
+  expect(committed.domCount).toBe(1);
+  expect(committed.duration).toBe(86400000);
+  expect(committed.geometryInsideArena).toBe(true);
+  expect(committed.maxDay).toBeGreaterThanOrEqual(committed.taskEndDay);
+  await expect(bar).toBeVisible();
 });
 test('resizing a task edge uses the same edge autoscroll session', async ({ page }) => {
   const timeline = page.locator('#timeline-viewport');
